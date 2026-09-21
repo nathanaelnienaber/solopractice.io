@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.next/
+out/
+target/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test
+coverage/
+
+# Tauri
+apps/desktop/src-tauri/target/
+
+# Local database files (never commit)
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Audio recordings (never commit - contains PHI)
+*.wav
+*.mp3
+*.m4a
+*.ogg
+recordings/
+
+# Transcripts and clinical notes (never commit - contains PHI)
+transcripts/
+clinical/
+
+# Superbills (may contain PHI)
+superbills/
+
+# Backups
+backups/
+*.backup
+
+# OS
+Thumbs.db

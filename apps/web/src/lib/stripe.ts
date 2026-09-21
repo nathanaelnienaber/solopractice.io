@@ -1,0 +1,112 @@
+/**
+ * Stripe Connect Integration
+ *
+ * Uses Stripe Connect Express with destination charges.
+ * Platform takes 1% application fee on all payments.
+ */
+
+import Stripe from "stripe";
+import { PLATFORM_FEE_PERCENT } from "@solopractice/shared";
+
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.warn("STRIPE_SECRET_KEY not set - Stripe features will not work");
+}
+
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
+  apiVersion: "2025-05-28.basil",
+});
+
+export function calculateApplicationFee(amountCents: number): number {
+  return Math.round(amountCents * (PLATFORM_FEE_PERCENT / 100));
+}
+
+export async function createConnectAccountLink(
+  accountId: string,
+  refreshUrl: string,
+  returnUrl: string
+): Promise<string> {
+  const accountLink = await stripe.accountLinks.create({
+    account: accountId,
+    refresh_url: refreshUrl,
+    return_url: returnUrl,
+    type: "account_onboarding",
+  });
+  return accountLink.url;
+}
+
+export async function createConnectedAccount(
+  email: string
+): Promise<Stripe.Account> {
+  return stripe.accounts.create({
+    type: "express",
+    email,
+    capabilities: {
+      card_payments: { requested: true },
+      transfers: { requested: true },
+    },
+  });
+}
+
+export async function createCheckoutSession({
+  connectedAccountId,
+  amountCents,
+  description,
+  clientEmail,
+  successUrl,
+  cancelUrl,
+  invoiceId,
+}: {
+  connectedAccountId: string;
+  amountCents: number;
+  description: string;
+  clientEmail: string;
+  successUrl: string;
+  cancelUrl: string;
+  invoiceId: string;
+}): Promise<Stripe.Checkout.Session> {
+  const applicationFee = calculateApplicationFee(amountCents);
+
+  return stripe.checkout.sessions.create({
+    payment_method_types: ["card"],
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: description,
+          },
+          unit_amount: amountCents,
+        },
+        quantity: 1,
+      },
+    ],
+    mode: "payment",
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    customer_email: clientEmail,
+    payment_intent_data: {
+      application_fee_amount: applicationFee,
+      transfer_data: {
+        destination: connectedAccountId,
+      },
+    },
+    metadata: {
+      invoiceId,
+    },
+  });
+}
+
+export async function getAccountStatus(
+  accountId: string
+): Promise<{
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+  detailsSubmitted: boolean;
+}> {
+  const account = await stripe.accounts.retrieve(accountId);
+  return {
+    chargesEnabled: account.charges_enabled ?? false,
+    payoutsEnabled: account.payouts_enabled ?? false,
+    detailsSubmitted: account.details_submitted ?? false,
+  };
+}

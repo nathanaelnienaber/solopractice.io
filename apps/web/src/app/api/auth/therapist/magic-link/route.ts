@@ -1,0 +1,48 @@
+import { NextRequest, NextResponse } from "next/server";
+import { db, therapists } from "@/db";
+import { eq } from "drizzle-orm";
+import { generateMagicLinkToken, generateId, getTokenExpiry } from "@/lib/auth";
+import { sendMagicLink } from "@/lib/email";
+
+export async function POST(request: NextRequest) {
+  try {
+    const { email } = await request.json();
+
+    if (!email || typeof email !== "string") {
+      return NextResponse.json({ error: "Email required" }, { status: 400 });
+    }
+
+    let therapist = await db.query.therapists.findFirst({
+      where: eq(therapists.email, email.toLowerCase()),
+    });
+
+    if (!therapist) {
+      therapist = await db
+        .insert(therapists)
+        .values({
+          id: generateId(),
+          email: email.toLowerCase(),
+          firstName: "New",
+          lastName: "Therapist",
+          credentials: "LMHC",
+          licenseState: "FL",
+        })
+        .returning()
+        .then((rows) => rows[0]!);
+    }
+
+    const token = generateMagicLinkToken();
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
+    const magicLinkUrl = `${baseUrl}/api/auth/therapist/verify?token=${token}&id=${therapist.id}`;
+
+    await sendMagicLink(email, magicLinkUrl, "therapist");
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Magic link error:", error);
+    return NextResponse.json(
+      { error: "Failed to send magic link" },
+      { status: 500 }
+    );
+  }
+}

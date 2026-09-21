@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.next/
+out/
+target/
+
+# Desktop build artifacts
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/WixTools/
+apps/desktop/src-tauri/*.msi
+apps/desktop/src-tauri/*.exe
+
+# Local data (NEVER commit PHI)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+data/
+local-data/
+
+# Audio/clinical files (NEVER commit)
+*.wav
+*.mp3
+*.m4a
+*.webm
+recordings/
+transcripts/
+soap-notes/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Turbo
+.turbo/
+
+# Vercel
+.vercel/

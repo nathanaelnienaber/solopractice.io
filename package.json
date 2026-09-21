@@ -8,6 +8,8 @@
     "build:web": "pnpm --filter @solopractice/web build",
     "dev:desktop": "pnpm --filter @solopractice/desktop dev",
     "build:desktop": "pnpm --filter @solopractice/desktop build",
+    "test": "pnpm -r test",
+    "test:shared": "pnpm --filter @solopractice/shared test",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "db:generate": "pnpm --filter @solopractice/web db:generate",

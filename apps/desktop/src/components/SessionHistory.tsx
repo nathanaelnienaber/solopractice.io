@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { SoapEditor } from "./SoapEditor";
-import { useI18n } from "../lib/i18n";
+import type { SoapNote as SharedSoapNote } from "@solopractice/shared/desktop";
 
 interface SessionInfo {
   id: string;
@@ -55,13 +55,16 @@ export function SessionHistory({
   onClose,
   onStartNewSession,
 }: SessionHistoryProps) {
-  const { t } = useI18n();
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSession, setSelectedSession] = useState<FullSessionData | null>(null);
   const [showSoapEditor, setShowSoapEditor] = useState(false);
   const [exportingPdf, setExportingPdf] = useState<string | null>(null);
+  // Draft being edited in the modal. This is the editor's own (shared) type, not
+  // the wire-format SoapNote above: the editor only ever handles the four SOAP
+  // fields plus the draft flag, and the id stays unset until the backend assigns it.
+  const [editingSoap, setEditingSoap] = useState<Partial<SharedSoapNote>>({});
 
   useEffect(() => {
     loadSessions();
@@ -99,16 +102,6 @@ export function SessionHistory({
     } finally {
       setExportingPdf(null);
     }
-  }
-
-  function formatDate(dateStr: string): string {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
   }
 
   function getStatusBadge(session: SessionInfo) {
@@ -238,14 +231,24 @@ export function SessionHistory({
       {/* SOAP Editor Modal */}
       {showSoapEditor && selectedSession && (
         <SoapEditor
-          sessionId={selectedSession.session.id}
+          soapNote={editingSoap}
           clientName={clientName}
-          onClose={() => {
-            setShowSoapEditor(false);
-            loadSessionDetails(selectedSession.session.id);
+          onChange={setEditingSoap}
+          onSave={async () => {
+            try {
+              await invoke("save_soap_note", {
+                clientId,
+                soapNote: editingSoap,
+              });
+              setShowSoapEditor(false);
+              loadSessions();
+              loadSessionDetails(selectedSession.session.id);
+            } catch (err) {
+              setError(err instanceof Error ? err.message : String(err));
+            }
           }}
-          onSaved={() => {
-            loadSessions();
+          onCancel={() => {
+            setShowSoapEditor(false);
             loadSessionDetails(selectedSession.session.id);
           }}
         />

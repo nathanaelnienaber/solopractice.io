@@ -5,13 +5,20 @@ interface SoapEditorProps {
   onChange: (note: Partial<SoapNote>) => void;
   onSave: () => void;
   onCancel: () => void;
+  /** Optional heading context, shown above the editor when provided. */
+  clientName?: string;
 }
 
-export function SoapEditor({ soapNote, onChange, onSave, onCancel }: SoapEditorProps) {
+export function SoapEditor({ soapNote, onChange, onSave, onCancel, clientName }: SoapEditorProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">SOAP Note</h2>
+        <div>
+          <h2 className="text-lg font-semibold">SOAP Note</h2>
+          {clientName && (
+            <p className="text-sm text-muted-foreground">{clientName}</p>
+          )}
+        </div>
         {soapNote.isDraft && (
           <span className="text-xs px-2 py-1 rounded-full bg-warning/10 text-warning">
             Draft - AI Generated

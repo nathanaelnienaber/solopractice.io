@@ -6,7 +6,7 @@ export function LanguageToggle() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const currentLang = LANGUAGES.find((l) => l.code === language) || LANGUAGES[0];
+  const currentLang = LANGUAGES.find((l) => l.code === language) ?? LANGUAGES[0]!;
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

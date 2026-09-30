@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useI18n } from "../lib/i18n";
 
 interface Client {
   id: string;
@@ -76,11 +75,9 @@ const COMMON_CPT_CODES = [
 ];
 
 export function Superbill() {
-  const { t } = useI18n();
   const [view, setView] = useState<"form" | "history">("form");
   const [clients, setClients] = useState<Client[]>([]);
   const [superbills, setSuperbills] = useState<SuperbillRecord[]>([]);
-  const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generatedPath, setGeneratedPath] = useState<string | null>(null);
 
@@ -208,7 +205,7 @@ export function Superbill() {
           clientDob: clientDob || null,
           clientAddress: clientAddress || null,
           clientPhone: clientPhone || null,
-          serviceDate: new Date(serviceDate).toLocaleDateString("en-US"),
+          serviceDate: new Date(serviceDate ?? new Date().toISOString().split("T")[0]!).toLocaleDateString("en-US"),
           diagnosisCodes: selectedDiagnoses,
           serviceCodes: selectedServices,
           therapistInfo,

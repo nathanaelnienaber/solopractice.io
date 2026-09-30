@@ -1,19 +1,40 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ClientList } from "./components/ClientList";
 import { SessionPanel } from "./components/SessionPanel";
 import { JobQueue } from "./components/JobQueue";
 import { Settings } from "./components/Settings";
+import { Help } from "./components/Help";
+import { SetupWizard } from "./components/SetupWizard";
 import type { SessionWithDetails } from "@solopractice/shared/desktop";
 
-type View = "clients" | "session" | "jobs" | "settings";
+type View = "clients" | "session" | "jobs" | "settings" | "help";
+
+const SETUP_DONE_KEY = "solopractice-setup-done";
 
 export default function App() {
   const [view, setView] = useState<View>("clients");
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [currentSession, setCurrentSession] = useState<SessionWithDetails | null>(null);
+  const [showWizard, setShowWizard] = useState(() => {
+    try {
+      return localStorage.getItem(SETUP_DONE_KEY) !== "true";
+    } catch {
+      return true;
+    }
+  });
+
+  function dismissWizard() {
+    try {
+      localStorage.setItem(SETUP_DONE_KEY, "true");
+    } catch {
+      // Storage unavailable -- not fatal, wizard just reappears next launch.
+    }
+    setShowWizard(false);
+  }
 
   return (
     <div className="flex h-screen bg-background">
+      {showWizard && <SetupWizard onComplete={dismissWizard} onSkip={dismissWizard} />}
       {/* Sidebar */}
       <nav className="w-16 bg-muted border-r border-border flex flex-col items-center py-4 gap-2">
         <NavButton
@@ -39,6 +60,13 @@ export default function App() {
           <QueueIcon />
         </NavButton>
         <div className="flex-1" />
+        <NavButton
+          active={view === "help"}
+          onClick={() => setView("help")}
+          title="Help"
+        >
+          <HelpIcon />
+        </NavButton>
         <NavButton
           active={view === "settings"}
           onClick={() => setView("settings")}
@@ -68,6 +96,7 @@ export default function App() {
           />
         )}
         {view === "jobs" && <JobQueue />}
+        {view === "help" && <Help />}
         {view === "settings" && <Settings />}
       </main>
     </div>
@@ -132,6 +161,18 @@ function SettingsIcon() {
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  );
+}
+
+function HelpIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45 1.043-1.45 1.887v.394M12 17.5h.008M12 21a9 9 0 100-18 9 9 0 000 18z"
+      />
     </svg>
   );
 }

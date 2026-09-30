@@ -70,6 +70,12 @@ export const therapists = pgTable("therapists", {
   stripeOnboardingComplete: boolean("stripe_onboarding_complete")
     .notNull()
     .default(false),
+  // Per-therapist shared secret the desktop app presents when polling consent
+  // status. Stored hashed would be ideal, but the desktop needs to send the raw
+  // value, so this holds it directly. Treat as a secret: never return it from a
+  // GET route, only rotate it through the POST route.
+  desktopApiKey: text("desktop_api_key"),
+  desktopApiKeyCreatedAt: timestamp("desktop_api_key_created_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -13,7 +13,11 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
-  apiVersion: "2025-05-28.basil",
+  // Must be a version literal accepted by the installed stripe SDK (v17.7.0).
+  // The previously hardcoded "2025-05-28.basil" does not exist in this SDK's
+  // type union and fails the build; 2025-02-24.acacia is its latest accepted pin.
+  // Bump deliberately when the SDK is upgraded, not opportunistically.
+  apiVersion: "2025-02-24.acacia",
 });
 
 export function calculateApplicationFee(amountCents: number): number {

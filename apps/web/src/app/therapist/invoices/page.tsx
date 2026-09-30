@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,25 @@ interface Client {
   lastName: string;
 }
 
+// useSearchParams() opts a client component out of static prerendering, so
+// Next requires a Suspense boundary above it or the build fails at export.
+// The real page lives in InvoicesView below; this wrapper only provides the
+// boundary and a sensible loading state.
 export default function InvoicesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <p className="text-muted-foreground">Loading invoices...</p>
+        </div>
+      }
+    >
+      <InvoicesView />
+    </Suspense>
+  );
+}
+
+function InvoicesView() {
   const searchParams = useSearchParams();
   const preselectedClientId = searchParams.get("clientId");
 

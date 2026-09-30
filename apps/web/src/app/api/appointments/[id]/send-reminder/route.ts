@@ -59,7 +59,7 @@ export async function POST(
   // Compose reminder message
   const message = `Hi ${client.firstName}, this is a reminder of your appointment with ${therapist.firstName} ${therapist.lastName} on ${dateStr} at ${timeStr}. Please reply CONFIRM to confirm or call if you need to reschedule.`;
 
-  const smsResult = await sendSms(client.phone, message);
+  const smsResult = await sendSms({ to: client.phone, body: message });
 
   if (smsResult.success) {
     // Update appointment to record reminder was sent

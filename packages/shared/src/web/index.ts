@@ -23,5 +23,12 @@ export type {
 export {
   assertWebSafePayload,
   isWebSafePayload,
+  findClinicalFields,
+  // The error type is part of the public contract: callers catch it by identity
+  // (`e instanceof WebSafetyViolationError`) to turn a blocked clinical payload
+  // into a 400. It was missing from this barrel, so the web app's build failed.
+  WebSafetyViolationError,
   CLINICAL_FIELD_BLOCKLIST,
 } from "../guards/web-safety.js";
+
+export type { ClinicalField } from "../guards/web-safety.js";

@@ -20,8 +20,12 @@ export async function validateWebSafeRequest(
     return { valid: true, body };
   } catch (error) {
     if (error instanceof WebSafetyViolationError) {
+      // Next 16 removed NextRequest.ip. Read the standard proxy headers
+      // instead so this security log line still identifies a caller.
+      const forwardedFor = request.headers.get("x-forwarded-for");
+      const clientIp = forwardedFor?.split(",")[0]?.trim() ?? "unknown";
       console.error(
-        `[SECURITY] Web safety violation from ${request.ip}: ${error.blockedFields.join(", ")}`
+        `[SECURITY] Web safety violation from ${clientIp}: ${error.blockedFields.join(", ")}`
       );
       return {
         valid: false,

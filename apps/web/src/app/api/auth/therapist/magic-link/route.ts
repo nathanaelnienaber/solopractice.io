@@ -12,12 +12,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email required" }, { status: 400 });
     }
 
-    let therapist = await db.query.therapists.findFirst({
+    const existing = await db.query.therapists.findFirst({
       where: eq(therapists.email, email.toLowerCase()),
     });
 
-    if (!therapist) {
-      therapist = await db
+    const therapist =
+      existing ??
+      (await db
         .insert(therapists)
         .values({
           id: generateId(),
@@ -28,11 +29,19 @@ export async function POST(request: NextRequest) {
           licenseState: "FL",
         })
         .returning()
-        .then((rows) => rows[0]!);
-    }
+        .then((rows) => {
+          const created = rows[0];
+          if (!created) {
+            throw new Error("Failed to create therapist record");
+          }
+          return created;
+        }));
 
     const token = generateMagicLinkToken();
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
+    if (!therapist) {
+      throw new Error("Could not resolve therapist for magic link");
+    }
     const magicLinkUrl = `${baseUrl}/api/auth/therapist/verify?token=${token}&id=${therapist.id}`;
 
     await sendMagicLink(email, magicLinkUrl, "therapist");

@@ -22,17 +22,41 @@ export interface SendSmsOptions {
   body: string;
 }
 
-export async function sendSms({ to, body }: SendSmsOptions) {
+export interface SendSmsResult {
+  sid: string;
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * Sends an SMS and always resolves to a SendSmsResult.
+ *
+ * Twilio throws on failure and returns a MessageInstance on success, while the
+ * no-credentials stub returns a synthetic sid. Callers need one uniform shape,
+ * so failures are caught and converted here rather than at every call site.
+ */
+export async function sendSms({
+  to,
+  body,
+}: SendSmsOptions): Promise<SendSmsResult> {
   if (!client) {
     console.log(`[SMS STUB] To: ${to}, Body: ${body}`);
-    return { sid: "stub-" + Date.now() };
+    return { sid: "stub-" + Date.now(), success: true };
   }
 
-  return client.messages.create({
-    body,
-    from: FROM_PHONE,
-    to,
-  });
+  try {
+    const message = await client.messages.create({
+      body,
+      from: FROM_PHONE,
+      to,
+    });
+    return { sid: message.sid, success: true };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unknown SMS error";
+    console.error(`[SMS] Failed to send to ${to}: ${message}`);
+    return { sid: "", success: false, error: message };
+  }
 }
 
 export async function sendAppointmentReminder(

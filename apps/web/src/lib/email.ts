@@ -31,13 +31,24 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
     return { id: "stub-" + Date.now() };
   }
 
-  return resend.emails.send({
+  const { data, error } = await resend.emails.send({
     from: FROM_EMAIL,
     to,
     subject,
     html,
     text,
   });
+
+  if (error) {
+    // Resend's SDK resolves (never rejects) on a failed send, returning
+    // { data: null, error }. Returning that silently here meant callers
+    // (e.g. the magic-link route) saw success and told the user to check
+    // their inbox for an email that was never sent. Surface it as a real
+    // thrown error so callers' existing try/catch -> 500 paths fire.
+    throw new Error(`Resend send failed (${error.name}): ${error.message}`);
+  }
+
+  return data;
 }
 
 export async function sendMagicLink(

@@ -2,6 +2,12 @@
 node_modules/
 .pnpm-store/
 
+# Local symlink farms (node_modules copies outside the ignore above)
+nmx/
+nmx_root/
+*/nmx/
+*/*/nmx/
+
 # Build outputs
 dist/
 .next/

@@ -14,8 +14,6 @@ type SessionState = "idle" | "recording" | "transcribing" | "drafting" | "editin
 
 export function SessionPanel({
   clientId,
-  session,
-  onSessionChange,
   onBack,
 }: SessionPanelProps) {
   const [state, setState] = useState<SessionState>("idle");

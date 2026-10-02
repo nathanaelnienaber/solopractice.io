@@ -1,16 +1,34 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 interface MlSetupStatus {
-  whisperInstalled: boolean;
-  whisperPath: string | null;
-  whisperVersion: string | null;
+  whisperModelDownloaded: boolean;
+  whisperModelPath: string | null;
+  whisperBinaryAvailable: boolean;
+  whisperBinaryPath: string | null;
+  whisperBinaryDownloadSupported: boolean;
   ollamaInstalled: boolean;
-  ollamaPath: string | null;
   ollamaRunning: boolean;
   ollamaModels: string[];
   recommendedModel: string;
+  recommendedWhisperModel: string;
 }
+
+interface DownloadProgress {
+  kind: "whisper-model" | "whisper-binary" | "ollama-model";
+  label: string;
+  downloadedBytes: number;
+  totalBytes: number | null;
+  percent: number | null;
+  attempt: number;
+  done: boolean;
+  error: string | null;
+}
+
+type Step = "welcome" | "dataLocation" | "microphone" | "speechToText" | "aiDrafting" | "done";
+
+const STEP_ORDER: Step[] = ["welcome", "dataLocation", "microphone", "speechToText", "aiDrafting", "done"];
 
 interface SetupWizardProps {
   onComplete: () => void;
@@ -18,338 +36,381 @@ interface SetupWizardProps {
 }
 
 export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
-  const [step, setStep] = useState<"detecting" | "whisper" | "ollama" | "complete">("detecting");
+  const [step, setStep] = useState<Step>("welcome");
   const [status, setStatus] = useState<MlSetupStatus | null>(null);
-  const [whisperPath, setWhisperPath] = useState("");
-  const [ollamaModel, setOllamaModel] = useState("");
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [micState, setMicState] = useState<"unchecked" | "checking" | "ok" | "denied">("unchecked");
+  const [progress, setProgress] = useState<DownloadProgress | null>(null);
+  const [working, setWorking] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    detectSetup();
+    invoke<MlSetupStatus>("detect_ml_setup")
+      .then(setStatus)
+      .catch(() => setStatus(null));
+
+    const unlisten = listen<DownloadProgress>("ml-download-progress", (event) => {
+      setProgress(event.payload);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, []);
 
-  async function detectSetup() {
+  function goTo(next: Step) {
+    setMessage(null);
+    setProgress(null);
+    setStep(next);
+  }
+
+  function nextStep() {
+    const idx = STEP_ORDER.indexOf(step);
+    const next = STEP_ORDER[Math.min(idx + 1, STEP_ORDER.length - 1)] ?? "done";
+    goTo(next);
+  }
+
+  async function checkMicrophone() {
+    setMicState("checking");
     try {
-      const result = await invoke<MlSetupStatus>("detect_ml_setup");
-      setStatus(result);
-      setWhisperPath(result.whisperPath || "");
-      setOllamaModel(result.recommendedModel || "llama3.2");
-      
-      if (result.whisperInstalled && result.ollamaInstalled && result.ollamaRunning) {
-        setStep("complete");
-      } else if (!result.whisperInstalled) {
-        setStep("whisper");
-      } else {
-        setStep("ollama");
-      }
-    } catch (err) {
-      setError(String(err));
-      setStep("whisper");
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      setMicState("ok");
+    } catch {
+      setMicState("denied");
     }
   }
 
-  async function testWhisper() {
-    if (!whisperPath) return;
-    setTesting(true);
-    setTestResult(null);
+  async function setUpSpeechToText() {
+    setWorking(true);
+    setMessage(null);
     try {
-      const result = await invoke<string>("test_whisper", { whisperPath });
-      setTestResult({ success: true, message: result });
-    } catch (err) {
-      setTestResult({ success: false, message: String(err) });
-    }
-    setTesting(false);
-  }
-
-  async function testOllama() {
-    if (!ollamaModel) return;
-    setTesting(true);
-    setTestResult(null);
-    try {
-      const result = await invoke<string>("test_ollama", { model: ollamaModel });
-      setTestResult({ success: true, message: result });
-    } catch (err) {
-      setTestResult({ success: false, message: String(err) });
-    }
-    setTesting(false);
-  }
-
-  async function saveAndContinue() {
-    try {
-      await invoke("save_ml_paths", {
-        whisperPath: whisperPath || null,
-        ollamaModel: ollamaModel || null,
+      const modelPath = await invoke<string>("download_whisper_model", {
+        model: status?.recommendedWhisperModel ?? "ggml-base.en",
       });
-      
-      if (step === "whisper") {
-        setStep("ollama");
-        setTestResult(null);
-      } else {
-        setStep("complete");
+      let binaryPath = status?.whisperBinaryPath ?? null;
+      if (!binaryPath && status?.whisperBinaryDownloadSupported) {
+        try {
+          binaryPath = await invoke<string>("download_whisper_binary");
+        } catch (err) {
+          // Not fatal -- manual notes still work.
+          setMessage(String(err));
+        }
+      }
+      await invoke("save_ml_paths", {
+        whisperPath: binaryPath,
+        whisperModelPath: modelPath,
+        ollamaModel: null,
+      });
+      const refreshed = await invoke<MlSetupStatus>("detect_ml_setup");
+      setStatus(refreshed);
+      if (!binaryPath) {
+        setMessage(
+          "The speech-to-text files are ready, but automatic setup isn't available for this computer's operating system yet. You can still write session notes by hand, no problem."
+        );
       }
     } catch (err) {
-      setError(String(err));
+      setMessage(
+        "We couldn't finish setting up speech-to-text automatically. You can skip this for now and write session notes by hand, then try again later from Settings."
+      );
+      console.error(err);
+    } finally {
+      setWorking(false);
     }
   }
 
-  async function browseForWhisper() {
-    const { open } = await import("@tauri-apps/plugin-dialog");
-    const selected = await open({
-      filters: [{ name: "Executable", extensions: ["exe"] }],
-      title: "Select whisper.cpp main.exe",
-    });
-    if (selected) {
-      setWhisperPath(selected as string);
-      setTestResult(null);
+  async function setUpAiDrafting() {
+    setWorking(true);
+    setMessage(null);
+    try {
+      await invoke("pull_ollama_model", { model: status?.recommendedModel ?? "llama3.2" });
+      await invoke("save_ml_paths", {
+        whisperPath: null,
+        whisperModelPath: null,
+        ollamaModel: status?.recommendedModel ?? "llama3.2",
+      });
+      const refreshed = await invoke<MlSetupStatus>("detect_ml_setup");
+      setStatus(refreshed);
+    } catch (err) {
+      setMessage(
+        "We couldn't set up AI drafting automatically. That's okay, you can still write your session notes yourself, and set this up later from Settings."
+      );
+      console.error(err);
+    } finally {
+      setWorking(false);
     }
   }
 
-  if (step === "detecting") {
-    return (
-      <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-lg">Detecting AI tools...</p>
-          <p className="text-sm text-muted-foreground mt-1">Checking for whisper.cpp and Ollama</p>
-        </div>
-      </div>
-    );
-  }
+  const progressPct = progress?.percent != null ? Math.round(progress.percent) : null;
 
   return (
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-card border rounded-xl shadow-xl max-w-lg w-full p-6">
-        {/* Progress indicator */}
-        <div className="flex items-center gap-2 mb-6">
-          <div className={`w-3 h-3 rounded-full ${step === "whisper" ? "bg-primary" : "bg-muted"}`} />
-          <div className="flex-1 h-0.5 bg-muted">
-            <div className={`h-full bg-primary transition-all ${step === "ollama" || step === "complete" ? "w-full" : "w-0"}`} />
-          </div>
-          <div className={`w-3 h-3 rounded-full ${step === "ollama" ? "bg-primary" : step === "complete" ? "bg-green-500" : "bg-muted"}`} />
-          <div className="flex-1 h-0.5 bg-muted">
-            <div className={`h-full bg-primary transition-all ${step === "complete" ? "w-full" : "w-0"}`} />
-          </div>
-          <div className={`w-3 h-3 rounded-full ${step === "complete" ? "bg-green-500" : "bg-muted"}`} />
-        </div>
+        <WizardProgress step={step} />
 
-        {step === "whisper" && (
-          <>
-            <div className="flex items-start gap-4 mb-6">
-              <div className="w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
-                <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold">Set Up Transcription</h2>
-                <p className="text-muted-foreground text-sm mt-1">
-                  whisper.cpp converts your session recordings into text transcripts. It runs entirely on your computer.
-                </p>
-              </div>
-            </div>
-
-            {status?.whisperInstalled ? (
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mb-4">
-                <p className="text-green-800 dark:text-green-200 text-sm font-medium">
-                  ✓ whisper.cpp detected at: {status.whisperPath}
-                </p>
-              </div>
-            ) : (
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-4">
-                <p className="text-amber-800 dark:text-amber-200 text-sm font-medium mb-2">
-                  whisper.cpp not detected
-                </p>
-                <ol className="text-amber-700 dark:text-amber-300 text-sm space-y-1 list-decimal list-inside">
-                  <li>Download from <a href="https://github.com/ggerganov/whisper.cpp/releases" target="_blank" className="underline">github.com/ggerganov/whisper.cpp</a></li>
-                  <li>Extract to a folder (e.g., C:\whisper)</li>
-                  <li>Download a model (e.g., ggml-base.en.bin)</li>
-                  <li>Select the main.exe file below</li>
-                </ol>
-              </div>
-            )}
-
-            <div className="space-y-3">
-              <label className="block text-sm font-medium">Path to whisper.cpp (main.exe)</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={whisperPath}
-                  onChange={(e) => setWhisperPath(e.target.value)}
-                  placeholder="C:\whisper\main.exe"
-                  className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                />
-                <button
-                  onClick={browseForWhisper}
-                  className="px-3 py-2 border border-border rounded-lg text-sm hover:bg-accent"
-                >
-                  Browse
-                </button>
-              </div>
-            </div>
-
-            {whisperPath && (
-              <div className="mt-4">
-                <button
-                  onClick={testWhisper}
-                  disabled={testing}
-                  className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-accent disabled:opacity-50"
-                >
-                  {testing ? "Testing..." : "Test Whisper"}
-                </button>
-                {testResult && (
-                  <p className={`text-sm mt-2 ${testResult.success ? "text-green-600" : "text-red-600"}`}>
-                    {testResult.message}
-                  </p>
-                )}
-              </div>
-            )}
-          </>
+        {step === "welcome" && (
+          <Section
+            title="Welcome to SoloPractice"
+            body="Let's get your computer set up. This will take about two minutes, and you won't need to type anything technical."
+          >
+            <p className="text-sm text-muted-foreground">
+              SoloPractice helps you record sessions, write notes, and get paid, all from one
+              simple app. Everything about your clients' care stays on this computer. Nothing
+              clinical is ever sent anywhere else.
+            </p>
+          </Section>
         )}
 
-        {step === "ollama" && (
-          <>
-            <div className="flex items-start gap-4 mb-6">
-              <div className="w-12 h-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
-                <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold">Set Up AI Notes</h2>
-                <p className="text-muted-foreground text-sm mt-1">
-                  Ollama generates SOAP note drafts from your transcripts using local AI. No data leaves your computer.
-                </p>
-              </div>
-            </div>
-
-            {status?.ollamaInstalled && status?.ollamaRunning ? (
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mb-4">
-                <p className="text-green-800 dark:text-green-200 text-sm font-medium">
-                  ✓ Ollama is running with {status.ollamaModels.length} model(s) available
-                </p>
-              </div>
-            ) : status?.ollamaInstalled ? (
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-4">
-                <p className="text-amber-800 dark:text-amber-200 text-sm font-medium mb-2">
-                  Ollama is installed but not running
-                </p>
-                <p className="text-amber-700 dark:text-amber-300 text-sm">
-                  Start Ollama from your Start menu or run <code className="bg-amber-100 dark:bg-amber-800 px-1 rounded">ollama serve</code> in a terminal.
-                </p>
-              </div>
-            ) : (
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-4">
-                <p className="text-amber-800 dark:text-amber-200 text-sm font-medium mb-2">
-                  Ollama not detected
-                </p>
-                <ol className="text-amber-700 dark:text-amber-300 text-sm space-y-1 list-decimal list-inside">
-                  <li>Download from <a href="https://ollama.com/download" target="_blank" className="underline">ollama.com/download</a></li>
-                  <li>Install and run Ollama</li>
-                  <li>Pull a model: <code className="bg-amber-100 dark:bg-amber-800 px-1 rounded">ollama pull llama3.2</code></li>
-                </ol>
-              </div>
-            )}
-
-            <div className="space-y-3">
-              <label className="block text-sm font-medium">AI Model for SOAP Notes</label>
-              {status?.ollamaModels && status.ollamaModels.length > 0 ? (
-                <select
-                  value={ollamaModel}
-                  onChange={(e) => setOllamaModel(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                >
-                  {status.ollamaModels.map((model) => (
-                    <option key={model} value={model}>{model}</option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  value={ollamaModel}
-                  onChange={(e) => setOllamaModel(e.target.value)}
-                  placeholder="llama3.2"
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                />
-              )}
-              <p className="text-xs text-muted-foreground">
-                Recommended: llama3.2 (fast, good quality). Use llama3.2:70b for best quality if you have 64GB+ RAM.
+        {step === "dataLocation" && (
+          <Section
+            title="Where your information is kept"
+            body="Everything you record or write is saved in a private folder on this computer that only you can open."
+          >
+            <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2">
+              <p>• Session recordings, transcripts, and notes never leave this computer.</p>
+              <p>• We never upload them to the internet, and nobody at SoloPractice can see them.</p>
+              <p>
+                • You can open that private folder any time from Help, to make your own backup
+                copy.
               </p>
             </div>
-
-            {ollamaModel && status?.ollamaRunning && (
-              <div className="mt-4">
-                <button
-                  onClick={testOllama}
-                  disabled={testing}
-                  className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-accent disabled:opacity-50"
-                >
-                  {testing ? "Testing..." : "Test Ollama"}
-                </button>
-                {testResult && (
-                  <p className={`text-sm mt-2 ${testResult.success ? "text-green-600" : "text-red-600"}`}>
-                    {testResult.message}
-                  </p>
-                )}
-              </div>
-            )}
-          </>
+          </Section>
         )}
 
-        {step === "complete" && (
+        {step === "microphone" && (
+          <Section
+            title="Check your microphone"
+            body="SoloPractice needs permission to hear your microphone so it can record sessions."
+          >
+            {micState === "unchecked" && (
+              <button
+                onClick={checkMicrophone}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90"
+              >
+                Test my microphone
+              </button>
+            )}
+            {micState === "checking" && <p className="text-sm text-muted-foreground">Checking...</p>}
+            {micState === "ok" && (
+              <StatusBanner tone="success">Your microphone is working.</StatusBanner>
+            )}
+            {micState === "denied" && (
+              <StatusBanner tone="warning">
+                We couldn't access your microphone. You can allow it later in your computer's
+                privacy settings, or from this app's Settings. You can still use SoloPractice
+                without recording, by typing notes directly.
+              </StatusBanner>
+            )}
+          </Section>
+        )}
+
+        {step === "speechToText" && (
+          <Section
+            title="Turn recordings into text"
+            body="This is optional. SoloPractice can automatically turn your session recordings into a written transcript, entirely on this computer, using nothing sent over the internet."
+          >
+            {status?.whisperModelDownloaded ? (
+              <StatusBanner tone="success">
+                Speech-to-text is already set up on this computer.
+              </StatusBanner>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Click below and SoloPractice will download what it needs, just once. You don't
+                  need to install anything yourself.
+                </p>
+                <button
+                  onClick={setUpSpeechToText}
+                  disabled={working}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {working ? "Setting up..." : "Set up speech-to-text"}
+                </button>
+              </>
+            )}
+            {progress && progress.kind !== "ollama-model" && (
+              <ProgressBar label={progress.label} percent={progressPct} error={progress.error} />
+            )}
+            {message && <p className="text-sm mt-3 text-muted-foreground">{message}</p>}
+            <p className="text-xs text-muted-foreground mt-4">
+              You can skip this. You'll still be able to write session notes by hand at any time.
+            </p>
+          </Section>
+        )}
+
+        {step === "aiDrafting" && (
+          <Section
+            title="Get a first draft of your notes"
+            body="Also optional. SoloPractice can write a first draft of your session notes for you to review and edit, using AI that runs only on this computer."
+          >
+            {status?.ollamaRunning ? (
+              <StatusBanner tone="success">
+                AI drafting is ready to go ({status.ollamaModels.length} model
+                {status.ollamaModels.length === 1 ? "" : "s"} installed).
+              </StatusBanner>
+            ) : status?.ollamaInstalled ? (
+              <>
+                <p className="text-sm text-muted-foreground mb-3">
+                  We found the AI drafting program on your computer, but it isn't turned on. Open
+                  it, then come back here.
+                </p>
+                <button
+                  onClick={setUpAiDrafting}
+                  disabled={working}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {working ? "Setting up..." : "Try again"}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground mb-3">
+                  This needs a free helper program called Ollama installed first. If you'd rather
+                  skip this step, you'll still write your notes yourself, exactly as before.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() =>
+                      import("@tauri-apps/plugin-shell").then(({ open }) => open("https://ollama.com/download"))
+                    }
+                    className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-accent"
+                  >
+                    Get the AI drafting program
+                  </button>
+                  <button
+                    onClick={setUpAiDrafting}
+                    disabled={working}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {working ? "Setting up..." : "I installed it, continue"}
+                  </button>
+                </div>
+              </>
+            )}
+            {progress && progress.kind === "ollama-model" && (
+              <ProgressBar label={progress.label} percent={progressPct} error={progress.error} />
+            )}
+            {message && <p className="text-sm mt-3 text-muted-foreground">{message}</p>}
+            <p className="text-xs text-muted-foreground mt-4">
+              Every AI draft is clearly marked and you always review and edit it before saving.
+              Skipping this step never stops you from writing and saving notes yourself.
+            </p>
+          </Section>
+        )}
+
+        {step === "done" && (
           <div className="text-center py-6">
             <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+              <CheckCircleIcon />
             </div>
-            <h2 className="text-xl font-semibold mb-2">Setup Complete!</h2>
+            <h2 className="text-xl font-semibold mb-2">You're all set</h2>
             <p className="text-muted-foreground text-sm mb-4">
-              Your AI tools are configured and ready to use. Recordings will be automatically transcribed and SOAP drafts generated.
+              You can change any of this later from Settings or Help. Nothing here is permanent.
             </p>
             <div className="bg-muted/50 rounded-lg p-4 text-left text-sm space-y-2">
               <p>
-                <span className="font-medium">Transcription:</span>{" "}
-                {status?.whisperInstalled ? "✓ Configured" : "○ Using mock (configure in Settings)"}
+                <span className="font-medium">Speech-to-text:</span>{" "}
+                {status?.whisperModelDownloaded ? "Ready" : "Not set up yet, write notes by hand for now"}
               </p>
               <p>
-                <span className="font-medium">SOAP Generation:</span>{" "}
-                {status?.ollamaRunning ? `✓ ${ollamaModel}` : "○ Using mock (configure in Settings)"}
+                <span className="font-medium">AI drafting:</span>{" "}
+                {status?.ollamaRunning ? "Ready" : "Not set up yet, write notes by hand for now"}
               </p>
             </div>
           </div>
         )}
 
-        {error && (
-          <p className="text-sm text-red-600 mt-4">{error}</p>
-        )}
-
         <div className="flex justify-between mt-6 pt-4 border-t">
-          <button
-            onClick={onSkip}
-            className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
-          >
-            Skip Setup
+          <button onClick={onSkip} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground">
+            Skip for now
           </button>
-          
-          {step === "complete" ? (
+
+          {step === "done" ? (
             <button
               onClick={onComplete}
               className="px-6 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90"
             >
-              Get Started
+              Start using SoloPractice
             </button>
           ) : (
             <button
-              onClick={saveAndContinue}
+              onClick={nextStep}
               className="px-6 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90"
             >
-              {step === "whisper" ? "Next: AI Notes" : "Finish Setup"}
+              Continue
             </button>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+function WizardProgress({ step }: { step: Step }) {
+  const idx = STEP_ORDER.indexOf(step);
+  return (
+    <div className="flex items-center gap-1.5 mb-6">
+      {STEP_ORDER.map((s, i) => (
+        <div
+          key={s}
+          className={`h-1.5 flex-1 rounded-full ${i <= idx ? "bg-primary" : "bg-muted"}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function Section({
+  title,
+  body,
+  children,
+}: {
+  title: string;
+  body: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-2">
+      <h2 className="text-xl font-semibold mb-2">{title}</h2>
+      <p className="text-muted-foreground text-sm mb-4">{body}</p>
+      {children}
+    </div>
+  );
+}
+
+function StatusBanner({ tone, children }: { tone: "success" | "warning"; children: React.ReactNode }) {
+  const classes =
+    tone === "success"
+      ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200"
+      : "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200";
+  return <div className={`border rounded-lg p-3 text-sm font-medium ${classes}`}>{children}</div>;
+}
+
+function ProgressBar({
+  label,
+  percent,
+  error,
+}: {
+  label: string;
+  percent: number | null;
+  error: string | null;
+}) {
+  return (
+    <div className="mt-3">
+      <p className="text-xs text-muted-foreground mb-1">{label}</p>
+      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+        <div
+          className="h-full bg-primary transition-all"
+          style={{ width: percent != null ? `${percent}%` : "20%" }}
+        />
+      </div>
+      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+    </div>
+  );
+}
+
+function CheckCircleIcon() {
+  return (
+    <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    </svg>
   );
 }

@@ -21,13 +21,12 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "vitest run",
-    "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "test": "vitest run"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
-    "vitest": "^2.1.0"
+    "vitest": "^2.1.8"
   }
 }

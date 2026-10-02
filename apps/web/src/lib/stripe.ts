@@ -12,12 +12,45 @@ if (!process.env.STRIPE_SECRET_KEY) {
   console.warn("STRIPE_SECRET_KEY not set - Stripe features will not work");
 }
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
-  // Must be a version literal accepted by the installed stripe SDK (v17.7.0).
-  // The previously hardcoded "2025-05-28.basil" does not exist in this SDK's
-  // type union and fails the build; 2025-02-24.acacia is its latest accepted pin.
-  // Bump deliberately when the SDK is upgraded, not opportunistically.
-  apiVersion: "2025-02-24.acacia",
+export function isStripeConfigured(): boolean {
+  return Boolean(process.env.STRIPE_SECRET_KEY);
+}
+
+function createStripe(): Stripe {
+  // `new Stripe("")` throws ("Neither apiKey nor config.authenticator
+  // provided"), so this must never run at module-evaluation time: Next.js
+  // imports every route module during "Collecting page data" in `next build`,
+  // where production secrets are intentionally absent.
+  return new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
+    // Must be a version literal accepted by the installed stripe SDK (v17.7.0).
+    // The previously hardcoded "2025-05-28.basil" does not exist in this SDK's
+    // type union and fails the build; 2025-02-24.acacia is its latest accepted pin.
+    // Bump deliberately when the SDK is upgraded, not opportunistically.
+    apiVersion: "2025-02-24.acacia",
+  });
+}
+
+let stripeInstance: Stripe | undefined;
+
+function getStripe(): Stripe {
+  if (!stripeInstance) {
+    stripeInstance = createStripe();
+  }
+  return stripeInstance;
+}
+
+/**
+ * Lazily-initialised Stripe client. Constructed on first property access
+ * rather than at import time, so the build does not require a secret key.
+ */
+export const stripe = new Proxy({} as Stripe, {
+  get(_target, prop, receiver) {
+    const value = Reflect.get(getStripe() as object, prop, receiver);
+    return typeof value === "function" ? value.bind(getStripe()) : value;
+  },
+  has(_target, prop) {
+    return Reflect.has(getStripe() as object, prop);
+  },
 });
 
 export function calculateApplicationFee(amountCents: number): number {

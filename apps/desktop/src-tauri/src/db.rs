@@ -17,7 +17,7 @@
 
 use rusqlite::{Connection, Result};
 use std::path::PathBuf;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 pub fn get_db_path(app: &AppHandle) -> PathBuf {
     let app_dir = app

@@ -8,6 +8,7 @@
 mod commands;
 mod db;
 mod jobs;
+mod ml_setup;
 
 use tauri::Manager;
 
@@ -17,6 +18,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let app_handle = app.handle().clone();
 
@@ -41,6 +43,14 @@ pub fn run() {
             commands::test_web_connection,
             commands::generate_superbill_stub,
             commands::sync_consent_status,
+            ml_setup::detect_ml_setup,
+            ml_setup::download_whisper_model,
+            ml_setup::download_whisper_binary,
+            ml_setup::test_whisper,
+            ml_setup::pull_ollama_model,
+            ml_setup::test_ollama,
+            ml_setup::save_ml_paths,
+            ml_setup::reveal_data_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

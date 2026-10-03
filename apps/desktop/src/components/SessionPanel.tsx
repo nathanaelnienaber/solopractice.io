@@ -21,6 +21,7 @@ export function SessionPanel({
   const [state, setState] = useState<SessionState>("idle");
   const [recordingTime, setRecordingTime] = useState(0);
   const [soapNote, setSoapNote] = useState<Partial<SoapNote> | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   if (!clientId) {
     return (
@@ -32,7 +33,8 @@ export function SessionPanel({
 
   async function startRecording() {
     try {
-      await invoke("start_recording", { clientId });
+      const newSessionId = await invoke<string>("start_recording", { clientId });
+      setSessionId(newSessionId);
       setState("recording");
       const interval = setInterval(() => {
         setRecordingTime((t) => t + 1);
@@ -40,33 +42,24 @@ export function SessionPanel({
       (window as any).__recordingInterval = interval;
     } catch (error) {
       console.error("Failed to start recording:", error);
-      setState("recording");
-      const interval = setInterval(() => {
-        setRecordingTime((t) => t + 1);
-      }, 1000);
-      (window as any).__recordingInterval = interval;
+      alert("Could not start recording: " + (error instanceof Error ? error.message : String(error)));
     }
   }
 
   async function stopRecording() {
     clearInterval((window as any).__recordingInterval);
+    if (!sessionId) {
+      console.error("stopRecording called with no active sessionId");
+      setState("idle");
+      return;
+    }
     setState("transcribing");
 
     try {
-      await invoke("stop_recording");
-      await new Promise((r) => setTimeout(r, 2000));
+      await invoke("stop_recording", { sessionId });
+      await new Promise((r) => setTimeout(r, 1000));
       setState("drafting");
-      await new Promise((r) => setTimeout(r, 3000));
-      setSoapNote({
-        subjective: "Client reports feeling anxious about upcoming work presentation. States sleep has been disrupted for the past week.",
-        objective: "Client appears alert and oriented. Speech is clear. Affect is anxious but appropriate.",
-        assessment: "Adjustment disorder with anxiety. Client is experiencing situational stress related to work demands.",
-        plan: "Continue weekly sessions. Practice relaxation techniques. Review coping strategies for work stress.",
-        isDraft: true,
-      });
-      setState("editing");
-    } catch (error) {
-      console.error("Error processing recording:", error);
+      await new Promise((r) => setTimeout(r, 1000));
       setSoapNote({
         subjective: "",
         objective: "",
@@ -75,25 +68,28 @@ export function SessionPanel({
         isDraft: true,
       });
       setState("editing");
+    } catch (error) {
+      console.error("Error processing recording:", error);
+      setSoapNote({ subjective: "", objective: "", assessment: "", plan: "", isDraft: true });
+      setState("editing");
     }
   }
 
   async function saveSoapNote() {
-    if (!soapNote) return;
+    if (!soapNote || !sessionId || !clientId) return;
 
     try {
       await invoke("save_soap_note", {
+        sessionId,
         clientId,
         soapNote: { ...soapNote, isDraft: false },
       });
       setState("idle");
       setRecordingTime(0);
       setSoapNote(null);
+      setSessionId(null);
     } catch (error) {
       console.error("Failed to save SOAP note:", error);
-      setState("idle");
-      setRecordingTime(0);
-      setSoapNote(null);
     }
   }
 

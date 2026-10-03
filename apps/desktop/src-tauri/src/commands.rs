@@ -190,35 +190,114 @@ pub async fn create_client(
     })
 }
 
-#[tauri::command]
-pub async fn start_recording(client_id: String) -> Result<String, String> {
-    let recording_id = uuid::Uuid::new_v4().to_string();
-    println!(
-        "[STUB] Starting recording for client {} -> {}",
-        client_id, recording_id
-    );
-    Ok(recording_id)
+fn insert_new_session(conn: &rusqlite::Connection, client_id: &str) -> Result<String, String> {
+    let id = uuid::Uuid::new_v4().to_string();
+    conn.execute(
+        r#"
+        INSERT INTO sessions (id, client_id, status, started_at)
+        VALUES (?1, ?2, 'in_progress', datetime('now'))
+        "#,
+        rusqlite::params![&id, client_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(id)
 }
 
-#[tauri::command]
-pub async fn stop_recording() -> Result<String, String> {
-    println!("[STUB] Stopping recording, queuing transcription job");
-    let job_id = uuid::Uuid::new_v4().to_string();
-    Ok(job_id)
+fn mark_session_ended(conn: &rusqlite::Connection, session_id: &str) -> Result<(), String> {
+    conn.execute(
+        "UPDATE sessions SET status = 'recorded', ended_at = datetime('now') WHERE id = ?1",
+        [session_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
-#[tauri::command]
-pub async fn save_soap_note(client_id: String, soap_note: SoapNote) -> Result<String, String> {
-    let note_id = uuid::Uuid::new_v4().to_string();
-    println!(
-        "[STUB] Saving SOAP note {} for client {}",
-        note_id, client_id
-    );
-    println!("  S: {}", soap_note.subjective);
-    println!("  O: {}", soap_note.objective);
-    println!("  A: {}", soap_note.assessment);
-    println!("  P: {}", soap_note.plan);
+fn upsert_soap_note(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+    client_id: &str,
+    subjective: &str,
+    objective: &str,
+    assessment: &str,
+    plan: &str,
+    is_draft: bool,
+) -> Result<String, String> {
+    let existing: Option<String> = conn
+        .query_row(
+            "SELECT id FROM soap_notes WHERE session_id = ?1",
+            [session_id],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    let note_id = match existing {
+        Some(id) => {
+            conn.execute(
+                r#"
+                UPDATE soap_notes
+                SET subjective = ?1, objective = ?2, assessment = ?3, plan = ?4,
+                    is_draft = ?5, updated_at = datetime('now')
+                WHERE id = ?6
+                "#,
+                rusqlite::params![subjective, objective, assessment, plan, is_draft as i64, id],
+            )
+            .map_err(|e| e.to_string())?;
+            id
+        }
+        None => {
+            let id = uuid::Uuid::new_v4().to_string();
+            conn.execute(
+                r#"
+                INSERT INTO soap_notes (id, session_id, client_id, subjective, objective, assessment, plan, is_draft)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                "#,
+                rusqlite::params![&id, session_id, client_id, subjective, objective, assessment, plan, is_draft as i64],
+            )
+            .map_err(|e| e.to_string())?;
+            id
+        }
+    };
+
+    conn.execute(
+        "UPDATE sessions SET soap_note_id = ?1 WHERE id = ?2",
+        rusqlite::params![&note_id, session_id],
+    )
+    .map_err(|e| e.to_string())?;
+
     Ok(note_id)
+}
+
+#[tauri::command]
+pub async fn start_recording(app: AppHandle, client_id: String) -> Result<String, String> {
+    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
+    insert_new_session(&conn, &client_id)
+}
+
+#[tauri::command]
+pub async fn stop_recording(app: AppHandle, session_id: String) -> Result<(), String> {
+    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
+    mark_session_ended(&conn, &session_id)
+}
+
+#[tauri::command]
+pub async fn save_soap_note(
+    app: AppHandle,
+    session_id: String,
+    client_id: String,
+    soap_note: SoapNote,
+) -> Result<String, String> {
+    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
+    upsert_soap_note(
+        &conn,
+        &session_id,
+        &client_id,
+        &soap_note.subjective,
+        &soap_note.objective,
+        &soap_note.assessment,
+        &soap_note.plan,
+        soap_note.is_draft,
+    )
 }
 
 #[tauri::command]
@@ -649,6 +728,62 @@ mod client_tests {
         let after = query_clients(&conn).unwrap();
         assert_eq!(after.len(), before + 1);
         assert!(after.iter().any(|c| c.id == "c3" && c.first_name == "New"));
+    }
+}
+
+#[cfg(test)]
+mod session_lifecycle_tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    fn test_conn() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            r#"
+            CREATE TABLE clients (id TEXT PRIMARY KEY, first_name TEXT, last_name TEXT, email TEXT, phone TEXT, all_consents_signed INTEGER DEFAULT 0, recording_consent_signed INTEGER DEFAULT 0);
+            CREATE TABLE sessions (id TEXT PRIMARY KEY, client_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'scheduled', started_at TEXT, ended_at TEXT, recording_id TEXT, transcript_id TEXT, soap_note_id TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')));
+            CREATE TABLE soap_notes (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, client_id TEXT NOT NULL, subjective TEXT, objective TEXT, assessment TEXT, plan TEXT, diagnosis_codes TEXT, procedure_codes TEXT, is_draft INTEGER NOT NULL DEFAULT 1, signed_at TEXT, signed_by TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')));
+            INSERT INTO clients (id, first_name, last_name, email) VALUES ('c1', 'Ada', 'Lovelace', 'ada@example.com');
+            "#,
+        ).unwrap();
+        conn
+    }
+
+    #[test]
+    fn real_sql_create_session_for_client() {
+        let conn = test_conn();
+        let session_id = insert_new_session(&conn, "c1").unwrap();
+        let status: String = conn.query_row(
+            "SELECT status FROM sessions WHERE id = ?1", [&session_id], |r| r.get(0)
+        ).unwrap();
+        assert_eq!(status, "in_progress");
+    }
+
+    #[test]
+    fn real_sql_save_soap_note_links_to_session_not_just_client() {
+        let conn = test_conn();
+        let session_id = insert_new_session(&conn, "c1").unwrap();
+        let note_id = upsert_soap_note(&conn, &session_id, "c1", "S", "O", "A", "P", false).unwrap();
+
+        let (linked_session, is_draft): (String, i64) = conn.query_row(
+            "SELECT session_id, is_draft FROM soap_notes WHERE id = ?1", [&note_id], |r| Ok((r.get(0)?, r.get(1)?))
+        ).unwrap();
+        assert_eq!(linked_session, session_id);
+        assert_eq!(is_draft, 0);
+    }
+
+    #[test]
+    fn real_sql_upsert_soap_note_updates_not_duplicates() {
+        let conn = test_conn();
+        let session_id = insert_new_session(&conn, "c1").unwrap();
+        let first_id = upsert_soap_note(&conn, &session_id, "c1", "S1", "O1", "A1", "P1", true).unwrap();
+        let second_id = upsert_soap_note(&conn, &session_id, "c1", "S2", "O2", "A2", "P2", false).unwrap();
+        assert_eq!(first_id, second_id, "second save for the same session must UPDATE, not INSERT a duplicate row");
+
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM soap_notes WHERE session_id = ?1", [&session_id], |r| r.get(0)
+        ).unwrap();
+        assert_eq!(count, 1);
     }
 }
 

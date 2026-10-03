@@ -381,6 +381,34 @@ fn read_setting(conn: &rusqlite::Connection, key: &str) -> Option<String> {
         .flatten()
 }
 
+/// Read the full Settings shape back out of the local `settings` table,
+/// the inverse of persist_settings. Missing keys fall back to the same
+/// defaults Settings.tsx's initial useState used, except web_api_url,
+/// which now defaults to the real production portal instead of a
+/// localhost dev URL -- a real trial user has no reason to know about
+/// port 3847, and a stale localhost default looked indistinguishable
+/// from "it saved the wrong thing" the first time this was tested by hand.
+fn read_settings(conn: &rusqlite::Connection) -> Settings {
+    Settings {
+        web_api_url: read_setting(conn, "web_api_url")
+            .unwrap_or_else(|| "https://www.solopractice.io".to_string()),
+        api_key: read_setting(conn, "desktop_api_key"),
+        whisper_model_size: read_setting(conn, "whisper_model_size")
+            .unwrap_or_else(|| "base".to_string()),
+        ollama_model: read_setting(conn, "ollama_model").unwrap_or_else(|| "llama3.2".to_string()),
+        auto_backup: read_setting(conn, "auto_backup")
+            .map(|v| v == "true")
+            .unwrap_or(true),
+        backup_path: read_setting(conn, "backup_path").unwrap_or_default(),
+    }
+}
+
+#[tauri::command]
+pub async fn get_settings(app: AppHandle) -> Result<Settings, String> {
+    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
+    Ok(read_settings(&conn))
+}
+
 #[tauri::command]
 pub async fn save_settings(app: AppHandle, settings: Settings) -> Result<(), String> {
     let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
@@ -1015,6 +1043,49 @@ mod sync_tests {
         assert_eq!(read_setting(&conn, "ollama_model").unwrap(), "llama3.2");
         assert_eq!(read_setting(&conn, "auto_backup").unwrap(), "true");
         assert_eq!(read_setting(&conn, "backup_path").unwrap(), "/tmp/backup");
+    }
+
+    #[test]
+    fn real_sql_read_settings_round_trips_persisted_values() {
+        // Regression test: Settings.tsx used to never call get_settings at
+        // all, so every page remount silently reset the UI back to
+        // hardcoded defaults even though persist_settings had already
+        // written the real values -- this would have made a saved webApiUrl
+        // or apiKey look like it "didn't save" on the next visit, and a
+        // second Save click would have overwritten the real saved key with
+        // the stale default. This test proves the full round trip works,
+        // not just that persist_settings writes rows.
+        let conn = test_conn_with_settings_table();
+        let original = Settings {
+            web_api_url: "https://app.solopractice.io".to_string(),
+            api_key: Some("sp_desktop_roundtrip".to_string()),
+            whisper_model_size: "small".to_string(),
+            ollama_model: "llama3.2".to_string(),
+            auto_backup: false,
+            backup_path: "/tmp/backup2".to_string(),
+        };
+        persist_settings(&conn, &original).unwrap();
+
+        let loaded = read_settings(&conn);
+        assert_eq!(loaded.web_api_url, original.web_api_url);
+        assert_eq!(loaded.api_key, original.api_key);
+        assert_eq!(loaded.whisper_model_size, original.whisper_model_size);
+        assert_eq!(loaded.ollama_model, original.ollama_model);
+        assert_eq!(loaded.auto_backup, original.auto_backup);
+        assert_eq!(loaded.backup_path, original.backup_path);
+    }
+
+    #[test]
+    fn real_sql_read_settings_defaults_to_production_url_when_nothing_saved() {
+        // A fresh install (or a settings table that predates this field)
+        // must never default to a localhost dev URL -- a real trial user
+        // has no reason to know about port 3847, and defaulting there
+        // silently breaks Sync Now with a confusing "couldn't reach"
+        // error that looks like a bug rather than a config issue.
+        let conn = test_conn_with_settings_table();
+        let loaded = read_settings(&conn);
+        assert_eq!(loaded.web_api_url, "https://www.solopractice.io");
+        assert_eq!(loaded.api_key, None);
     }
 
     #[test]

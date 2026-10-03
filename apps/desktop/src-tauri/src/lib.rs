@@ -78,6 +78,7 @@ pub fn run() {
             commands::save_soap_note,
             commands::save_recording_file,
             commands::get_job_queue,
+            commands::get_settings,
             commands::save_settings,
             commands::test_web_connection,
             commands::generate_superbill_stub,

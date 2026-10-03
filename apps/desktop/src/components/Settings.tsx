@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 interface SettingsState {
   webApiUrl: string;
-  apiKey: string;
+  apiKey: string | null;
   whisperModelSize: "tiny" | "base" | "small" | "medium" | "large";
   ollamaModel: string;
   autoBackup: boolean;
@@ -12,17 +12,42 @@ interface SettingsState {
 
 export function Settings() {
   const [settings, setSettings] = useState<SettingsState>({
-    webApiUrl: "http://localhost:3847",
-    apiKey: "",
+    webApiUrl: "https://www.solopractice.io",
+    apiKey: null,
     whisperModelSize: "base",
     ollamaModel: "llama3.2",
     autoBackup: true,
     backupPath: "",
   });
+  const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [opening, setOpening] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<{ text: string; isError: boolean } | null>(null);
+
+  // Load whatever was actually saved last time instead of trusting the
+  // hardcoded defaults above forever. Before this, every remount of the
+  // Settings page silently reset the visible webApiUrl/apiKey fields back
+  // to their initial useState values even though save_settings had already
+  // persisted the real ones to the settings table -- clicking Save again
+  // after that would have overwritten the real saved key with blank/default
+  // values without any error, since save_settings always succeeds.
+  useEffect(() => {
+    let cancelled = false;
+    invoke<SettingsState>("get_settings")
+      .then((loadedSettings) => {
+        if (!cancelled) setSettings(loadedSettings);
+      })
+      .catch((error) => {
+        console.error("Failed to load settings:", error);
+      })
+      .finally(() => {
+        if (!cancelled) setLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function saveSettings() {
     setSaving(true);
@@ -84,6 +109,10 @@ export function Settings() {
       <header className="p-4 border-b border-border sticky top-0 bg-background">
         <h1 className="text-xl font-semibold">Settings</h1>
       </header>
+
+      {!loaded && (
+        <p className="px-4 pt-2 text-xs text-muted-foreground">Loading saved settings...</p>
+      )}
 
       <div className="p-4 space-y-6 max-w-2xl">
         <section className="space-y-3">
@@ -162,8 +191,8 @@ export function Settings() {
                 id="desktopApiKey"
                 type="password"
                 autoComplete="off"
-                value={settings.apiKey}
-                onChange={(e) => setSettings({ ...settings, apiKey: e.target.value })}
+                value={settings.apiKey ?? ""}
+                onChange={(e) => setSettings({ ...settings, apiKey: e.target.value || null })}
                 placeholder="sp_desktop_..."
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />

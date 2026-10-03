@@ -7,6 +7,10 @@
 
 import Stripe from "stripe";
 import { PLATFORM_FEE_PERCENT } from "@solopractice/shared";
+import {
+  deriveConnectStatus,
+  type ConnectStatusSnapshot,
+} from "./stripe-connect-status";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   console.warn("STRIPE_SECRET_KEY not set - Stripe features will not work");
@@ -14,6 +18,57 @@ if (!process.env.STRIPE_SECRET_KEY) {
 
 export function isStripeConfigured(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY);
+}
+
+export type StripeKeyMode = "test" | "live" | "restricted" | "unknown";
+
+/**
+ * Classify the configured secret key by prefix WITHOUT ever logging or
+ * returning the key material itself.
+ *
+ * `rk_` (restricted) keys are reported separately because their prefix does not
+ * encode the mode — a restricted key can be live, so it must not be treated as
+ * safe-by-default.
+ */
+export function getStripeKeyMode(
+  key: string | undefined = process.env.STRIPE_SECRET_KEY,
+): StripeKeyMode {
+  if (!key) return "unknown";
+  if (key.startsWith("sk_test_")) return "test";
+  if (key.startsWith("sk_live_")) return "live";
+  if (key.startsWith("rk_test_")) return "test";
+  if (key.startsWith("rk_live_")) return "live";
+  if (key.startsWith("rk_")) return "restricted";
+  return "unknown";
+}
+
+export function isLiveMode(): boolean {
+  return getStripeKeyMode() === "live";
+}
+
+/**
+ * Guard for flows that must not touch real money during the pilot.
+ *
+ * Set STRIPE_ALLOW_LIVE_MODE="true" to deliberately opt in to live keys. Until
+ * then a live key fails closed: wiring real bank payouts by accident is a much
+ * worse outcome than a 503 on the settings page.
+ */
+export function assertNonLiveOrAllowed(): void {
+  const mode = getStripeKeyMode();
+  if (mode === "live" && process.env.STRIPE_ALLOW_LIVE_MODE !== "true") {
+    throw new Error(
+      "Refusing to run Stripe Connect onboarding with a LIVE secret key. " +
+        "This flow is pilot-gated to test mode. Set STRIPE_ALLOW_LIVE_MODE=true " +
+        "only with explicit owner sign-off.",
+    );
+  }
+  if (mode === "restricted" && process.env.STRIPE_ALLOW_LIVE_MODE !== "true") {
+    throw new Error(
+      "Stripe secret key is a restricted key (rk_) whose mode cannot be " +
+        "determined from its prefix. Refusing to proceed; supply an sk_test_ key " +
+        "or set STRIPE_ALLOW_LIVE_MODE=true with explicit owner sign-off.",
+    );
+  }
 }
 
 function createStripe(): Stripe {
@@ -72,7 +127,8 @@ export async function createConnectAccountLink(
 }
 
 export async function createConnectedAccount(
-  email: string
+  email: string,
+  options: { therapistId?: string } = {},
 ): Promise<Stripe.Account> {
   return stripe.accounts.create({
     type: "express",
@@ -81,6 +137,18 @@ export async function createConnectedAccount(
       card_payments: { requested: true },
       transfers: { requested: true },
     },
+    business_type: "individual",
+    business_profile: {
+      // 8931 = "Legal, accounting, and professional services"; Stripe requires an
+      // MCC for Express accounts and asking the therapist for one is pointless.
+      mcc: "8931",
+      product_description: "Mental health therapy and counseling services",
+    },
+    // Stamped so an `account.updated` webhook can be traced back to a therapist
+    // row even if the local DB write failed after account creation.
+    metadata: options.therapistId
+      ? { therapistId: options.therapistId }
+      : {},
   });
 }
 
@@ -146,4 +214,34 @@ export async function getAccountStatus(
     payoutsEnabled: account.payouts_enabled ?? false,
     detailsSubmitted: account.details_submitted ?? false,
   };
+}
+
+/**
+ * Full status snapshot for the settings UI: includes Stripe's outstanding
+ * `requirements`, which `getAccountStatus` discards. Prefer this for anything
+ * that has to explain *why* an account is not ready yet.
+ */
+export async function getConnectStatusSnapshot(
+  accountId: string,
+): Promise<ConnectStatusSnapshot> {
+  const account = await stripe.accounts.retrieve(accountId);
+  return deriveConnectStatus(account);
+}
+
+/** Retrieve a connected account, returning null when Stripe no longer has it. */
+export async function retrieveAccountOrNull(
+  accountId: string,
+): Promise<Stripe.Account | null> {
+  try {
+    return await stripe.accounts.retrieve(accountId);
+  } catch (error) {
+    // A stored account id from a different Stripe mode (or a deleted account)
+    // 404s/400s here. Treat as "no account" so the UI can offer a fresh connect
+    // instead of hard-failing the whole settings page.
+    const code = (error as { statusCode?: number } | null)?.statusCode;
+    if (code === 404 || code === 400 || code === 403) {
+      return null;
+    }
+    throw error;
+  }
 }

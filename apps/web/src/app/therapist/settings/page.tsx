@@ -1,26 +1,63 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getSessionTherapist } from "@/lib/auth";
-import { getAccountStatus } from "@/lib/stripe";
+import {
+  retrieveAccountOrNull,
+  isStripeConfigured,
+  getStripeKeyMode,
+} from "@/lib/stripe";
+import {
+  deriveConnectStatus,
+  describeConnectStatus,
+  describeOutstandingRequirements,
+} from "@/lib/stripe-connect-status";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { StripeConnectButton } from "./stripe-connect-button";
+import {
+  StripeConnectPanel,
+  type ConnectStatusPayload,
+} from "./stripe-connect-panel";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const therapist = await getSessionTherapist();
 
   if (!therapist) {
     redirect("/therapist/login");
   }
 
-  let stripeStatus = null;
-  if (therapist.stripeConnectedAccountId) {
+  const params = (await searchParams) ?? {};
+  // Stripe sends the therapist back here via return_url/refresh_url.
+  const justReturned =
+    params.stripe === "complete" || params.stripe === "refresh";
+
+  // Build the initial snapshot server-side so the panel renders real state on
+  // first paint instead of flashing a wrong "not connected".
+  let account = null;
+  let stripeReachable = true;
+  if (therapist.stripeConnectedAccountId && isStripeConfigured()) {
     try {
-      stripeStatus = await getAccountStatus(therapist.stripeConnectedAccountId);
-    } catch {
-      // Stripe not configured
+      account = await retrieveAccountOrNull(
+        therapist.stripeConnectedAccountId,
+      );
+    } catch (error) {
+      console.error("[settings] Stripe account lookup failed:", error);
+      stripeReachable = false;
     }
   }
+
+  const snapshot = deriveConnectStatus(account);
+  const initialStripeStatus: ConnectStatusPayload = {
+    ...snapshot,
+    copy: describeConnectStatus(snapshot.status),
+    outstanding: describeOutstandingRequirements(snapshot),
+    accountId: account ? therapist.stripeConnectedAccountId : null,
+    mode: getStripeKeyMode(),
+    stripeConfigured: isStripeConfigured(),
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -69,37 +106,20 @@ export default async function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {stripeStatus ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">Charges:</span>
-                    <Badge variant={stripeStatus.chargesEnabled ? "success" : "warning"}>
-                      {stripeStatus.chargesEnabled ? "Enabled" : "Pending"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">Payouts:</span>
-                    <Badge variant={stripeStatus.payoutsEnabled ? "success" : "warning"}>
-                      {stripeStatus.payoutsEnabled ? "Enabled" : "Pending"}
-                    </Badge>
-                  </div>
-                </div>
-                {!stripeStatus.detailsSubmitted && (
-                  <StripeConnectButton
-                    accountId={therapist.stripeConnectedAccountId!}
-                    label="Complete Stripe onboarding"
-                  />
-                )}
-              </div>
+            {!initialStripeStatus.stripeConfigured ? (
+              <p className="text-sm text-muted-foreground">
+                Payments are not configured on this environment yet.
+              </p>
+            ) : !stripeReachable ? (
+              <p className="text-sm text-destructive">
+                Could not reach Stripe to check your payment status. Reload the
+                page to try again.
+              </p>
             ) : (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  You haven&apos;t connected a Stripe account yet. Connect now to start
-                  accepting payments.
-                </p>
-                <StripeConnectButton label="Connect with Stripe" />
-              </div>
+              <StripeConnectPanel
+                initialStatus={initialStripeStatus}
+                justReturned={justReturned}
+              />
             )}
           </CardContent>
         </Card>

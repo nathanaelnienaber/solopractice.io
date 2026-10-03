@@ -71,6 +71,16 @@ pub struct JobQueueResponse {
 pub struct Settings {
     #[serde(rename = "webApiUrl")]
     pub web_api_url: String,
+    /// Desktop API key (format `sp_desktop_<...>`) minted on the web portal's
+    /// Settings > Desktop App page. Optional because existing local settings
+    /// rows predate this field and because a therapist may save webApiUrl
+    /// before generating a key. Stored as plain text in the local `settings`
+    /// table -- same trust boundary as webApiUrl, not a secret relative to
+    /// this machine's own disk (it IS a secret relative to the network, so
+    /// it is only ever sent over HTTPS/loopback-equivalent to the web portal
+    /// and never logged).
+    #[serde(rename = "apiKey")]
+    pub api_key: Option<String>,
     #[serde(rename = "whisperModelSize")]
     pub whisper_model_size: String,
     #[serde(rename = "ollamaModel")]
@@ -333,20 +343,207 @@ pub async fn get_job_queue(app: AppHandle) -> Result<JobQueueResponse, String> {
     query_job_queue(&conn)
 }
 
-#[tauri::command]
-pub async fn save_settings(settings: Settings) -> Result<(), String> {
-    println!("[STUB] Saving settings:");
-    println!("  Web API URL: {}", settings.web_api_url);
-    println!("  Whisper model: {}", settings.whisper_model_size);
-    println!("  Ollama model: {}", settings.ollama_model);
-    println!("  Auto backup: {}", settings.auto_backup);
+/// Persist the full SettingsState shape into the local `settings` key/value
+/// table, following the exact pattern established by `save_ml_paths` in
+/// ml_setup.rs (one row per key, UPSERT on conflict). Takes a connection
+/// directly so the storage logic can be unit tested against a real
+/// in-memory SQLite table without needing an AppHandle.
+fn persist_settings(conn: &rusqlite::Connection, settings: &Settings) -> Result<(), String> {
+    let pairs: [(&str, Option<String>); 6] = [
+        ("web_api_url", Some(settings.web_api_url.clone())),
+        ("desktop_api_key", settings.api_key.clone()),
+        ("whisper_model_size", Some(settings.whisper_model_size.clone())),
+        ("ollama_model", Some(settings.ollama_model.clone())),
+        ("auto_backup", Some(settings.auto_backup.to_string())),
+        ("backup_path", Some(settings.backup_path.clone())),
+    ];
+    for (key, value) in pairs {
+        if let Some(value) = value {
+            conn.execute(
+                "INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, datetime('now'))
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')",
+                rusqlite::params![key, value],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
     Ok(())
 }
 
+/// Read a single setting value out of the local `settings` table, or None
+/// if it was never saved. Mirrors the closure used in jobs.rs's job
+/// processor (`get_setting`), pulled out here so sync_clients and
+/// test_web_connection can share it.
+fn read_setting(conn: &rusqlite::Connection, key: &str) -> Option<String> {
+    conn.query_row("SELECT value FROM settings WHERE key = ?1", [key], |r| r.get(0))
+        .optional()
+        .ok()
+        .flatten()
+}
+
 #[tauri::command]
-pub async fn test_web_connection(url: String) -> Result<bool, String> {
-    println!("[STUB] Testing connection to {}", url);
-    Ok(true)
+pub async fn save_settings(app: AppHandle, settings: Settings) -> Result<(), String> {
+    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
+    persist_settings(&conn, &settings)
+}
+
+/// Desktop sync API response shapes, mirroring apps/web/src/app/api/desktop/sync/route.ts.
+/// Only non-PHI fields (contact info + consent flags) -- see that route's doc comment.
+#[derive(Debug, Deserialize)]
+struct SyncResponse {
+    clients: Vec<SyncClient>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SyncClient {
+    id: String,
+    first_name: String,
+    last_name: String,
+    email: String,
+    phone: Option<String>,
+    all_consents_signed: bool,
+    recording_consent_signed: bool,
+}
+
+const DESKTOP_API_KEY_HEADER: &str = "X-Desktop-API-Key";
+
+fn sync_http_client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .user_agent("SoloPractice-Desktop")
+        .build()
+        .map_err(|e| e.to_string())
+}
+
+/// Upsert one client row returned by the web portal's sync endpoint into the
+/// local clients table.
+///
+/// ID-MATCHING DESIGN DECISION: the web portal's client id (Postgres `text`
+/// primary key, see apps/web/src/db/schema.ts `clients.id`) is used directly
+/// as the desktop SQLite clients.id (also `TEXT PRIMARY KEY`, see db.rs).
+/// Both sides already use the same opaque string id scheme (no numeric vs.
+/// UUID mismatch to reconcile), so no separate "remote id" column or mapping
+/// table is introduced -- the web id IS the local id. This keeps the upsert
+/// a plain `ON CONFLICT(id) DO UPDATE` and means re-running sync is
+/// idempotent and order-independent.
+fn upsert_synced_client(conn: &rusqlite::Connection, client: &SyncClient) -> Result<(), String> {
+    conn.execute(
+        r#"
+        INSERT INTO clients (id, first_name, last_name, email, phone, all_consents_signed, recording_consent_signed, updated_at)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now'))
+        ON CONFLICT(id) DO UPDATE SET
+            first_name = excluded.first_name,
+            last_name = excluded.last_name,
+            email = excluded.email,
+            phone = excluded.phone,
+            all_consents_signed = excluded.all_consents_signed,
+            recording_consent_signed = excluded.recording_consent_signed,
+            updated_at = datetime('now')
+        "#,
+        rusqlite::params![
+            client.id,
+            client.first_name,
+            client.last_name,
+            client.email,
+            client.phone,
+            client.all_consents_signed as i64,
+            client.recording_consent_signed as i64,
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Fetch the client list from the web portal's real sync endpoint
+/// (GET {web_api_url}/api/desktop/sync, X-Desktop-API-Key header) and
+/// return the parsed client list. Pure HTTP + parsing, no SQLite -- kept
+/// separate from upsert_synced_client so each half can be tested on its own
+/// (this half against a real local test HTTP server, the other half against
+/// a real in-memory SQLite table).
+async fn fetch_sync_clients(web_api_url: &str, api_key: &str) -> Result<Vec<SyncClient>, String> {
+    let client = sync_http_client()?;
+    let url = format!("{}/api/desktop/sync", web_api_url.trim_end_matches('/'));
+
+    let resp = client
+        .get(&url)
+        .header(DESKTOP_API_KEY_HEADER, api_key)
+        .send()
+        .await
+        .map_err(|e| format!("Couldn't reach the web portal at {}: {}", web_api_url, e))?;
+
+    if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
+        return Err(
+            "The web portal rejected this API key. Generate a new one in Settings > Desktop App on the web portal."
+                .to_string(),
+        );
+    }
+    if !resp.status().is_success() {
+        return Err(format!("Web portal returned HTTP {}", resp.status()));
+    }
+
+    let parsed: SyncResponse = resp
+        .json()
+        .await
+        .map_err(|e| format!("Web portal returned an unparseable response: {}", e))?;
+
+    Ok(parsed.clients)
+}
+
+/// Real sync command: reads webApiUrl + the desktop API key from the local
+/// settings table, fetches the therapist's client list + consent status
+/// from the web portal, and upserts each client into the local clients
+/// table. Returns the number of clients synced. Manual-trigger only (the
+/// "Sync Now" button) -- no background polling by design.
+#[tauri::command]
+pub async fn sync_clients(app: AppHandle) -> Result<u32, String> {
+    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
+
+    let web_api_url = read_setting(&conn, "web_api_url")
+        .filter(|v| !v.trim().is_empty())
+        .ok_or_else(|| "Set the web portal address in Settings first.".to_string())?;
+    let api_key = read_setting(&conn, "desktop_api_key")
+        .filter(|v| !v.trim().is_empty())
+        .ok_or_else(|| {
+            "No desktop API key saved. Generate one on the web portal (Settings > Desktop App) and paste it in here first.".to_string()
+        })?;
+
+    let clients = fetch_sync_clients(&web_api_url, &api_key).await?;
+    let count = clients.len() as u32;
+
+    for client in &clients {
+        upsert_synced_client(&conn, client)?;
+    }
+
+    Ok(count)
+}
+
+/// Real connectivity check for the "Test" button next to the web portal URL
+/// field. There is no dedicated /api/health route on the web app, so this
+/// makes the same authenticated request sync_clients would make and treats
+/// HTTP 200 as "reachable and the key (if any) works" and HTTP 401 as
+/// "reachable, but the key is missing/wrong" -- both are a successful
+/// *connection* test distinct from a network failure (DNS/refused/timeout),
+/// which is what this command should actually be answering.
+#[tauri::command]
+pub async fn test_web_connection(app: AppHandle, url: String) -> Result<bool, String> {
+    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
+    let api_key = read_setting(&conn, "desktop_api_key").unwrap_or_default();
+
+    let client = sync_http_client()?;
+    let endpoint = format!("{}/api/desktop/sync", url.trim_end_matches('/'));
+
+    let resp = client
+        .get(&endpoint)
+        .header(DESKTOP_API_KEY_HEADER, api_key)
+        .send()
+        .await
+        .map_err(|e| format!("Couldn't reach {}: {}", url, e))?;
+
+    match resp.status() {
+        reqwest::StatusCode::OK | reqwest::StatusCode::UNAUTHORIZED => Ok(true),
+        other => Err(format!("Web portal returned HTTP {}", other)),
+    }
 }
 
 #[tauri::command]
@@ -354,12 +551,6 @@ pub async fn generate_superbill_stub() -> Result<String, String> {
     let path = "superbill_stub.pdf".to_string();
     println!("[STUB] Would generate superbill PDF at {}", path);
     Ok(path)
-}
-
-#[tauri::command]
-pub async fn sync_consent_status(client_id: String) -> Result<bool, String> {
-    println!("[STUB] Syncing consent status for client {}", client_id);
-    Ok(true)
 }
 
 // ---------------------------------------------------------------------------
@@ -714,6 +905,340 @@ pub async fn save_recording_file(
     )?;
 
     Ok(file_path.to_string_lossy().to_string())
+}
+
+#[cfg(test)]
+mod sync_tests {
+    use super::*;
+    use rusqlite::Connection;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    /// Minimal stdlib-only local HTTP test server: binds 127.0.0.1:0 (OS
+    /// picks a free port), serves exactly one request with a fixed JSON
+    /// body and status, then shuts down. No new crate dependency (no
+    /// wiremock/httpmock in Cargo.toml) -- this exists so sync_clients'
+    /// real reqwest GET can be exercised against a real socket instead of
+    /// mocking reqwest itself, which is exactly the kind of integration bug
+    /// (wrong path, wrong header name, wrong JSON shape) a mocked-away test
+    /// would hide. Returns the base URL to hit and a JoinHandle to await.
+    fn spawn_test_server(
+        status_line: &'static str,
+        body: &'static str,
+        expect_header: Option<(&'static str, &'static str)>,
+    ) -> (String, std::thread::JoinHandle<bool>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let url = format!("http://127.0.0.1:{}", port);
+
+        let handle = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let request_text = String::from_utf8_lossy(&buf[..n]);
+
+            let header_ok = match expect_header {
+                Some((name, value)) => request_text
+                    .lines()
+                    .any(|l| l.eq_ignore_ascii_case(&format!("{}: {}", name, value))),
+                None => true,
+            };
+
+            let response = format!(
+                "{}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
+                status_line,
+                body.len(),
+                body
+            );
+            let _ = stream.write_all(response.as_bytes());
+            let _ = stream.flush();
+            header_ok
+        });
+
+        (url, handle)
+    }
+
+    fn test_conn_with_clients_table() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            r#"
+            CREATE TABLE clients (
+                id TEXT PRIMARY KEY,
+                first_name TEXT NOT NULL,
+                last_name TEXT NOT NULL,
+                email TEXT NOT NULL,
+                phone TEXT,
+                all_consents_signed INTEGER NOT NULL DEFAULT 0,
+                recording_consent_signed INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            "#,
+        )
+        .unwrap();
+        conn
+    }
+
+    fn test_conn_with_settings_table() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            r#"
+            CREATE TABLE settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            "#,
+        )
+        .unwrap();
+        conn
+    }
+
+    // -- save_settings / persist_settings --------------------------------
+
+    #[test]
+    fn real_sql_persist_settings_writes_all_fields_into_settings_table() {
+        let conn = test_conn_with_settings_table();
+        let settings = Settings {
+            web_api_url: "https://app.solopractice.io".to_string(),
+            api_key: Some("sp_desktop_abc123".to_string()),
+            whisper_model_size: "base".to_string(),
+            ollama_model: "llama3.2".to_string(),
+            auto_backup: true,
+            backup_path: "/tmp/backup".to_string(),
+        };
+        persist_settings(&conn, &settings).unwrap();
+
+        assert_eq!(read_setting(&conn, "web_api_url").unwrap(), "https://app.solopractice.io");
+        assert_eq!(read_setting(&conn, "desktop_api_key").unwrap(), "sp_desktop_abc123");
+        assert_eq!(read_setting(&conn, "whisper_model_size").unwrap(), "base");
+        assert_eq!(read_setting(&conn, "ollama_model").unwrap(), "llama3.2");
+        assert_eq!(read_setting(&conn, "auto_backup").unwrap(), "true");
+        assert_eq!(read_setting(&conn, "backup_path").unwrap(), "/tmp/backup");
+    }
+
+    #[test]
+    fn real_sql_persist_settings_updates_not_duplicates() {
+        let conn = test_conn_with_settings_table();
+        let mut settings = Settings {
+            web_api_url: "https://first.example.com".to_string(),
+            api_key: Some("sp_desktop_first".to_string()),
+            whisper_model_size: "base".to_string(),
+            ollama_model: "llama3.2".to_string(),
+            auto_backup: false,
+            backup_path: "".to_string(),
+        };
+        persist_settings(&conn, &settings).unwrap();
+        settings.web_api_url = "https://second.example.com".to_string();
+        settings.api_key = Some("sp_desktop_second".to_string());
+        persist_settings(&conn, &settings).unwrap();
+
+        assert_eq!(read_setting(&conn, "web_api_url").unwrap(), "https://second.example.com");
+        assert_eq!(read_setting(&conn, "desktop_api_key").unwrap(), "sp_desktop_second");
+
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM settings WHERE key = 'web_api_url'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 1, "second save must UPDATE, not INSERT a duplicate row");
+    }
+
+    #[test]
+    fn real_sql_persist_settings_leaves_api_key_unset_when_none() {
+        let conn = test_conn_with_settings_table();
+        let settings = Settings {
+            web_api_url: "https://app.solopractice.io".to_string(),
+            api_key: None,
+            whisper_model_size: "base".to_string(),
+            ollama_model: "llama3.2".to_string(),
+            auto_backup: true,
+            backup_path: "".to_string(),
+        };
+        persist_settings(&conn, &settings).unwrap();
+        assert!(read_setting(&conn, "desktop_api_key").is_none());
+    }
+
+    #[test]
+    fn real_sql_read_setting_returns_none_for_missing_key() {
+        let conn = test_conn_with_settings_table();
+        assert!(read_setting(&conn, "does_not_exist").is_none());
+    }
+
+    // -- upsert_synced_client ---------------------------------------------
+
+    fn sample_sync_client(id: &str) -> SyncClient {
+        SyncClient {
+            id: id.to_string(),
+            first_name: "Ada".to_string(),
+            last_name: "Lovelace".to_string(),
+            email: "ada@example.com".to_string(),
+            phone: Some("+15551234567".to_string()),
+            all_consents_signed: true,
+            recording_consent_signed: true,
+        }
+    }
+
+    #[test]
+    fn real_sql_upsert_synced_client_inserts_new_row() {
+        let conn = test_conn_with_clients_table();
+        upsert_synced_client(&conn, &sample_sync_client("web-client-1")).unwrap();
+
+        let (first_name, all_signed): (String, i64) = conn
+            .query_row(
+                "SELECT first_name, all_consents_signed FROM clients WHERE id = ?1",
+                ["web-client-1"],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(first_name, "Ada");
+        assert_eq!(all_signed, 1);
+    }
+
+    #[test]
+    fn real_sql_upsert_synced_client_updates_not_duplicates_on_rerun() {
+        let conn = test_conn_with_clients_table();
+        let mut client = sample_sync_client("web-client-1");
+        upsert_synced_client(&conn, &client).unwrap();
+
+        // Re-sync with changed consent + name -- same id (web portal's id,
+        // used directly as the local primary key, see upsert_synced_client's
+        // doc comment for the id-matching design decision).
+        client.all_consents_signed = false;
+        client.first_name = "Ada Renamed".to_string();
+        upsert_synced_client(&conn, &client).unwrap();
+
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM clients WHERE id = 'web-client-1'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 1, "re-sync of the same web id must UPDATE, not duplicate");
+
+        let (first_name, all_signed): (String, i64) = conn
+            .query_row(
+                "SELECT first_name, all_consents_signed FROM clients WHERE id = 'web-client-1'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(first_name, "Ada Renamed");
+        assert_eq!(all_signed, 0);
+    }
+
+    /// End-to-end proof for scope item 5: a client inserted via the sync
+    /// upsert path is indistinguishable, from query_clients' point of view,
+    /// from any other row in the real clients table -- i.e. it will show up
+    /// in get_clients/ClientList.tsx with no separate code path needed.
+    #[test]
+    fn real_sql_synced_client_appears_in_get_clients_query() {
+        let conn = test_conn_with_clients_table();
+        upsert_synced_client(&conn, &sample_sync_client("web-client-42")).unwrap();
+
+        let clients = query_clients(&conn).unwrap();
+        assert_eq!(clients.len(), 1);
+        assert_eq!(clients[0].id, "web-client-42");
+        assert_eq!(clients[0].first_name, "Ada");
+        assert!(clients[0].all_consents_signed);
+    }
+
+    // -- fetch_sync_clients: real HTTP against a real local test server ---
+
+    #[test]
+    fn real_http_fetch_sync_clients_parses_real_response_from_local_server() {
+        let body = r#"{
+            "therapist": {"id": "t1", "firstName": "Jo", "lastName": "Smith", "email": "jo@example.com", "practiceName": null, "credentials": null},
+            "clients": [
+                {
+                    "id": "web-client-1",
+                    "firstName": "Ada",
+                    "lastName": "Lovelace",
+                    "email": "ada@example.com",
+                    "phone": "+15551234567",
+                    "allConsentsSigned": true,
+                    "recordingConsentSigned": true,
+                    "consentsSigned": 5,
+                    "consentsRequired": 5,
+                    "consents": []
+                }
+            ],
+            "syncedAt": "2026-01-01T00:00:00.000Z"
+        }"#;
+        let (url, handle) = spawn_test_server(
+            "HTTP/1.1 200 OK",
+            body,
+            Some(("X-Desktop-API-Key", "sp_desktop_test123")),
+        );
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(fetch_sync_clients(&url, "sp_desktop_test123"));
+        let header_was_sent = handle.join().unwrap();
+
+        assert!(header_was_sent, "request must carry X-Desktop-API-Key header");
+        let clients = result.expect("expected Ok from a real 200 response");
+        assert_eq!(clients.len(), 1);
+        assert_eq!(clients[0].id, "web-client-1");
+        assert_eq!(clients[0].first_name, "Ada");
+        assert!(clients[0].all_consents_signed);
+    }
+
+    #[test]
+    fn real_http_fetch_sync_clients_surfaces_clear_error_on_401() {
+        let (url, handle) = spawn_test_server(
+            "HTTP/1.1 401 Unauthorized",
+            r#"{"error":"Invalid or missing API key"}"#,
+            None,
+        );
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(fetch_sync_clients(&url, "wrong-key"));
+        let _ = handle.join();
+
+        let err = result.expect_err("expected Err from a real 401 response");
+        assert!(err.contains("rejected"), "error should explain the key was rejected: {err}");
+    }
+
+    #[test]
+    fn real_http_fetch_sync_clients_fails_cleanly_when_server_unreachable() {
+        // Port 0 connections never succeed; this proves network failures
+        // (vs. HTTP error statuses) are also surfaced as a clean Err, not a
+        // panic, without needing a real server at all.
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let result = rt.block_on(fetch_sync_clients("http://127.0.0.1:1", "any-key"));
+        assert!(result.is_err());
+    }
+
+    /// Full round trip: real local HTTP server -> fetch_sync_clients ->
+    /// upsert_synced_client -> query_clients, using the exact same helpers
+    /// sync_clients() the tauri command composes. Proves the whole pipeline
+    /// end to end without needing an AppHandle/live web server.
+    #[test]
+    fn real_sync_pipeline_fetches_and_upserts_into_real_sqlite() {
+        let body = r#"{
+            "clients": [
+                {
+                    "id": "web-client-9",
+                    "firstName": "Grace",
+                    "lastName": "Hopper",
+                    "email": "grace@example.com",
+                    "phone": null,
+                    "allConsentsSigned": false,
+                    "recordingConsentSigned": false
+                }
+            ]
+        }"#;
+        let (url, _handle) = spawn_test_server("HTTP/1.1 200 OK", body, None);
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let clients = rt.block_on(fetch_sync_clients(&url, "sp_desktop_test")).unwrap();
+
+        let conn = test_conn_with_clients_table();
+        for client in &clients {
+            upsert_synced_client(&conn, client).unwrap();
+        }
+
+        let local_clients = query_clients(&conn).unwrap();
+        assert_eq!(local_clients.len(), 1);
+        assert_eq!(local_clients[0].id, "web-client-9");
+        assert_eq!(local_clients[0].last_name, "Hopper");
+        assert!(!local_clients[0].all_consents_signed);
+    }
 }
 
 #[cfg(test)]

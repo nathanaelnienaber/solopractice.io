@@ -81,7 +81,7 @@ pub fn run() {
             commands::save_settings,
             commands::test_web_connection,
             commands::generate_superbill_stub,
-            commands::sync_consent_status,
+            commands::sync_clients,
             commands::get_client_sessions,
             commands::get_full_session,
             commands::export_soap_pdf,

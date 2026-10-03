@@ -37,6 +37,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::get_clients,
             commands::get_client,
+            commands::create_client,
             commands::start_recording,
             commands::stop_recording,
             commands::save_soap_note,

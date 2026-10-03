@@ -94,43 +94,100 @@ impl Default for AppState {
     }
 }
 
-#[tauri::command]
-pub async fn get_clients() -> Result<Vec<Client>, String> {
-    Ok(vec![
-        Client {
-            id: "client-1".to_string(),
-            first_name: "Test".to_string(),
-            last_name: "Client".to_string(),
-            email: "test@example.com".to_string(),
-            phone: None,
-            all_consents_signed: true,
-            recording_consent_signed: true,
+fn query_clients(conn: &rusqlite::Connection) -> Result<Vec<Client>, String> {
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT id, first_name, last_name, email, phone,
+                   all_consents_signed, recording_consent_signed
+            FROM clients
+            ORDER BY last_name, first_name
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(Client {
+                id: row.get(0)?,
+                first_name: row.get(1)?,
+                last_name: row.get(2)?,
+                email: row.get(3)?,
+                phone: row.get(4)?,
+                all_consents_signed: row.get::<_, i64>(5)? != 0,
+                recording_consent_signed: row.get::<_, i64>(6)? != 0,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+}
+
+fn query_client_by_id(conn: &rusqlite::Connection, client_id: &str) -> Result<Option<Client>, String> {
+    conn.query_row(
+        r#"
+        SELECT id, first_name, last_name, email, phone,
+               all_consents_signed, recording_consent_signed
+        FROM clients WHERE id = ?1
+        "#,
+        [client_id],
+        |row| {
+            Ok(Client {
+                id: row.get(0)?,
+                first_name: row.get(1)?,
+                last_name: row.get(2)?,
+                email: row.get(3)?,
+                phone: row.get(4)?,
+                all_consents_signed: row.get::<_, i64>(5)? != 0,
+                recording_consent_signed: row.get::<_, i64>(6)? != 0,
+            })
         },
-        Client {
-            id: "client-2".to_string(),
-            first_name: "Jane".to_string(),
-            last_name: "Doe".to_string(),
-            email: "jane@example.com".to_string(),
-            phone: None,
-            all_consents_signed: false,
-            recording_consent_signed: false,
-        },
-        Client {
-            id: "client-3".to_string(),
-            first_name: "John".to_string(),
-            last_name: "Smith".to_string(),
-            email: "john@example.com".to_string(),
-            phone: Some("+1 555 123 4567".to_string()),
-            all_consents_signed: true,
-            recording_consent_signed: true,
-        },
-    ])
+    )
+    .optional()
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn get_client(client_id: String) -> Result<Option<Client>, String> {
-    let clients = get_clients().await?;
-    Ok(clients.into_iter().find(|c| c.id == client_id))
+pub async fn get_clients(app: AppHandle) -> Result<Vec<Client>, String> {
+    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
+    query_clients(&conn)
+}
+
+#[tauri::command]
+pub async fn get_client(app: AppHandle, client_id: String) -> Result<Option<Client>, String> {
+    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
+    query_client_by_id(&conn, &client_id)
+}
+
+#[tauri::command]
+pub async fn create_client(
+    app: AppHandle,
+    first_name: String,
+    last_name: String,
+    email: String,
+    phone: Option<String>,
+) -> Result<Client, String> {
+    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
+    let id = uuid::Uuid::new_v4().to_string();
+
+    conn.execute(
+        r#"
+        INSERT INTO clients (id, first_name, last_name, email, phone, all_consents_signed, recording_consent_signed)
+        VALUES (?1, ?2, ?3, ?4, ?5, 0, 0)
+        "#,
+        rusqlite::params![&id, &first_name, &last_name, &email, &phone],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(Client {
+        id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        all_consents_signed: false,
+        recording_consent_signed: false,
+    })
 }
 
 #[tauri::command]
@@ -519,6 +576,80 @@ pub async fn open_superbill_pdf(app: AppHandle, path: String) -> Result<(), Stri
     app.shell()
         .open(path, None)
         .map_err(|e| format!("Failed to open PDF: {}", e))
+}
+
+#[cfg(test)]
+mod client_tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    fn test_conn_with_clients() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            r#"
+            CREATE TABLE clients (
+                id TEXT PRIMARY KEY,
+                first_name TEXT NOT NULL,
+                last_name TEXT NOT NULL,
+                email TEXT NOT NULL,
+                phone TEXT,
+                all_consents_signed INTEGER NOT NULL DEFAULT 0,
+                recording_consent_signed INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            INSERT INTO clients (id, first_name, last_name, email, phone, all_consents_signed, recording_consent_signed)
+            VALUES ('c1', 'Ada', 'Lovelace', 'ada@example.com', NULL, 1, 1);
+            INSERT INTO clients (id, first_name, last_name, email, phone, all_consents_signed, recording_consent_signed)
+            VALUES ('c2', 'Grace', 'Hopper', 'grace@example.com', '+15551234567', 0, 0);
+            "#,
+        )
+        .unwrap();
+        conn
+    }
+
+    #[test]
+    fn real_sql_lists_clients_from_real_table() {
+        // query_clients orders by last_name, first_name (see its SQL) --
+        // "Hopper" sorts before "Lovelace" alphabetically, so Grace is
+        // row 0 here even though Ada was inserted first.
+        let conn = test_conn_with_clients();
+        let clients = query_clients(&conn).unwrap();
+        assert_eq!(clients.len(), 2);
+        assert_eq!(clients[0].first_name, "Grace");
+        assert_eq!(clients[0].all_consents_signed, false);
+        assert_eq!(clients[0].phone, Some("+15551234567".to_string()));
+        assert_eq!(clients[1].first_name, "Ada");
+        assert_eq!(clients[1].all_consents_signed, true);
+    }
+
+    #[test]
+    fn real_sql_get_client_by_id_returns_none_for_missing() {
+        let conn = test_conn_with_clients();
+        let found = query_client_by_id(&conn, "does-not-exist").unwrap();
+        assert!(found.is_none());
+    }
+
+    #[test]
+    fn real_sql_get_client_by_id_returns_match() {
+        let conn = test_conn_with_clients();
+        let found = query_client_by_id(&conn, "c2").unwrap();
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().last_name, "Hopper");
+    }
+
+    #[test]
+    fn real_sql_create_client_inserts_and_returns_row() {
+        let conn = test_conn_with_clients();
+        let before = query_clients(&conn).unwrap().len();
+        conn.execute(
+            "INSERT INTO clients (id, first_name, last_name, email, phone, all_consents_signed, recording_consent_signed) VALUES ('c3', 'New', 'Client', 'new@example.com', NULL, 0, 0)",
+            [],
+        ).unwrap();
+        let after = query_clients(&conn).unwrap();
+        assert_eq!(after.len(), before + 1);
+        assert!(after.iter().any(|c| c.id == "c3" && c.first_name == "New"));
+    }
 }
 
 #[cfg(test)]

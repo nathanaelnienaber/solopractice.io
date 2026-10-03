@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, clients, consents, therapists } from "@/db";
+import { db, clients } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { REQUIRED_CONSENT_TEMPLATES } from "@/lib/consent-templates";
+import { authenticateDesktopRequest } from "@/lib/desktop-auth";
 
 /**
  * Desktop Sync API
@@ -11,22 +12,10 @@ import { REQUIRED_CONSENT_TEMPLATES } from "@/lib/consent-templates";
  * 
  * SECURITY: Only returns non-PHI data needed for consent status.
  * Clinical data (SOAP, Dx, CPT, recordings) stays on desktop only.
+ *
+ * The key->therapist resolution lives in @/lib/desktop-auth so this route and
+ * /api/consents/status/[clientId] cannot drift apart.
  */
-
-async function authenticateDesktopRequest(request: NextRequest) {
-  const apiKey = request.headers.get("X-Desktop-API-Key");
-  
-  if (!apiKey) {
-    return null;
-  }
-
-  // Find therapist by desktop API key
-  const therapist = await db.query.therapists.findFirst({
-    where: eq(therapists.desktopApiKey, apiKey),
-  });
-
-  return therapist;
-}
 
 export async function GET(request: NextRequest) {
   const therapist = await authenticateDesktopRequest(request);

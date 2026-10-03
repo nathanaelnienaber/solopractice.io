@@ -166,7 +166,7 @@ export default async function SettingsPage({
           <CardHeader>
             <CardTitle>Desktop App</CardTitle>
             <CardDescription>
-              Generate an API key to connect the SoloPractice desktop app. It syncs
+              Generate a connection code to connect the SoloPractice desktop app. It syncs
               client contact info and consent status only -- clinical notes and
               recordings never leave the desktop app.
             </CardDescription>

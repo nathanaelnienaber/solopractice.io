@@ -26,9 +26,9 @@ interface DownloadProgress {
   error: string | null;
 }
 
-type Step = "welcome" | "dataLocation" | "microphone" | "speechToText" | "aiDrafting" | "done";
+type Step = "connectAccount" | "welcome" | "dataLocation" | "microphone" | "speechToText" | "aiDrafting" | "done";
 
-const STEP_ORDER: Step[] = ["welcome", "dataLocation", "microphone", "speechToText", "aiDrafting", "done"];
+const STEP_ORDER: Step[] = ["connectAccount", "welcome", "dataLocation", "microphone", "speechToText", "aiDrafting", "done"];
 
 interface SetupWizardProps {
   onComplete: () => void;
@@ -36,12 +36,27 @@ interface SetupWizardProps {
 }
 
 export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
-  const [step, setStep] = useState<Step>("welcome");
+  const [step, setStep] = useState<Step>("connectAccount");
   const [status, setStatus] = useState<MlSetupStatus | null>(null);
   const [micState, setMicState] = useState<"unchecked" | "checking" | "ok" | "denied">("unchecked");
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  // Connection code / account pairing state. Kept separate from the
+  // Settings.tsx copy of the same idea -- this step writes directly via
+  // save_settings + sync_clients (the same real commands Settings.tsx
+  // uses), it does not duplicate any business logic, just gives it a
+  // home at the START of first launch instead of being buried three
+  // clicks deep under Settings -> Advanced settings, which a new user
+  // has no reason to ever find on their own.
+  const [hasAccount, setHasAccount] = useState<"unknown" | "yes" | "no">("unknown");
+  const [connectionCode, setConnectionCode] = useState("");
+  const [connecting, setConnecting] = useState(false);
+  const [connectResult, setConnectResult] = useState<{ text: string; isError: boolean } | null>(
+    null
+  );
+  const [connected, setConnected] = useState(false);
 
   useEffect(() => {
     invoke<MlSetupStatus>("detect_ml_setup")
@@ -76,6 +91,46 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
       setMicState("ok");
     } catch {
       setMicState("denied");
+    }
+  }
+
+  function openWebPortal(path: string) {
+    import("@tauri-apps/plugin-shell").then(({ open }) =>
+      open(`https://www.solopractice.io${path}`)
+    );
+  }
+
+  async function connectToAccount() {
+    const code = connectionCode.trim();
+    if (!code) return;
+    setConnecting(true);
+    setConnectResult(null);
+    try {
+      // Reuses the same real settings table + sync pipeline as
+      // Settings.tsx's Advanced settings section -- this step is just a
+      // friendlier front door onto it, not a separate mechanism. Reads
+      // the current settings first so webApiUrl (already defaulted to
+      // the real production portal by get_settings on the Rust side)
+      // isn't clobbered.
+      const current = await invoke<{
+        webApiUrl: string;
+        apiKey: string | null;
+        whisperModelSize: "tiny" | "base" | "small" | "medium" | "large";
+        ollamaModel: string;
+        autoBackup: boolean;
+        backupPath: string;
+      }>("get_settings");
+      await invoke("save_settings", { settings: { ...current, apiKey: code } });
+      const count = await invoke<number>("sync_clients");
+      setConnectResult({
+        text: `Connected -- found ${count} client${count === 1 ? "" : "s"}.`,
+        isError: false,
+      });
+      setConnected(true);
+    } catch (error) {
+      setConnectResult({ text: String(error), isError: true });
+    } finally {
+      setConnecting(false);
     }
   }
 
@@ -145,6 +200,76 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-card border rounded-xl shadow-xl max-w-lg w-full p-6">
         <WizardProgress step={step} />
+
+        {step === "connectAccount" && (
+          <Section
+            title="Connect your account"
+            body="If you already have a SoloPractice account on the web, connect this computer to it so your client list stays in sync. This is optional -- you can skip it and add clients by hand instead."
+          >
+            {connected ? (
+              <StatusBanner tone="success">{connectResult?.text}</StatusBanner>
+            ) : hasAccount === "unknown" ? (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setHasAccount("yes")}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90"
+                >
+                  Yes, I have an account
+                </button>
+                <button
+                  onClick={() => setHasAccount("no")}
+                  className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-accent"
+                >
+                  Not yet
+                </button>
+              </div>
+            ) : hasAccount === "no" ? (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Create your free account in your browser, then come back here and pick
+                  &ldquo;Yes, I have an account&rdquo;.
+                </p>
+                <button
+                  onClick={() => openWebPortal("/therapist/login")}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90"
+                >
+                  Create my account
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={connectionCode}
+                  onChange={(e) => setConnectionCode(e.target.value)}
+                  placeholder="Paste your connection code"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button
+                    onClick={connectToAccount}
+                    disabled={connecting || !connectionCode.trim()}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {connecting ? "Connecting..." : "Connect"}
+                  </button>
+                  <button
+                    onClick={() => openWebPortal("/therapist/settings#desktop")}
+                    className="text-sm text-muted-foreground hover:text-foreground underline"
+                  >
+                    Don&rsquo;t have a code? Get one from your account
+                  </button>
+                </div>
+                {connectResult && (
+                  <StatusBanner tone={connectResult.isError ? "warning" : "success"}>
+                    {connectResult.text}
+                  </StatusBanner>
+                )}
+              </div>
+            )}
+          </Section>
+        )}
 
         {step === "welcome" && (
           <Section

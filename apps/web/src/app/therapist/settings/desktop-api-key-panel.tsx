@@ -93,7 +93,7 @@ export function DesktopApiKeyPanel() {
       {revealedKey ? (
         <div className="space-y-3 rounded-lg border border-warning/50 bg-warning/5 p-4">
           <p className="text-sm font-medium text-warning">
-            Copy this key now -- you will not be able to see it again.
+            Copy this code now -- you will not be able to see it again.
           </p>
           <div className="flex items-center gap-2">
             <code className="flex-1 overflow-x-auto rounded bg-muted px-3 py-2 text-sm font-mono select-all">
@@ -104,9 +104,9 @@ export function DesktopApiKeyPanel() {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Paste this into the SoloPractice desktop app under Settings &rarr; Advanced
-            settings &rarr; Web Portal Connection &rarr; Desktop API Key, then click
-            &ldquo;Sync Now&rdquo;.
+            Paste this into the SoloPractice desktop app -- either during setup, or later under
+            Settings &rarr; Advanced settings &rarr; Web Portal Connection &rarr; Connection
+            code -- then click &ldquo;Sync Now&rdquo;.
           </p>
           <Button type="button" variant="ghost" size="sm" onClick={() => setRevealedKey(null)}>
             Done, I've saved it
@@ -127,17 +127,17 @@ export function DesktopApiKeyPanel() {
             <Badge>Active</Badge>
           </div>
           <Button type="button" variant="outline" onClick={generateKey} disabled={generating}>
-            {generating ? "Generating..." : "Generate New Key"}
+            {generating ? "Generating..." : "Generate New Code"}
           </Button>
         </div>
       ) : (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            No desktop API key yet. Generate one to let the SoloPractice desktop app
-            sync your client contact info and consent status.
+            No connection code yet. Generate one to connect the SoloPractice desktop app to
+            your account, so your client contact info and consent status stay in sync.
           </p>
           <Button type="button" onClick={generateKey} disabled={generating}>
-            {generating ? "Generating..." : "Generate Key"}
+            {generating ? "Generating..." : "Generate Connection Code"}
           </Button>
         </div>
       )}

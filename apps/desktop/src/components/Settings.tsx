@@ -10,7 +10,11 @@ interface SettingsState {
   backupPath: string;
 }
 
-export function Settings() {
+interface SettingsProps {
+  onReopenWizard: () => void;
+}
+
+export function Settings({ onReopenWizard }: SettingsProps) {
   const [settings, setSettings] = useState<SettingsState>({
     webApiUrl: "https://www.solopractice.io",
     apiKey: null,
@@ -116,6 +120,20 @@ export function Settings() {
 
       <div className="p-4 space-y-6 max-w-2xl">
         <section className="space-y-3">
+          <h2 className="text-lg font-medium">Getting started</h2>
+          <p className="text-sm text-muted-foreground">
+            Want to go through the welcome setup again -- for example, to connect your account,
+            or to check your microphone?
+          </p>
+          <button
+            onClick={onReopenWizard}
+            className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-accent transition-colors"
+          >
+            Run setup again
+          </button>
+        </section>
+
+        <section className="space-y-3">
           <h2 className="text-lg font-medium">Your data</h2>
           <p className="text-sm text-muted-foreground">
             Recordings, transcripts, and notes are stored in a private folder on this computer
@@ -185,7 +203,7 @@ export function Settings() {
               </p>
 
               <label htmlFor="desktopApiKey" className="block text-xs font-medium text-muted-foreground pt-1">
-                Desktop API Key
+                Connection code
               </label>
               <input
                 id="desktopApiKey"
@@ -197,8 +215,8 @@ export function Settings() {
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
               <p className="text-xs text-muted-foreground">
-                Generate this on the web portal under Settings &rarr; Desktop App, then paste it
-                here.
+                Get this from your account at solopractice.io, under Settings &rarr; Desktop App,
+                then paste it here.
               </p>
 
               <div className="flex items-center gap-3 pt-1">

@@ -34,6 +34,25 @@ export default function App() {
     setShowWizard(false);
   }
 
+  // Re-entry point for the setup wizard. Before this, dismissing the
+  // wizard (Skip or Start using SoloPractice) set SETUP_DONE_KEY
+  // permanently with zero UI anywhere to clear it -- a user who
+  // misclicked past a step they actually needed (most importantly, the
+  // new connectAccount pairing step) had no way back in short of a
+  // browser devtools console, which a non-technical user will never
+  // find. Settings.tsx's "Run setup again" button calls this directly
+  // instead of going through localStorage + a page reload, so it reopens
+  // immediately without losing any other in-memory app state.
+  function reopenWizard() {
+    try {
+      localStorage.removeItem(SETUP_DONE_KEY);
+    } catch {
+      // Storage unavailable -- setShowWizard(true) below still works for
+      // this session, it just won't stick across a restart.
+    }
+    setShowWizard(true);
+  }
+
   return (
     <div className="flex h-screen bg-background">
       {showWizard && <SetupWizard onComplete={dismissWizard} onSkip={dismissWizard} />}
@@ -122,7 +141,7 @@ export default function App() {
         )}
         {view === "jobs" && <JobQueue />}
         {view === "help" && <Help />}
-        {view === "settings" && <Settings />}
+        {view === "settings" && <Settings onReopenWizard={reopenWizard} />}
       </main>
     </div>
   );

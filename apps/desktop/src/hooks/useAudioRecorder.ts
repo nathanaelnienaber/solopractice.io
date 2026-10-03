@@ -49,17 +49,30 @@ export function useAudioRecorder(): [AudioRecorderState, AudioRecorderControls] 
 
       streamRef.current = stream;
 
-      // Try to use WAV format for whisper.cpp compatibility, fallback to webm
-      const mimeType = MediaRecorder.isTypeSupported("audio/wav")
-        ? "audio/wav"
-        : MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : "audio/webm";
+      // WebKitGTK/Firefox don't support MediaRecorder with webm for audio
+      // (confirmed: isTypeSupported returns false for every webm variant on
+      // this engine family). Try candidates in order of whisper.cpp
+      // friendliness, but fall back to whatever MediaRecorder picks with no
+      // mimeType at all rather than forcing an unsupported one -- the old
+      // code always passed webm as the last resort even when nothing on the
+      // candidate list was actually supported, which threw
+      // "mimeType is not supported" instead of degrading gracefully.
+      const candidates = [
+        "audio/wav",
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+        "audio/ogg",
+        "audio/mp4",
+      ];
+      const mimeType = candidates.find((type) => MediaRecorder.isTypeSupported(type));
 
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType,
-        audioBitsPerSecond: 128000,
-      });
+      const mediaRecorder = new MediaRecorder(
+        stream,
+        mimeType
+          ? { mimeType, audioBitsPerSecond: 128000 }
+          : { audioBitsPerSecond: 128000 }
+      );
 
       mediaRecorderRef.current = mediaRecorder;
 

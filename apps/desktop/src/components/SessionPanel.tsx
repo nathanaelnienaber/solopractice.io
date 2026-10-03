@@ -55,7 +55,7 @@ export function SessionPanel({
     try {
       const audioBlob = await recorderControls.stopRecording();
       const audioBytes = new Uint8Array(await audioBlob.arrayBuffer());
-      const format = audioBlob.type.includes("wav") ? "wav" : "webm";
+      const format = mimeTypeToExtension(audioBlob.type);
 
       await invoke("save_recording_file", {
         sessionId,
@@ -102,6 +102,19 @@ export function SessionPanel({
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  }
+
+  // Maps the real MediaRecorder-reported MIME type to a file extension.
+  // useAudioRecorder.ts tries several candidates in order (wav, webm/opus,
+  // ogg/opus, mp4) since WebKitGTK/Firefox don't support webm for audio
+  // recording at all -- whatever MediaRecorder actually accepted is what
+  // audioBlob.type reports, which may not be the first candidate tried.
+  function mimeTypeToExtension(mimeType: string): string {
+    if (mimeType.includes("wav")) return "wav";
+    if (mimeType.includes("ogg")) return "ogg";
+    if (mimeType.includes("mp4")) return "mp4";
+    if (mimeType.includes("webm")) return "webm";
+    return "webm"; // last-resort fallback, matches the old default
   }
 
   return (

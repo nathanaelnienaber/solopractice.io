@@ -48,12 +48,6 @@
   "plugins": {
     "shell": {
       "open": true
-    },
-    "fs": {
-      "scope": {
-        "allow": ["$APPDATA/**", "$HOME/.solopractice/**"],
-        "deny": []
-      }
     }
   }
 }

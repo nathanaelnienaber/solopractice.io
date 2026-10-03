@@ -64,3 +64,4 @@ backups/
 # OS
 Thumbs.db
 .vercel
+.env*

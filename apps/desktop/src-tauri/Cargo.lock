@@ -3889,6 +3889,7 @@ dependencies = [
  "tauri-plugin-updater",
  "tokio",
  "uuid",
+ "webkit2gtk",
  "zip 2.4.2",
 ]
 

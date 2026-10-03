@@ -21,9 +21,7 @@ export function ClientList({ selectedClientId, onSelectClient, onViewHistory }: 
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [showNewClientForm, setShowNewClientForm] = useState(false);
-  const [newClient, setNewClient] = useState({ firstName: "", lastName: "", email: "", phone: "" });
-  const [creating, setCreating] = useState(false);
+  const [showAddClientHelp, setShowAddClientHelp] = useState(false);
 
   useEffect(() => {
     loadClients();
@@ -41,26 +39,6 @@ export function ClientList({ selectedClientId, onSelectClient, onViewHistory }: 
     }
   }
 
-  async function handleCreateClient(e: React.FormEvent) {
-    e.preventDefault();
-    setCreating(true);
-    try {
-      await invoke("create_client", {
-        firstName: newClient.firstName,
-        lastName: newClient.lastName,
-        email: newClient.email,
-        phone: newClient.phone || null,
-      });
-      setNewClient({ firstName: "", lastName: "", email: "", phone: "" });
-      setShowNewClientForm(false);
-      await loadClients();
-    } catch (err) {
-      console.error("Failed to create client:", err);
-    } finally {
-      setCreating(false);
-    }
-  }
-
   const filteredClients = clients.filter(
     (c) =>
       c.firstName.toLowerCase().includes(search.toLowerCase()) ||
@@ -74,55 +52,31 @@ export function ClientList({ selectedClientId, onSelectClient, onViewHistory }: 
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl font-semibold">Clients</h1>
           <button
-            onClick={() => setShowNewClientForm((v) => !v)}
+            onClick={() => setShowAddClientHelp((v) => !v)}
             className="px-3 py-1.5 border border-border rounded-lg hover:bg-accent text-sm"
           >
-            {showNewClientForm ? "Cancel" : "+ Add Client"}
+            {showAddClientHelp ? "Close" : "+ Add Client"}
           </button>
         </div>
-        {showNewClientForm && (
-          <form onSubmit={handleCreateClient} className="mb-3 space-y-2 rounded-lg border border-border p-3">
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="text"
-                placeholder="First name"
-                required
-                value={newClient.firstName}
-                onChange={(e) => setNewClient((c) => ({ ...c, firstName: e.target.value }))}
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-              <input
-                type="text"
-                placeholder="Last name"
-                required
-                value={newClient.lastName}
-                onChange={(e) => setNewClient((c) => ({ ...c, lastName: e.target.value }))}
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
-            <input
-              type="email"
-              placeholder="Email"
-              required
-              value={newClient.email}
-              onChange={(e) => setNewClient((c) => ({ ...c, email: e.target.value }))}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-            <input
-              type="text"
-              placeholder="Phone (optional)"
-              value={newClient.phone}
-              onChange={(e) => setNewClient((c) => ({ ...c, phone: e.target.value }))}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
+        {showAddClientHelp && (
+          <div className="mb-3 space-y-2 rounded-lg border border-border p-3 text-sm text-muted-foreground">
+            <p>
+              New clients are added from the <strong>web portal</strong>, not
+              here. That's where their intake forms and recording consent get
+              signed before a session can ever be recorded.
+            </p>
+            <p>
+              Once a client signs their consent on the web portal, they'll
+              sync down to this list automatically and show as{" "}
+              <span className="text-success">Ready</span>.
+            </p>
             <button
-              type="submit"
-              disabled={creating}
-              className="w-full px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm hover:opacity-90 disabled:opacity-50"
+              onClick={() => setShowAddClientHelp(false)}
+              className="mt-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs hover:opacity-90"
             >
-              {creating ? "Adding..." : "Add Client"}
+              Got it
             </button>
-          </form>
+          </div>
         )}
         <input
           type="text"

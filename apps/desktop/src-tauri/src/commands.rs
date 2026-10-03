@@ -160,36 +160,12 @@ pub async fn get_client(app: AppHandle, client_id: String) -> Result<Option<Clie
     query_client_by_id(&conn, &client_id)
 }
 
-#[tauri::command]
-pub async fn create_client(
-    app: AppHandle,
-    first_name: String,
-    last_name: String,
-    email: String,
-    phone: Option<String>,
-) -> Result<Client, String> {
-    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
-    let id = uuid::Uuid::new_v4().to_string();
-
-    conn.execute(
-        r#"
-        INSERT INTO clients (id, first_name, last_name, email, phone, all_consents_signed, recording_consent_signed)
-        VALUES (?1, ?2, ?3, ?4, ?5, 0, 0)
-        "#,
-        rusqlite::params![&id, &first_name, &last_name, &email, &phone],
-    )
-    .map_err(|e| e.to_string())?;
-
-    Ok(Client {
-        id,
-        first_name,
-        last_name,
-        email,
-        phone,
-        all_consents_signed: false,
-        recording_consent_signed: false,
-    })
-}
+// NOTE: there is deliberately no create_client command. Clients are
+// authored on the web portal (where intake + consent forms live) and sync
+// one-way down to desktop -- see ClientList.tsx's "Add Client" help text.
+// A desktop-side create_client existed briefly but was removed: a client
+// created locally had no path to ever get consent signed, since consent
+// capture only exists on the web portal today.
 
 fn insert_new_session(conn: &rusqlite::Connection, client_id: &str) -> Result<String, String> {
     let id = uuid::Uuid::new_v4().to_string();
@@ -678,6 +654,68 @@ pub async fn open_superbill_pdf(app: AppHandle, path: String) -> Result<(), Stri
         .map_err(|e| format!("Failed to open PDF: {}", e))
 }
 
+// ---------------------------------------------------------------------------
+// Recording capture
+//
+// Writes locally-captured microphone audio (as raw bytes handed over from
+// the frontend's MediaRecorder Blob) to $APPDATA/recordings and records its
+// metadata in the local recordings table. No network call of any kind --
+// pure local file write + local SQLite insert.
+// ---------------------------------------------------------------------------
+
+fn insert_recording_record(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+    file_path: &str,
+    format: &str,
+    size_bytes: i64,
+) -> Result<String, String> {
+    let recording_id = uuid::Uuid::new_v4().to_string();
+    conn.execute(
+        r#"
+        INSERT INTO recordings (id, session_id, file_path, format, size_bytes)
+        VALUES (?1, ?2, ?3, ?4, ?5)
+        "#,
+        rusqlite::params![&recording_id, session_id, file_path, format, size_bytes],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(recording_id)
+}
+
+/// Writes captured audio bytes (handed over from the frontend's
+/// MediaRecorder Blob) to `$APPDATA/recordings/<session_id>.<format>` and
+/// records the recording's metadata in the local recordings table, linked
+/// to the given session. Returns the absolute file path written.
+#[tauri::command]
+pub async fn save_recording_file(
+    app: AppHandle,
+    session_id: String,
+    audio_bytes: Vec<u8>,
+    format: String,
+) -> Result<String, String> {
+    let recordings_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("recordings");
+    std::fs::create_dir_all(&recordings_dir).map_err(|e| e.to_string())?;
+
+    let file_name = format!("{}.{}", session_id, format);
+    let file_path = recordings_dir.join(&file_name);
+    std::fs::write(&file_path, &audio_bytes).map_err(|e| e.to_string())?;
+
+    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
+    insert_recording_record(
+        &conn,
+        &session_id,
+        &file_path.to_string_lossy(),
+        &format,
+        audio_bytes.len() as i64,
+    )?;
+
+    Ok(file_path.to_string_lossy().to_string())
+}
+
 #[cfg(test)]
 mod client_tests {
     use super::*;
@@ -739,7 +777,7 @@ mod client_tests {
     }
 
     #[test]
-    fn real_sql_create_client_inserts_and_returns_row() {
+    fn real_sql_insert_client_row_appears_in_query() {
         let conn = test_conn_with_clients();
         let before = query_clients(&conn).unwrap().len();
         conn.execute(
@@ -870,6 +908,64 @@ mod session_lifecycle_tests {
             "SELECT COUNT(*) FROM soap_notes WHERE session_id = ?1", [&session_id], |r| r.get(0)
         ).unwrap();
         assert_eq!(count, 1);
+    }
+}
+
+#[cfg(test)]
+mod recording_file_tests {
+    use rusqlite::Connection;
+
+    fn test_conn() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            r#"
+            CREATE TABLE clients (id TEXT PRIMARY KEY, first_name TEXT, last_name TEXT, email TEXT, phone TEXT, all_consents_signed INTEGER DEFAULT 0, recording_consent_signed INTEGER DEFAULT 0);
+            CREATE TABLE sessions (id TEXT PRIMARY KEY, client_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'scheduled', started_at TEXT, ended_at TEXT, recording_id TEXT, transcript_id TEXT, soap_note_id TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')));
+            CREATE TABLE recordings (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL REFERENCES sessions(id),
+                file_path TEXT NOT NULL,
+                duration_seconds INTEGER,
+                format TEXT NOT NULL DEFAULT 'wav',
+                size_bytes INTEGER,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            INSERT INTO clients (id, first_name, last_name, email) VALUES ('c1', 'Ada', 'Lovelace', 'ada@example.com');
+            INSERT INTO sessions (id, client_id, status, started_at) VALUES ('s1', 'c1', 'in_progress', datetime('now'));
+            "#,
+        )
+        .unwrap();
+        conn
+    }
+
+    /// Exercises the SAME insert_recording_record() helper that
+    /// save_recording_file() calls after writing bytes to disk -- proves
+    /// the session_id linkage + size_bytes land right in a real recordings
+    /// row, without needing a real AppHandle/filesystem for the command
+    /// wrapper itself.
+    #[test]
+    fn real_sql_insert_recording_links_session_and_records_size() {
+        let conn = test_conn();
+        let session_id = "s1".to_string();
+        let file_path = "/tmp/fake/recordings/s1.wav".to_string();
+        let format = "wav".to_string();
+        let audio_len: i64 = 4096;
+
+        let recording_id =
+            super::insert_recording_record(&conn, &session_id, &file_path, &format, audio_len)
+                .unwrap();
+
+        let (linked_session, got_format, got_size): (String, String, i64) = conn
+            .query_row(
+                "SELECT session_id, format, size_bytes FROM recordings WHERE id = ?1",
+                [&recording_id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .unwrap();
+
+        assert_eq!(linked_session, session_id);
+        assert_eq!(got_format, "wav");
+        assert_eq!(got_size, 4096);
     }
 }
 

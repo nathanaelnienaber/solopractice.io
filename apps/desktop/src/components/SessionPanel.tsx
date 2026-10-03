@@ -2,6 +2,7 @@ import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { SessionWithDetails, SoapNote } from "@solopractice/shared/desktop";
 import { SoapEditor } from "./SoapEditor";
+import { useAudioRecorder } from "../hooks/useAudioRecorder";
 
 interface SessionPanelProps {
   clientId: string | null;
@@ -19,9 +20,9 @@ export function SessionPanel({
   onViewHistory,
 }: SessionPanelProps) {
   const [state, setState] = useState<SessionState>("idle");
-  const [recordingTime, setRecordingTime] = useState(0);
   const [soapNote, setSoapNote] = useState<Partial<SoapNote> | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [recorderState, recorderControls] = useAudioRecorder();
 
   if (!clientId) {
     return (
@@ -35,11 +36,8 @@ export function SessionPanel({
     try {
       const newSessionId = await invoke<string>("start_recording", { clientId });
       setSessionId(newSessionId);
+      await recorderControls.startRecording();
       setState("recording");
-      const interval = setInterval(() => {
-        setRecordingTime((t) => t + 1);
-      }, 1000);
-      (window as any).__recordingInterval = interval;
     } catch (error) {
       console.error("Failed to start recording:", error);
       alert("Could not start recording: " + (error instanceof Error ? error.message : String(error)));
@@ -47,7 +45,6 @@ export function SessionPanel({
   }
 
   async function stopRecording() {
-    clearInterval((window as any).__recordingInterval);
     if (!sessionId) {
       console.error("stopRecording called with no active sessionId");
       setState("idle");
@@ -56,10 +53,19 @@ export function SessionPanel({
     setState("transcribing");
 
     try {
+      const audioBlob = await recorderControls.stopRecording();
+      const audioBytes = new Uint8Array(await audioBlob.arrayBuffer());
+      const format = audioBlob.type.includes("wav") ? "wav" : "webm";
+
+      await invoke("save_recording_file", {
+        sessionId,
+        audioBytes: Array.from(audioBytes), // Tauri IPC serializes Vec<u8> as a JSON array of numbers
+        format,
+      });
       await invoke("stop_recording", { sessionId });
-      await new Promise((r) => setTimeout(r, 1000));
-      setState("drafting");
-      await new Promise((r) => setTimeout(r, 1000));
+
+      // Transcription/drafting job enqueueing lands in Phase 5.
+      setState("editing");
       setSoapNote({
         subjective: "",
         objective: "",
@@ -67,7 +73,6 @@ export function SessionPanel({
         plan: "",
         isDraft: true,
       });
-      setState("editing");
     } catch (error) {
       console.error("Error processing recording:", error);
       setSoapNote({ subjective: "", objective: "", assessment: "", plan: "", isDraft: true });
@@ -85,7 +90,7 @@ export function SessionPanel({
         soapNote: { ...soapNote, isDraft: false },
       });
       setState("idle");
-      setRecordingTime(0);
+      recorderControls.resetRecording();
       setSoapNote(null);
       setSessionId(null);
     } catch (error) {
@@ -131,6 +136,11 @@ export function SessionPanel({
                 Click to start recording the session
               </p>
             </div>
+            {recorderState.error && (
+              <div className="max-w-xs text-center text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-2">
+                {recorderState.error}
+              </div>
+            )}
             <button
               onClick={startRecording}
               className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
@@ -146,9 +156,14 @@ export function SessionPanel({
               <div className="w-4 h-4 rounded-full bg-destructive" />
             </div>
             <div className="text-center">
-              <h2 className="text-2xl font-mono font-medium">{formatTime(recordingTime)}</h2>
+              <h2 className="text-2xl font-mono font-medium">{formatTime(recorderState.duration)}</h2>
               <p className="text-sm text-muted-foreground mt-1">Recording...</p>
             </div>
+            {recorderState.error && (
+              <div className="max-w-xs text-center text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-2">
+                {recorderState.error}
+              </div>
+            )}
             <button
               onClick={stopRecording}
               className="px-6 py-3 bg-destructive text-white rounded-lg font-medium hover:bg-destructive/90 transition-colors"
@@ -197,7 +212,7 @@ export function SessionPanel({
             onSave={saveSoapNote}
             onCancel={() => {
               setState("idle");
-              setRecordingTime(0);
+              recorderControls.resetRecording();
               setSoapNote(null);
             }}
           />

@@ -80,6 +80,17 @@ export default function HomePage() {
           </Card>
         </div>
 
+        <div className="text-center space-y-3 pt-8 border-t border-border">
+          <h2 className="text-lg font-semibold">Already a trial user?</h2>
+          <p className="text-sm text-muted-foreground max-w-xl mx-auto">
+            Get the desktop app to manage clients, appointments, and your
+            clinical notes — right from your own computer.
+          </p>
+          <Link href="/download">
+            <Button variant="outline">Download the desktop app</Button>
+          </Link>
+        </div>
+
         <div className="text-center space-y-4 pt-8 border-t border-border">
           <h2 className="text-lg font-semibold">Security First</h2>
           <div className="flex flex-wrap justify-center gap-4 text-sm text-muted-foreground">

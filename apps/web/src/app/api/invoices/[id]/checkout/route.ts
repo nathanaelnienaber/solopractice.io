@@ -7,6 +7,17 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+/**
+ * POST /api/invoices/[id]/checkout
+ *
+ * Intentionally unauthenticated: clients pay without an account. The invoice
+ * id is a nanoid(21) bearer capability delivered by email, so there is no
+ * session to scope against here — this is not an ownership bug.
+ *
+ * It must still refuse invoices the therapist has not sent. Without that
+ * guard, anyone holding a draft invoice id could pay it early AND flip its
+ * status to "sent" as a side effect, corrupting the therapist's billing state.
+ */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
 
@@ -24,6 +35,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   if (invoice.status === "paid") {
     return NextResponse.json({ error: "Invoice already paid" }, { status: 400 });
+  }
+
+  // A draft has not been issued to the client yet; it is not payable.
+  if (invoice.status === "draft") {
+    return NextResponse.json(
+      { error: "Invoice is not available for payment" },
+      { status: 404 },
+    );
   }
 
   if (!invoice.therapist.stripeConnectedAccountId) {

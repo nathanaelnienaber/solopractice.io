@@ -49,6 +49,7 @@ pub struct BackgroundJob {
     #[serde(rename = "completedAt")]
     pub completed_at: Option<String>,
     pub error: Option<String>,
+    pub result: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -300,40 +301,60 @@ pub async fn save_soap_note(
     )
 }
 
-#[tauri::command]
-pub async fn get_job_queue() -> Result<JobQueueResponse, String> {
-    let now = chrono::Utc::now();
+fn query_job_queue(conn: &rusqlite::Connection) -> Result<JobQueueResponse, String> {
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT id, job_type, status, progress, created_at, started_at, completed_at, error, result
+            FROM jobs
+            ORDER BY created_at DESC
+            LIMIT 50
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
 
-    Ok(JobQueueResponse {
-        jobs: vec![
-            BackgroundJob {
-                id: "job-1".to_string(),
-                job_type: "transcription".to_string(),
-                status: "in_progress".to_string(),
-                progress: Some(45),
-                created_at: (now - chrono::Duration::minutes(2)).to_rfc3339(),
-                started_at: Some((now - chrono::Duration::minutes(1)).to_rfc3339()),
-                completed_at: None,
-                error: None,
-            },
-            BackgroundJob {
-                id: "job-2".to_string(),
-                job_type: "soap_draft".to_string(),
-                status: "pending".to_string(),
-                progress: None,
-                created_at: (now - chrono::Duration::minutes(1)).to_rfc3339(),
-                started_at: None,
-                completed_at: None,
-                error: None,
-            },
-        ],
-        stats: JobQueueStats {
-            pending: 1,
-            in_progress: 1,
-            completed: 0,
-            failed: 0,
-        },
-    })
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(BackgroundJob {
+                id: row.get(0)?,
+                job_type: row.get(1)?,
+                status: row.get(2)?,
+                progress: row.get(3)?,
+                created_at: row.get(4)?,
+                started_at: row.get(5)?,
+                completed_at: row.get(6)?,
+                error: row.get(7)?,
+                result: row.get(8)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    let jobs: Vec<BackgroundJob> = rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())?;
+
+    let count_by_status = |status: &str| -> Result<u32, String> {
+        conn.query_row(
+            "SELECT COUNT(*) FROM jobs WHERE status = ?1",
+            [status],
+            |r| r.get::<_, i64>(0),
+        )
+        .map(|n| n as u32)
+        .map_err(|e| e.to_string())
+    };
+
+    let stats = JobQueueStats {
+        pending: count_by_status("pending")?,
+        in_progress: count_by_status("in_progress")?,
+        completed: count_by_status("completed")?,
+        failed: count_by_status("failed")?,
+    };
+
+    Ok(JobQueueResponse { jobs, stats })
+}
+
+#[tauri::command]
+pub async fn get_job_queue(app: AppHandle) -> Result<JobQueueResponse, String> {
+    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
+    query_job_queue(&conn)
 }
 
 #[tauri::command]
@@ -728,6 +749,71 @@ mod client_tests {
         let after = query_clients(&conn).unwrap();
         assert_eq!(after.len(), before + 1);
         assert!(after.iter().any(|c| c.id == "c3" && c.first_name == "New"));
+    }
+}
+
+#[cfg(test)]
+mod job_queue_tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    fn test_conn_with_jobs() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            r#"
+            CREATE TABLE jobs (
+                id TEXT PRIMARY KEY,
+                job_type TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                progress INTEGER,
+                payload TEXT NOT NULL,
+                result TEXT,
+                error TEXT,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                max_attempts INTEGER NOT NULL DEFAULT 3,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                started_at TEXT,
+                completed_at TEXT
+            );
+            INSERT INTO jobs (id, job_type, status, progress, payload, created_at)
+            VALUES ('job-1', 'transcription', 'in_progress', 45, '{}', '2026-01-01T10:01:00Z');
+            INSERT INTO jobs (id, job_type, status, payload, created_at)
+            VALUES ('job-2', 'soap_draft', 'pending', '{}', '2026-01-01T10:03:00Z');
+            INSERT INTO jobs (id, job_type, status, payload, result, completed_at, created_at)
+            VALUES ('job-3', 'transcription', 'completed', '{}', '{"content":"hi"}', '2026-01-01T10:03:00Z', '2026-01-01T10:02:00Z');
+            "#,
+        )
+        .unwrap();
+        conn
+    }
+
+    #[test]
+    fn real_sql_job_queue_lists_real_jobs_newest_first() {
+        let conn = test_conn_with_jobs();
+        let response = query_job_queue(&conn).unwrap();
+        assert_eq!(response.jobs.len(), 3);
+        // newest created_at first
+        assert_eq!(response.jobs[0].id, "job-2");
+        assert_eq!(response.jobs[1].id, "job-3");
+        assert_eq!(response.jobs[2].id, "job-1");
+    }
+
+    #[test]
+    fn real_sql_job_queue_computes_real_stats_from_status_counts() {
+        let conn = test_conn_with_jobs();
+        let response = query_job_queue(&conn).unwrap();
+        assert_eq!(response.stats.pending, 1);
+        assert_eq!(response.stats.in_progress, 1);
+        assert_eq!(response.stats.completed, 1);
+        assert_eq!(response.stats.failed, 0);
+    }
+
+    #[test]
+    fn real_sql_job_queue_surfaces_result_json_for_completed_job() {
+        let conn = test_conn_with_jobs();
+        let response = query_job_queue(&conn).unwrap();
+        let completed = response.jobs.iter().find(|j| j.id == "job-3").unwrap();
+        assert_eq!(completed.result, Some("{\"content\":\"hi\"}".to_string()));
     }
 }
 

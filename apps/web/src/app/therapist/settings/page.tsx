@@ -17,6 +17,7 @@ import {
   StripeConnectPanel,
   type ConnectStatusPayload,
 } from "./stripe-connect-panel";
+import { DesktopApiKeyPanel } from "./desktop-api-key-panel";
 
 export default async function SettingsPage({
   searchParams,
@@ -158,6 +159,20 @@ export default async function SettingsPage({
               <strong>Note:</strong> Current forms are draft templates for testing.
               Have an attorney review before using with real clients.
             </p>
+          </CardContent>
+        </Card>
+
+        <Card id="desktop">
+          <CardHeader>
+            <CardTitle>Desktop App</CardTitle>
+            <CardDescription>
+              Generate an API key to connect the SoloPractice desktop app. It syncs
+              client contact info and consent status only -- clinical notes and
+              recordings never leave the desktop app.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DesktopApiKeyPanel />
           </CardContent>
         </Card>
       </main>

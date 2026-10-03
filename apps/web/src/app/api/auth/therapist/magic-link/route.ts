@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, therapists } from "@/db";
 import { eq } from "drizzle-orm";
-import { generateMagicLinkToken, generateId, getTokenExpiry } from "@/lib/auth";
+import { generateId, signTherapistMagicLinkToken } from "@/lib/auth";
 import { sendMagicLink } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
@@ -37,12 +37,15 @@ export async function POST(request: NextRequest) {
           return created;
         }));
 
-    const token = generateMagicLinkToken();
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
     if (!therapist) {
       throw new Error("Could not resolve therapist for magic link");
     }
-    const magicLinkUrl = `${baseUrl}/api/auth/therapist/verify?token=${token}&id=${therapist.id}`;
+
+    const token = signTherapistMagicLinkToken(therapist.id);
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
+    // The therapist id is carried inside the signed token, not as a separate
+    // query parameter the recipient could edit.
+    const magicLinkUrl = `${baseUrl}/api/auth/therapist/verify?token=${encodeURIComponent(token)}`;
 
     await sendMagicLink(email, magicLinkUrl, "therapist");
 

@@ -43,6 +43,8 @@ describe("POST /api/auth/therapist/magic-link", () => {
     findFirstMock.mockResolvedValue(existingTherapist);
     process.env.RESEND_API_KEY = "re_test_key";
     process.env.EMAIL_FROM = "noreply@solopractice.io";
+    // Magic-link issuance now signs the token, which requires the secret.
+    process.env.SESSION_SECRET = "test-secret-at-least-32-chars-long-padding";
   });
 
   function makeRequest(email: string) {

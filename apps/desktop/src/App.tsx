@@ -1,19 +1,21 @@
 import { useState } from "react";
 import { ClientList } from "./components/ClientList";
 import { SessionPanel } from "./components/SessionPanel";
+import { SessionHistory } from "./components/SessionHistory";
 import { JobQueue } from "./components/JobQueue";
 import { Settings } from "./components/Settings";
 import { Help } from "./components/Help";
 import { SetupWizard } from "./components/SetupWizard";
 import type { SessionWithDetails } from "@solopractice/shared/desktop";
 
-type View = "clients" | "session" | "jobs" | "settings" | "help";
+type View = "clients" | "session" | "history" | "jobs" | "settings" | "help";
 
 const SETUP_DONE_KEY = "solopractice-setup-done";
 
 export default function App() {
   const [view, setView] = useState<View>("clients");
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [selectedClientName, setSelectedClientName] = useState<string>("");
   const [currentSession, setCurrentSession] = useState<SessionWithDetails | null>(null);
   const [showWizard, setShowWizard] = useState(() => {
     try {
@@ -53,6 +55,14 @@ export default function App() {
           <MicIcon />
         </NavButton>
         <NavButton
+          active={view === "history"}
+          onClick={() => setView("history")}
+          title="Session History"
+          disabled={!selectedClientId}
+        >
+          <HistoryIcon />
+        </NavButton>
+        <NavButton
           active={view === "jobs"}
           onClick={() => setView("jobs")}
           title="Background Jobs"
@@ -81,9 +91,15 @@ export default function App() {
         {view === "clients" && (
           <ClientList
             selectedClientId={selectedClientId}
-            onSelectClient={(id) => {
+            onSelectClient={(id, name) => {
               setSelectedClientId(id);
+              setSelectedClientName(name);
               setView("session");
+            }}
+            onViewHistory={(id, name) => {
+              setSelectedClientId(id);
+              setSelectedClientName(name);
+              setView("history");
             }}
           />
         )}
@@ -93,6 +109,15 @@ export default function App() {
             session={currentSession}
             onSessionChange={setCurrentSession}
             onBack={() => setView("clients")}
+            onViewHistory={() => setView("history")}
+          />
+        )}
+        {view === "history" && selectedClientId && (
+          <SessionHistory
+            clientId={selectedClientId}
+            clientName={selectedClientName}
+            onClose={() => setView("clients")}
+            onStartNewSession={() => setView("session")}
           />
         )}
         {view === "jobs" && <JobQueue />}
@@ -144,6 +169,14 @@ function MicIcon() {
   return (
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+    </svg>
+  );
+}
+
+function HistoryIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   );
 }

@@ -159,3 +159,13 @@ pub fn initialize_database(app: &AppHandle) -> Result<()> {
     println!("Database initialized at {:?}", db_path);
     Ok(())
 }
+
+/// Open a connection to the local encrypted-at-rest SQLite database.
+///
+/// Every clinical-data command (sessions, transcripts, SOAP notes) should
+/// go through this helper rather than opening its own connection, so there
+/// is exactly one code path that knows where the PHI actually lives on disk.
+pub fn get_connection(app: &AppHandle) -> Result<Connection> {
+    let db_path = get_db_path(app);
+    Connection::open(&db_path)
+}

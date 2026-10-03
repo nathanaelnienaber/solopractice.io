@@ -8,6 +8,7 @@ interface SessionPanelProps {
   session: SessionWithDetails | null;
   onSessionChange: (session: SessionWithDetails | null) => void;
   onBack: () => void;
+  onViewHistory?: () => void;
 }
 
 type SessionState = "idle" | "recording" | "transcribing" | "drafting" | "editing";
@@ -15,6 +16,7 @@ type SessionState = "idle" | "recording" | "transcribing" | "drafting" | "editin
 export function SessionPanel({
   clientId,
   onBack,
+  onViewHistory,
 }: SessionPanelProps) {
   const [state, setState] = useState<SessionState>("idle");
   const [recordingTime, setRecordingTime] = useState(0);
@@ -110,7 +112,15 @@ export function SessionPanel({
         >
           &larr;
         </button>
-        <h1 className="text-xl font-semibold">Session</h1>
+        <h1 className="text-xl font-semibold flex-1">Session</h1>
+        {onViewHistory && (
+          <button
+            onClick={onViewHistory}
+            className="text-sm px-3 py-1.5 border border-border rounded-lg hover:bg-accent transition-colors"
+          >
+            View History
+          </button>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto p-4">

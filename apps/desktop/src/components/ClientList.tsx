@@ -13,10 +13,11 @@ interface Client {
 
 interface ClientListProps {
   selectedClientId: string | null;
-  onSelectClient: (id: string) => void;
+  onSelectClient: (id: string, name: string) => void;
+  onViewHistory: (id: string, name: string) => void;
 }
 
-export function ClientList({ selectedClientId, onSelectClient }: ClientListProps) {
+export function ClientList({ selectedClientId, onSelectClient, onViewHistory }: ClientListProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -71,7 +72,8 @@ export function ClientList({ selectedClientId, onSelectClient }: ClientListProps
                 key={client.id}
                 client={client}
                 selected={client.id === selectedClientId}
-                onSelect={() => onSelectClient(client.id)}
+                onSelect={() => onSelectClient(client.id, `${client.firstName} ${client.lastName}`)}
+                onViewHistory={() => onViewHistory(client.id, `${client.firstName} ${client.lastName}`)}
               />
             ))}
           </div>
@@ -91,53 +93,67 @@ function ClientCard({
   client,
   selected,
   onSelect,
+  onViewHistory,
 }: {
   client: Client;
   selected: boolean;
   onSelect: () => void;
+  onViewHistory: () => void;
 }) {
   const canRecord = client.recordingConsentSigned;
 
   return (
-    <button
-      onClick={onSelect}
-      disabled={!canRecord}
+    <div
       className={`
         w-full text-left p-3 rounded-lg border transition-colors
         ${selected ? "border-primary bg-primary/5" : "border-border hover:bg-accent"}
-        ${!canRecord ? "opacity-60 cursor-not-allowed" : ""}
       `}
     >
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="font-medium">
-            {client.firstName} {client.lastName}
+      <button
+        onClick={onSelect}
+        disabled={!canRecord}
+        className={`w-full text-left ${!canRecord ? "opacity-60 cursor-not-allowed" : ""}`}
+      >
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="font-medium">
+              {client.firstName} {client.lastName}
+            </p>
+            <p className="text-sm text-muted-foreground">{client.email}</p>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            {canRecord ? (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-success/10 text-success">
+                Ready
+              </span>
+            ) : (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">
+                Record blocked
+              </span>
+            )}
+            {!client.allConsentsSigned && (
+              <span className="text-xs text-muted-foreground">
+                Consents incomplete
+              </span>
+            )}
+          </div>
+        </div>
+        {!canRecord && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Recording consent not signed. Send consent link from web portal.
           </p>
-          <p className="text-sm text-muted-foreground">{client.email}</p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          {canRecord ? (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-success/10 text-success">
-              Ready
-            </span>
-          ) : (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">
-              Record blocked
-            </span>
-          )}
-          {!client.allConsentsSigned && (
-            <span className="text-xs text-muted-foreground">
-              Consents incomplete
-            </span>
-          )}
-        </div>
-      </div>
-      {!canRecord && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          Recording consent not signed. Send consent link from web portal.
-        </p>
-      )}
-    </button>
+        )}
+      </button>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onViewHistory();
+        }}
+        className="mt-2 text-xs px-2 py-1 rounded border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+      >
+        View Session History
+      </button>
+    </div>
   );
 }
 

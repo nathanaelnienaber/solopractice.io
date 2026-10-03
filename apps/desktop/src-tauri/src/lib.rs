@@ -9,6 +9,8 @@ mod commands;
 mod db;
 mod jobs;
 mod ml_setup;
+mod soap_pdf;
+mod superbill;
 
 use tauri::Manager;
 
@@ -43,6 +45,10 @@ pub fn run() {
             commands::test_web_connection,
             commands::generate_superbill_stub,
             commands::sync_consent_status,
+            commands::get_client_sessions,
+            commands::get_full_session,
+            commands::export_soap_pdf,
+            commands::open_superbill_pdf,
             ml_setup::detect_ml_setup,
             ml_setup::download_whisper_model,
             ml_setup::download_whisper_binary,

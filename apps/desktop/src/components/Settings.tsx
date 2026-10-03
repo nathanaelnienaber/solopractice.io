@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 interface SettingsState {
   webApiUrl: string;
+  apiKey: string;
   whisperModelSize: "tiny" | "base" | "small" | "medium" | "large";
   ollamaModel: string;
   autoBackup: boolean;
@@ -12,6 +13,7 @@ interface SettingsState {
 export function Settings() {
   const [settings, setSettings] = useState<SettingsState>({
     webApiUrl: "http://localhost:3847",
+    apiKey: "",
     whisperModelSize: "base",
     ollamaModel: "llama3.2",
     autoBackup: true,
@@ -19,6 +21,8 @@ export function Settings() {
   });
   const [saving, setSaving] = useState(false);
   const [opening, setOpening] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{ text: string; isError: boolean } | null>(null);
 
   async function saveSettings() {
     setSaving(true);
@@ -39,6 +43,19 @@ export function Settings() {
       alert(result ? "Connection successful!" : "Connection failed");
     } catch (error) {
       alert("Connection failed: " + error);
+    }
+  }
+
+  async function syncNow() {
+    setSyncing(true);
+    setSyncMessage(null);
+    try {
+      const count = await invoke<number>("sync_clients");
+      setSyncMessage({ text: `Synced ${count} client${count === 1 ? "" : "s"} from the web portal.`, isError: false });
+    } catch (error) {
+      setSyncMessage({ text: String(error), isError: true });
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -136,6 +153,43 @@ export function Settings() {
               </div>
               <p className="text-xs text-muted-foreground">
                 Address of the SoloPractice web portal, used only to check consent status.
+              </p>
+
+              <label htmlFor="desktopApiKey" className="block text-xs font-medium text-muted-foreground pt-1">
+                Desktop API Key
+              </label>
+              <input
+                id="desktopApiKey"
+                type="password"
+                autoComplete="off"
+                value={settings.apiKey}
+                onChange={(e) => setSettings({ ...settings, apiKey: e.target.value })}
+                placeholder="sp_desktop_..."
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              <p className="text-xs text-muted-foreground">
+                Generate this on the web portal under Settings &rarr; Desktop App, then paste it
+                here.
+              </p>
+
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  onClick={syncNow}
+                  disabled={syncing}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {syncing ? "Syncing..." : "Sync Now"}
+                </button>
+                {syncMessage && (
+                  <p className={`text-xs ${syncMessage.isError ? "text-destructive" : "text-success"}`}>
+                    {syncMessage.text}
+                  </p>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Pulls clients and consent status from the web portal now. This does not happen
+                automatically in the background -- use this button whenever you want the latest
+                list.
               </p>
             </div>
 

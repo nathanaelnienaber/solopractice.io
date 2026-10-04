@@ -2,27 +2,31 @@
 
 Local-first therapy practice management for solo LMHCs. Clinical data stays on your desktop — always.
 
+**Product truth and build order live in [`PRODUCT_PLAN.md`](./PRODUCT_PLAN.md).** That file wins if anything here disagrees. Active work is **Gate A** (fake-client loop). Do not use with real clients until Gate B (encryption + attorney-reviewed consents).
+
 ## Architecture
 
 ```
 ┌─────────────────────────────┐     ┌──────────────────────────────┐
-│  Desktop (Windows)          │     │  Web                          │
-│  - Encrypted SQLite         │◀───▶│  - Client intake + consents   │
+│  Desktop (Windows first)    │     │  Web                          │
+│  - Local SQLite (plaintext) │◀───▶│  - Client intake + consents   │
 │  - Audio recording          │sync │  - Schedule + SMS reminders   │
-│  - whisper.cpp transcription│flags│  - Invoices + Stripe payments │
-│  - Local LLM SOAP drafts    │only │  - Therapist dashboard        │
-│  - Superbill PDF generation │     │                               │
+│  - whisper.cpp transcription│     │  - Invoices + Stripe (card)   │
+│  - Ollama SOAP drafts       │     │  - Therapist dashboard        │
+│  - Superbill PDF            │     │                               │
 └─────────────────────────────┘     └──────────────────────────────┘
          │                                      │
-         │ NEVER uploads clinical data          │
+         │ clinical chart stays on disk         │
          ▼                                      ▼
-   Your local disk only              Consent flags, contact info,
-                                     payment status only
+   Your local disk only              Contact info, consent text and
+                                     signatures, appointments, invoices
 ```
+
+Desktop sync pulls contact info and consent status via `GET /api/desktop/sync` (`X-Desktop-API-Key`). It does not upload the chart.
 
 ## Security Boundaries
 
-**The following NEVER leave your desktop / NEVER sync to web:**
+**Never leave the desktop / never sync to web:**
 
 - Session audio recordings
 - Transcripts
@@ -32,29 +36,34 @@ Local-first therapy practice management for solo LMHCs. Clinical data stays on y
 - Clinical narratives
 - Superbills
 
-**Web portal holds only:**
+**Local database:** a normal SQLite file. The app does **not** encrypt it. Use BitLocker (or similar) on the machine until Gate B. Do not sync `%APPDATA%\com.solopractice.desktop` to OneDrive.
+
+**Web portal holds:**
 
 - Client contact info (name, email, phone)
-- Consent completion flags (not content)
-- Appointment schedule
+- Consent form text, signatures, and completion status (not “flags only”)
+- Appointment schedule, including an optional free-text `notes` field — **not for session content**
 - Invoice amounts and payment status
 
 ## Monorepo Structure
 
 ```
 solopractice/
+├── PRODUCT_PLAN.md       # North star, current truth, release gates
 ├── apps/
-│   ├── desktop/          # Tauri 2 + React (Windows MVP)
+│   ├── desktop/          # Tauri 2 + React (Windows first)
 │   │   ├── src/          # React frontend
 │   │   └── src-tauri/    # Rust backend
 │   └── web/              # Next.js web app
 │       └── src/
-│           ├── app/      # App router pages
+│           ├── app/      # App router pages + API routes
 │           ├── db/       # Drizzle schema
-│           └── lib/      # Stripe, Resend, Twilio
+│           └── lib/      # Stripe, Resend, Twilio, auth
 ├── packages/
-│   └── shared/           # Shared types with PHI boundary enforcement
-└── .env.example          # Environment template
+│   └── shared/           # Web vs desktop types + clinical field blocklist
+├── docs/
+│   └── WINDOWS_SETUP.md  # Windows machine setup
+└── .env.example
 ```
 
 ## Quick Start
@@ -63,16 +72,13 @@ solopractice/
 
 - Node.js 20+
 - pnpm 9+
-- Rust (for desktop, see Windows instructions below)
+- Rust (for desktop; see Windows section)
 - PostgreSQL (or Neon serverless)
 
 ### Installation
 
 ```bash
-# Clone and install dependencies
 pnpm install
-
-# Copy environment template
 cp .env.example .env
 # Edit .env with your API keys
 ```
@@ -80,13 +86,8 @@ cp .env.example .env
 ### Web App
 
 ```bash
-# Generate database schema
 pnpm db:generate
-
-# Push schema to database
 pnpm db:push
-
-# Start development server
 pnpm dev:web
 ```
 
@@ -94,37 +95,23 @@ Open [http://localhost:3847](http://localhost:3847)
 
 ### Desktop App (Windows)
 
-#### Windows Prerequisites
-
-1. **Install Rust**: Download from [rustup.rs](https://rustup.rs)
-2. **Install Visual Studio Build Tools**:
-   - Download [VS Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
-   - Select "Desktop development with C++"
-3. **Install WebView2**: Usually pre-installed on Windows 10/11
-
-#### Running on Windows
+1. Install Rust from [rustup.rs](https://rustup.rs)
+2. Install [VS Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with “Desktop development with C++”
+3. WebView2 (usually pre-installed on Windows 10/11)
 
 ```powershell
-# Navigate to desktop app
 cd apps/desktop
-
-# Install dependencies
 pnpm install
-
-# Run in development mode
 pnpm tauri:dev
-
-# Build for production
-pnpm tauri:build
+# Production: pnpm tauri:build
 ```
 
-The installer will be in `apps/desktop/src-tauri/target/release/bundle/`.
+Installer output: `apps/desktop/src-tauri/target/release/bundle/`.  
+More detail: [`docs/WINDOWS_SETUP.md`](./docs/WINDOWS_SETUP.md) and [`apps/desktop/README.md`](./apps/desktop/README.md).
 
 ## Environment Variables
 
-See `.env.example` for all required variables.
-
-### Required for Web
+See `.env.example`.
 
 | Variable | Description |
 |----------|-------------|
@@ -133,46 +120,43 @@ See `.env.example` for all required variables.
 | `RESEND_API_KEY` | Resend API key for emails |
 | `TWILIO_*` | Twilio credentials for SMS |
 
-### Stripe Connect Setup
+### Stripe Connect
 
-1. Create a Stripe account
-2. Enable Connect in your dashboard
-3. Use test mode keys for development
-4. Set up webhook endpoint: `/api/webhooks/stripe`
+1. Create a Stripe account and enable Connect  
+2. Use test mode keys for development  
+3. Webhook: `/api/webhooks/stripe`  
 
-Platform fee: **1% on all payments** (no monthly subscription)
+Platform fee: **1% on payments** (no monthly subscription). Cards only today.
 
 ## Testing with Fake Clients
 
-⚠️ **Important**: The consent forms are DRAFT templates. Do not use with real clients until reviewed by an attorney.
+Consent forms are **DRAFT** templates. Fake clients only until attorney review (Gate B).
 
-### Testing Flow
+1. Sign in via magic link at `/therapist/login`  
+2. Clients → Add Client → send consent link  
+3. Sign consents in another browser/incognito  
+4. Desktop: set API key (Settings / setup wizard), sync — client ready after consents  
+5. Record a session (audio local). Transcription needs whisper.cpp paths; otherwise enter transcript by hand  
+6. Review Ollama SOAP draft (local), edit, save  
+7. Desktop sidebar → Superbill: pick client, Dx/CPT, letterhead → Generate PDF → open locally  
+8. Create invoice → Stripe Checkout (card). Pay page thanks the client; it does not claim a receipt email was sent  
 
-1. **Create therapist account**: Sign in via magic link at `/therapist/login`
-2. **Add test client**: Go to Clients → Add Client
-3. **Send consent invite**: Click "Send consent link"
-4. **Sign consents**: Open the link in another browser/incognito
-5. **Test desktop sync**: Desktop app shows client as "Ready" after consents
-6. **Record session**: Start recording (uses stub - real whisper.cpp integration TBD)
-7. **Edit SOAP**: Review AI-generated draft, edit, and save
-8. **Create invoice**: Send invoice via Stripe
+Full Gate A checklist for her Windows PC: [docs/GATE_A_WALKTHROUGH.md](docs/GATE_A_WALKTHROUGH.md).
 
 ## Background Jobs
 
-The desktop app processes these in the background:
-
 | Job | Tool | Status |
 |-----|------|--------|
-| Transcription | whisper.cpp | Stub (interface ready) |
-| SOAP Draft | Ollama | Stub (interface ready) |
-| Superbill PDF | Local | Stub (interface ready) |
-| Backup | Local | Stub (interface ready) |
+| Transcription | whisper.cpp CLI | Runs when binary + model path are set; else job fails |
+| SOAP draft | Ollama on `127.0.0.1` | Uses configured model (`phi4-mini` if unset) |
+| Superbill PDF | Local (`printpdf`) | Sidebar Superbill screen; `generate_superbill` writes under `superbills/` |
+| Backup | — | Not implemented |
 
-Jobs queue in SQLite and process without blocking the UI.
+Jobs are SQLite rows processed on a background thread. Failed jobs stay `failed` (not requeued). Jobs left `in_progress` after a crash are not auto-reset.
 
 ## API Security
 
-The web API rejects any payload containing clinical fields:
+Write routes reject payloads with clinical field names (defense in depth; schema also excludes them):
 
 ```typescript
 const CLINICAL_FIELD_BLOCKLIST = [
@@ -182,52 +166,36 @@ const CLINICAL_FIELD_BLOCKLIST = [
 ];
 ```
 
-Attempting to POST clinical data returns:
-
-```json
-{
-  "error": "Request rejected: contains prohibited clinical fields",
-  "code": "CLINICAL_DATA_REJECTED"
-}
-```
+Response: `400` with `code: "CLINICAL_DATA_REJECTED"`.  
+Note: free-text keys like appointment `notes` are **not** on this list — do not put clinical content there.
 
 ## Consent Forms
 
-Draft boilerplate forms included (clearly marked NOT LEGAL ADVICE):
+Draft pack (not legal advice):
 
-- Informed Consent for Treatment
-- Notice of Privacy Practices
-- Telehealth Consent
-- Session Recording Consent
-- Limits of Confidentiality
+- Informed Consent for Treatment  
+- Notice of Privacy Practices  
+- Telehealth Consent  
+- Session Recording Consent  
+- Limits of Confidentiality  
 
-**Before using with real clients:**
-
-1. Have an attorney review and customize
-2. Ensure compliance with your state's requirements
-3. Remove "DRAFT" warnings
+Before real clients: attorney review, state compliance, remove DRAFT warnings.
 
 ## Development
 
 ```bash
-# Type check all packages
 pnpm typecheck
-
-# Run web dev server
+pnpm test
 pnpm dev:web
-
-# Run desktop dev (requires Rust)
-pnpm dev:desktop
-
-# Build shared package
+pnpm dev:desktop   # requires Rust
 cd packages/shared && pnpm build
 ```
 
 ## Monetization
 
-- Clinical features: **Free**
-- Platform fee: **1% on payments** (on top of Stripe fees)
-- No monthly subscription
+- Clinical features: **free**  
+- Platform fee: **1%** on successful payments (atop Stripe)  
+- No monthly subscription  
 
 ## License
 

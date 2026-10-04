@@ -1,252 +1,237 @@
 # solopractice — Product Plan
 
-**Status:** Draft for Nathanael · 2026-09-18  
+**Status:** Active plan · 2026-10-03  
 **Working name:** solopractice  
-**Primary user:** Solo licensed mental health counselor (LMHC) — first customer: Nathanael’s wife  
-**Builders:** Local-first clinical core; web for intake, reminders, billing
+**Primary user:** Solo LMHC — first customer: Nathanael’s wife  
+**How to use this file:** This is the single product plan. README and setup docs are how-to only; if they disagree with this file, this file wins. Update **§2 Current truth** in the same change that alters behavior. Build only against the **active gate** in §3.
+
+**Nathanael’s role:** Go/no-go on gate exit. Not day-to-day task assignment.
 
 ---
 
-## 1. Problem
+## 1. North star
 
-Solo therapists lose hours to intake paperwork, session notes, superbills, reminders, and getting paid. Existing EHR / practice tools are heavy, expensive, and cloud-first. She needs something that:
+### Problem
 
-1. Gets a new client onboarded with the right consents  
-2. Reminds them of sessions  
-3. Captures the session (audio → notes) without fighting an EHR  
-4. Produces a superbill and gets paid  
+Solo therapists lose hours to intake, session notes, superbills, reminders, and getting paid. Existing tools are heavy, expensive, and cloud-first. She needs to onboard a client with consents, remind them, capture the session (audio → notes), produce a superbill, and get paid — without us hosting a clinical data lake.
 
-…without the builders hosting a clinical data lake.
+### Principles
+
+1. **Desktop is the only home for clinical data.** SOAP, Dx, CPT, audio, transcripts, and superbills never sync to the web app.  
+2. **Web is for client-facing ops:** intake, e-sign, schedule/reminders, pay.  
+3. **Clinical features are free.** Monetize only on successful payments: **1% platform fee atop Stripe**. Closed-source.  
+4. **No auto-send of clinical or billing artifacts** without therapist confirmation.  
+5. **Recording requires recording consent** on file before Record is enabled.  
+6. **Local STT + local LLM only** for transcript/SOAP (whisper.cpp + Ollama). No cloud transcription of clinical audio. Jobs may be slow; UI stays responsive.  
+7. **Do not claim security we do not have.** Especially encryption at rest and “HIPAA-free.”
+
+### Users
+
+| Role | Where | Job |
+|------|--------|-----|
+| Therapist | Desktop + web admin | Clients, sessions, notes, record, SOAP, superbills, bills, settings |
+| Client | Web links | Sign consents; pay invoice |
+| Platform | Stripe Connect | 1% application fee; no clinical access |
+
+### Monetization (settled)
+
+- Stripe Connect **Express**, card Checkout, **1% application fee**  
+- No monthly subscription  
+- ACH later, same 1% when it exists  
+
+### Non-goals (not in this product)
+
+- Multi-therapist / group practice  
+- Insurance claim submission (clearinghouse)  
+- Telehealth video inside the app  
+- Hosting audio, transcripts, or clinical notes on our servers  
+
+### Success (after one live practice, 90 days)
+
+- Session ended → signed SOAP &lt; 10 minutes median  
+- Consents complete before first session ≥ 95%  
+- Invoice → paid &lt; 48h for card payers  
+- Zero clinical audio, transcripts, SOAP, Dx, CPT, or superbills on our servers  
+
+These metrics apply **after Gate C**. Before that, use gate exit criteria only.
 
 ---
 
-## 2. Product principles
+## 2. Current truth
 
-1. **Desktop is the only home for clinical data.** SOAP, Dx, CPT, audio, and transcripts never sync to the webapp.  
-2. **Web is for client-facing workflows** (intake, e-sign, schedule/reminders, pay).  
-3. **Clinical features are free.** Monetize only on **successful payments** via a **1% platform fee atop Stripe**. **Closed-source** (not open-source / not a public vibe-codeable repo).  
-4. **No auto-send of irreversible clinical/billing artifacts** without therapist confirmation (especially email with PHI-ish content).  
-5. **Recording requires explicit consent** on file before “Record” is enabled.  
-6. **Email provider TBD** — do not block MVP architecture on it; abstract behind `EmailProvider`.
-7. **Free local STT + LLM only** for transcript/SOAP — no cloud transcription of clinical audio. Jobs run **in the background** (delayed OK); UI stays responsive.
+*Reconcile this section whenever the repo’s behavior changes.*
 
----
-
-## 3. Users & roles
-
-| Role | Where they work | What they do |
-|------|-----------------|--------------|
-| Therapist | Desktop app + Web admin | Clients, sessions, notes, record, SOAP, superbills, send bills, configure fees/templates |
-| Client | Web (magic link) | Sign consents, view upcoming session, pay invoice |
-| Platform (you) | Stripe Connect | Application fee on charges; no access to clinical notes |
-
----
-
-## 4. System shape
+### Architecture
 
 ```
 ┌─────────────────────────────┐     ┌──────────────────────────────┐
-│  Desktop (local)            │     │  Web                          │
-│  - Encrypted SQLite         │◀───▶│  - Intake + e-sign consents   │
-│  - Audio / Whisper STT      │sync │  - Schedule + Twilio SMS      │
-│  - SOAP (local LLM)         │light│  - Invoices + Stripe Checkout │
-│  - Superbill PDF            │     │  - Client pay (CC / ACH)      │
+│  Desktop (Windows first)    │     │  Web                          │
+│  - SQLite (not encrypted)   │◀───▶│  - Intake + e-sign consents   │
+│  - Audio / whisper.cpp      │sync │  - Schedule + Twilio SMS      │
+│  - SOAP (Ollama, localhost) │flags│  - Invoices + Stripe (card)   │
+│  - Superbill PDF            │     │  - Resend (magic/invite/bill) │
 └─────────────────────────────┘     └──────────────────────────────┘
-         │                                      │
-         │ never uploads audio/notes by default │ EmailProvider (TBD)
-         ▼                                      ▼
-   Local disk only                    Consents, reminders, receipts
+         clinical chart stays here
 ```
 
-**Hard security boundary (non-negotiable):** The following **never leave the desktop / never sync to the webapp**:
+Monorepo: `apps/desktop` (Tauri 2 + React + Rust), `apps/web` (Next.js + Drizzle + Neon), `packages/shared` (web vs desktop type entry points + clinical field blocklist).
 
-- Session audio recordings  
-- Transcripts  
-- SOAP notes  
-- Diagnosis codes (ICD)  
-- CPT / procedure codes used in clinical documentation  
-- Any derived clinical narrative  
+### What works today (fake clients)
 
-Web may hold only **ops data**: client contact, consent completion flags (not clinical content), appointments, invoices/payment status. Link by opaque `client_id`.
+- Therapist magic link (Resend; HMAC-signed; 15 min; **not single-use**)  
+- Create client → consent invite email → five draft forms e-signed → status sync to desktop via `X-Desktop-API-Key`  
+- Record blocked until recording consent is signed  
+- Record → local audio → whisper.cpp job (if binary + model configured) or manual transcript  
+- Ollama SOAP draft on `127.0.0.1` → edit → save → SOAP PDF export (drafts refused)  
+- Appointments list/create; therapist-triggered Twilio SMS reminder  
+- Invoice → Stripe Checkout (card) → Connect payout with 1% fee  
+- Superbill screen in the desktop sidebar → `generate_superbill` writes a PDF under `app_data_dir/superbills/`, saves a local DB row, opens via OS viewer; history via `get_superbills`  
+- Desktop runs on Windows (target) and Linux (dev); Mac not a target yet  
 
-**Superbill:** Generated **only on desktop** from local codes + fee schedule. Web invoices are amount/due-date/pay links — they must not embed Dx/CPT/SOAP. If a paid session needs a clinical superbill, that PDF stays a desktop artifact (email via her client, not uploaded to our web DB).
+### Known gaps / lies to avoid in copy
 
----
-
-## 5. Feature map
-
-### 5.1 Web — Therapist
-
-- Create client / send intake invite  
-- Auto-send **LMHC consent pack** (state + license template; start with her state only)  
-- See consent completion status (ops flags only)
-- Desktop consumes consent-complete flag → client selectable vs greyed out  
-- Schedule next session  
-- Trigger reminders (Twilio SMS; email when provider chosen)  
-- Create / send bill (amount, session ref, due date)  
-- Fee schedule + platform fee display (“client pays X; processor + platform fee”)
-
-### 5.2 Web — Client
-
-- Open secure magic link  
-- E-sign required consents (blocked until complete)  
-- View next appointment  
-- Pay invoice (card or ACH)  
-- Download receipt / paid invoice PDF  
-
-### 5.3 Desktop — Therapist
-
-- Clients list + search (greyed / Record blocked until required web consents signed)
-- Local form library (PHI-capable forms): create/pick → print or native email → local store only  
-- Past session notes (SOAP history)  
-- Start session → **Record** (gated on recording consent)  
-- Local transcription via **free** STT (e.g. whisper.cpp) — **queued / background**, may be delayed/slow; must not bog the UI during/after session  
-- Draft SOAP via **free local LLM** (e.g. Ollama) — same: background job, short template-constrained draft → therapist edits → save  
-- Session UX: Record → Save audio immediately → show “Transcribing…” / “Drafting SOAP…” without blocking charting  
-- Generate **superbill PDF** (local)  
-- “Attach / open in mail client” for superbill (MVP); optional send via EmailProvider later  
-- Encrypted backup / export  
-
-### 5.4 Platform money
-
-- Stripe Connect: therapist = connected account; platform takes **application fee**  
-- Client pays CC or ACH  
-- **Platform fee (working):** **1% on top of Stripe** CC/ACH fees. Clinical free. Revisit if support/ops load appears. (Settled at 1% atop Stripe; closed-source, not open-source.)  
-- Everything else free  
-
----
-
-## 6. Consent pack (MVP content types)
-
-Not legal advice — templates must be attorney-reviewed for her license + state.
-
-Minimum set:
-
-1. Informed consent (treatment, fees, cancellation)  
-2. Notice of Privacy Practices  
-3. Telehealth consent (if applicable)  
-4. **Session recording consent** — collected at onboard with the LMHC pack; hard gate for desktop Record  
-5. Limits of confidentiality / emergency  
-
-Store: signed PDF, timestamp, IP/user-agent, form version hash.
-
----
-
-## 7. MVP vs later
-
-### MVP (ship first)
-
-1. Desktop (**Windows first**): clients, sessions, record → local STT → editable SOAP → save  
-2. Desktop: superbill PDF + open externally  
-3. Web: invite client → e-sign consent pack (one state) → status sync flag to desktop  
-4. Web: create invoice → Stripe Checkout (card; ACH if easy) → Connect payout to her  
-5. Twilio SMS reminder for next session  
-
-### Phase 2
-
-- Email provider integration (reminders, magic links, receipts)  
-- Richer scheduling calendar  
-- Multi-state consent packs  
-- Auto-attach superbill email with confirmation UI  
-- ACH optimization, saved payment methods  
-- Client portal history  
-
-### Non-goals (v1)
-
-- Multi-therapist group practice  
-- Insurance claim submission (clearinghouse)  
-- Telehealth video inside the app  
-- Builders hosting audio/transcripts in the cloud  
-
----
-
-## 8. Suggested stack (opinionated, changeable)
-
-| Layer | Suggestion |
-|-------|------------|
-| Desktop | Tauri 2 or Electron + local encrypted SQLite |
-| STT | Free local (whisper.cpp etc.) — **background queue**, low priority CPU/GPU |
-| SOAP LLM | Free local (Ollama etc.) — **background**; never cloud with clinical audio/text |
-| Web | Next.js (or similar) + Postgres for non-clinical ops data |
-| Auth | Therapist: email magic link / password; Client: magic link only |
-| Payments | Stripe Connect (Express or Standard — finalize in Connect plan) |
-| SMS | Twilio |
-| Email | **TBD** (interface now, pick later) |
-| E-sign | Embedded signatures (PDF + audit trail); avoid inventing legal text |
-
----
-
-## 9. Compliance posture (honest)
-
-- **Hard line:** No SOAP, Dx, CPT, recordings, or transcripts on builders’ servers or the webapp DB. That keeps the clinical chart out of our hosted stack.  
-- **Still true:** Web intake, SMS, email, and payments touch names, contact info, and billing amounts — health-*adjacent* ops data. That may still trigger vendor BAAs (Stripe/Twilio/email) depending on counsel’s read; it is **not** the same as hosting an EHR. Do not market “HIPAA-free” as a blanket claim.  
-- Therapist remains responsible for clinical/legal practice requirements.  
-- This plan is **not** legal advice.
-
----
-
-## 10. Decisions
-
-- [x] Platform fee: **1% atop Stripe**; closed-source  
-- [x] **Email:** required for magic links / receipts (provider still TBD; abstract `EmailProvider`)  
-- [x] **Ship OS order:** **Windows (PC) → Mac → Linux**  
-- [x] **Consent copy:** ship **boilerplate drafts** first; Nathanael gets attorney review before real clients  
-- [x] **Consent ↔ desktop UX:** therapist picks client from desktop dropdown; client is **greyed out / Record blocked** until web shows all required consents signed  
-- [x] **Two form lanes:**  
-  - **Web (ops, not clinical PHI):** standard LMHC onboard pack → e-sign → status flag to desktop  
-  - **Desktop (may include PHI):** therapist creates or picks from local library → print or native email only → **store only on desktop**, never WebUI  
-- [x] Email provider: **Resend**
-- [x] v1 OS: **Windows only** (wife tests MVP)
-- [x] Consents: boilerplate; **fake clients only** until counsel
-- [x] Monetization: **1% only** (no monthly floor)
-- [x] Nathanael: go/no-go only — Grok Bot / cloud agents own build  
-- [x] Stripe Connect: **Express + 1% application fee** (confirmed)  
-- [ ] Whisper model size vs quality on her PC  
-
----
-
-
-## 10a. Stripe Connect — recommended default (for Nathanael to confirm)
-
-**Recommendation:** Stripe Connect **Express** + **destination charges** (or Checkout with `application_fee_amount` = 1% of charge).
-
-| Topic | Default |
+| Topic | Reality |
 |-------|---------|
-| Connected account | **Express** — she onboards via Stripe-hosted KYC; you don’t build a full dashboard |
-| Charge pattern | Platform creates Checkout/PaymentIntent; funds to her connected account; **1% application fee** to platform |
-| Stripe processing fees | Paid from the charge (standard Connect behavior); show line: “Card processing (Stripe) + 1% solopractice fee” |
-| Refunds | Therapist initiates; **application fee refunded proportionally**; she bears Stripe fee loss unless you absorb later |
-| Chargebacks | Connected account (her practice) is primary — document in her onboarding |
-| ACH | Enable once cards work; same 1% application fee |
-| Payouts | Stripe Express dashboard / automatic payouts to her bank |
+| Local DB encryption | Normal `rusqlite` file. `aes-gcm` unused. No SQLCipher. BitLocker is the only real at-rest protection today. |
+| Web “flags only” | Web stores consent **template text**, signatures, IP, UA, version hash — not just flags. |
+| Appointment `notes` | Free text in Postgres; **not** on the clinical field blocklist. Easy place to put session content by mistake. |
+| Pay-page receipt | Webhook marks invoice paid; pay page no longer claims a receipt email was sent (Gate A). Real receipt email still later. |
+| Job retry | Failed jobs stay `failed`; processor only picks `pending`. |
+| Desktop API key | Stored plaintext on therapist row (desktop must send raw value). |
+| Consent legal status | Boilerplate drafts. **Fake clients only** until attorney review. |
+| Local PHI form library | `local_forms` table exists; no UI. |
+| Backup | Not implemented. |
+| Gate A Windows walkthrough | Not yet run on her PC. Checklist: [docs/GATE_A_WALKTHROUGH.md](docs/GATE_A_WALKTHROUGH.md). Whisper model still open. |
 
-Rationale: least builder surface, standard for “solo gets paid, platform takes a cut,” matches closed-source freemium tool not a bank.
+### Stack (locked unless a gate changes it)
 
-**Confirmed 2026-09-18:** Express + 1% application fee.
+| Layer | Choice |
+|-------|--------|
+| Desktop | Tauri 2 + React (Vite) + Rust + SQLite |
+| STT | whisper.cpp CLI, background job |
+| SOAP LLM | Ollama on localhost (`phi4-mini` if unset) |
+| Web | Next.js App Router + Postgres (Neon) + Drizzle |
+| Auth | Therapist magic link; client consent link (7 days on client row) |
+| Payments | Stripe Connect Express, card, 1% fee |
+| SMS | Twilio (manual send) |
+| Email | Resend |
+| Boundary | `@solopractice/shared/web` vs `/desktop`; API blocklist on write routes |
 
-## 11. Success metrics (first 90 days with one practice)
+### Decisions log
 
-- Time from “session ended” → signed SOAP < 10 minutes median  
-- Consents complete before first session ≥ 95%  
-- Invoice → paid < 48h for card payers  
-- Zero clinical audio, transcripts, SOAP, Dx, or CPT uploaded to builders’ servers / webapp  
+- [x] 1% fee, closed-source, no monthly floor  
+- [x] Resend  
+- [x] Windows first → Mac → Linux (Linux already runs in dev)  
+- [x] Boilerplate consents; fake clients until counsel  
+- [x] Record gated on web recording consent  
+- [x] Connect Express + 1% (2026-09-18)  
+- [x] Build autonomy; Nathanael go/no-go on gates  
+- [ ] Whisper model size vs quality on her PC  
+- [ ] App-level encryption of local DB before any real session  
+
+### Consent pack (draft; not legal advice)
+
+1. Informed consent  
+2. Notice of Privacy Practices  
+3. Telehealth consent  
+4. Session recording consent (Record gate)  
+5. Limits of confidentiality  
 
 ---
 
-## 12. Next engineering steps
+## 3. Release gates
 
-1. Confirm Connect default (§10a) + pick EmailProvider  
-2. Clickable IA / screens (Designer)  
-3. Scaffold monorepo: `apps/desktop`, `apps/web`, `packages/shared`  
-4. Spike: local record → whisper → SOAP prompt on her target machine  
-5. Spike: Stripe Connect test charge with application fee  
+Work **only** the active gate. Later items are parking lot, not parallel scope. Nathanael’s go/no-go is **gate exit**, not “keep building.”
 
+### Gate A — Fake-client loop complete *(active)*
 
-## 13. Build authority (2026-09-18)
+**Intent:** One therapist can run the full practice loop with **test data only**, on Windows, without marketing or docs claiming false security.
 
-Nathanael authorized autonomous build without day-to-day input:
-- Resend for email
-- Windows desktop MVP first
-- Boilerplate consents + fake/test clients only (no live patients)
-- 1% Connect Express fee only
-- He is not hands-on; builders proceed on go/no-go milestones only
+**Exit criteria (all required):**
+
+1. Consent invite → e-sign all five → desktop sync shows ready; Record blocked before recording consent, enabled after.  
+2. Record → audio on disk → transcript (whisper or manual) → SOAP draft → edit → save → SOAP PDF.  
+3. Superbill: UI generates a real local PDF and opens it (`generate_superbill` wired; stub removed or unused).  
+4. Invoice → card Checkout → webhook marks paid; pay page does **not** claim a receipt email unless Resend actually sends one. *(pay-page copy fixed; real receipt email still later.)*  
+5. SMS reminder can be sent for a test appointment with a phone number.  
+6. Docs (this file §2, README, Windows setup) match reality: **no “encrypted SQLite”** claim. *(docs + Settings/i18n swept; keep honest as code changes.)*  
+7. Scripted walkthrough on her Windows PC succeeds once with fake clients.
+
+**Active backlog (Gate A only):**
+
+1. ~~Wire `generate_superbill`~~ — command registered, Superbill mounted in sidebar, stub removed. Unit tests cover insert/history + PDF render.  
+2. ~~Fix receipt copy~~ — pay page no longer claims an emailed receipt. Optional later: send a real receipt via Resend.  
+3. ~~Sweep docs/UI for encryption claims~~ — done for README, desktop README, Windows setup, Settings, i18n, recording consent storage line. Re-check when adding copy.  
+4. **Remaining for Gate A exit:** Run and record the Windows fake-client walkthrough ([docs/GATE_A_WALKTHROUGH.md](docs/GATE_A_WALKTHROUGH.md)); note whisper model that works on her machine.  
+
+**Out of Gate A:** encryption, attorney consents, calendar, ACH, client portal, backup, job retry, multi-state.
+
+---
+
+### Gate B — Hardening before real PHI
+
+**Intent:** Safe enough that a real client’s chart is not sitting in a plaintext DB we called encrypted, and web ops cannot casually hold clinical narrative.
+
+**Exit criteria (all required):**
+
+1. Local SQLite encrypted at rest (or an explicit, reviewed interim: BitLocker required + in-app warning; prefer real app encryption).  
+2. Web appointment `notes` cannot hold clinical content: remove field, or rename/restrict + blocklist/validation, with UX that does not invite SOAP.  
+3. Consent templates attorney-reviewed for her license + state; DRAFT warnings removed only after that.  
+4. Desktop API key: hashed at rest if feasible, or documented rotation + never returned from GET; no key in logs.  
+5. No user-facing claim of encryption, HIPAA-free, or “flags only” that contradicts §2.  
+6. Fake-client loop from Gate A still passes after hardening.
+
+**Backlog opens only when Gate A exits.**
+
+---
+
+### Gate C — One real practice week
+
+**Intent:** She runs **one week** of real workflow. Measure friction; do not add Phase-2 features mid-week unless something is broken.
+
+**Exit criteria:**
+
+1. Gate B complete.  
+2. At least one real client path: consent → session → note → invoice → paid (or explicit skip with reason).  
+3. Written notes: what slowed her down, what she skipped, what she did outside the app.  
+4. Nathanael go/no-go on whether to expand users or stay single-practice polish.  
+
+**Success metrics in §1 apply after this gate**, not before.
+
+---
+
+### Gate D — Later (parking lot)
+
+Do not schedule these against A–C. Pull one only after Gate C go.
+
+- Richer scheduling calendar  
+- Email appointment reminders  
+- Multi-state consent packs  
+- Superbill email with explicit therapist confirm  
+- ACH + saved payment methods  
+- Client portal (next appointment, history, real receipt PDF)  
+- Encrypted backup / export  
+- Local PHI form library (print / native mail; desktop only)  
+- Background job retry  
+- Mac build  
+- Fee-schedule UX (“client pays X; processor + platform fee”)  
+- Single-use therapist magic links  
+
+---
+
+## 4. Compliance posture
+
+- Hard line: no SOAP, Dx, CPT, recordings, transcripts, or superbills on our servers.  
+- Web still holds names, contact info, consent text/signatures, appointment metadata, billing amounts — health-adjacent ops; BAAs may still apply. Not legal advice.  
+- Therapist remains responsible for clinical/legal practice requirements.  
+- Do not market as HIPAA-free. Do not market desktop DB as encrypted until Gate B makes that true.
+
+---
+
+## 5. Build authority (2026-09-18, still in force)
+
+- Resend, Windows first, boilerplate consents, fake clients until counsel, 1% Express only.  
+- Autonomous build **within the active gate**.  
+- Nathanael: go/no-go on **gate exit**, not continuous feature steering.  
+
+When in doubt: finish Gate A, then stop and ask for go/no-go before Gate B.

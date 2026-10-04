@@ -1,6 +1,8 @@
 # Windows Setup Guide
 
-This guide covers setting up the solopractice desktop app on Windows 10/11.
+This guide covers setting up the SoloPractice desktop app on Windows 10/11.
+
+**Product truth and release gates:** [`../PRODUCT_PLAN.md`](../PRODUCT_PLAN.md). This file is machine setup only. Fake clients until Gate B. The local database is **not** encrypted by the app — enable BitLocker.
 
 ## Prerequisites
 
@@ -109,23 +111,24 @@ pnpm dev:desktop
 
 By default, solopractice stores data in:
 ```
-C:\Users\<username>\AppData\Roaming\solopractice\
-├── solopractice.db       # Encrypted SQLite database
+%APPDATA%\com.solopractice.desktop\
+├── solopractice.db       # SQLite database (not encrypted by the app)
 ├── recordings\           # Audio files
-└── superbills\           # Generated PDF superbills
+├── exports\              # SOAP PDFs
+└── superbills\           # Superbill PDFs
 ```
 
 ### Encryption
 
-The SQLite database uses SQLCipher encryption. The encryption key is derived from your Windows user credentials and stored securely.
+The app does **not** encrypt `solopractice.db`. It is a normal SQLite file. Protect the machine with BitLocker (or another full-disk encryption tool) and do not sync this folder to OneDrive or any other cloud drive. App-level encryption is Gate B in the product plan — do not put real client sessions on this PC until that gate (or an explicit interim policy) is done.
 
-**Important:** Back up your data directory regularly. Clinical data is stored ONLY locally.
+**Important:** Back up your data directory regularly. Clinical data is stored only on this computer. There is no in-app backup job yet.
 
-### Backup
+### Backup (manual)
 
-1. Close the desktop app
-2. Copy the entire data directory to a secure backup location
-3. Consider using BitLocker or another encryption tool for backup drives
+1. Close the desktop app  
+2. Copy the entire data directory to a secure backup location  
+3. Prefer an encrypted external drive
 
 ## Firewall Configuration
 
@@ -167,7 +170,7 @@ Ensure only one instance of the desktop app is running. If the error persists, c
 
 ## Security Best Practices
 
-1. **Use a strong Windows password** - Your data is as secure as your account
+1. **Use a strong Windows password** - The database file itself is not encrypted, so the Windows account is the lock
 2. **Enable BitLocker** - Full disk encryption for your Windows drive
 3. **Regular backups** - Back up to an encrypted external drive
 4. **Keep Windows updated** - Security patches are important

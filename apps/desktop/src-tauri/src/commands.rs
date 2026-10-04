@@ -574,11 +574,296 @@ pub async fn test_web_connection(app: AppHandle, url: String) -> Result<bool, St
     }
 }
 
+// ---------------------------------------------------------------------------
+// Superbill PDF (local only — Dx/CPT never leave this machine)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerateSuperbillInput {
+    pub session_id: Option<String>,
+    pub client_id: String,
+    pub client_name: String,
+    pub client_dob: Option<String>,
+    pub client_address: Option<String>,
+    pub client_phone: Option<String>,
+    pub service_date: String,
+    pub diagnosis_codes: Vec<DiagnosisCodeInput>,
+    pub service_codes: Vec<ServiceCodeInput>,
+    pub therapist_info: TherapistInfoInput,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagnosisCodeInput {
+    pub code: String,
+    pub description: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceCodeInput {
+    pub cpt_code: String,
+    pub description: String,
+    pub units: u32,
+    pub charge_cents: u32,
+    pub diagnosis_pointer: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TherapistInfoInput {
+    pub practice_name: String,
+    pub therapist_name: String,
+    pub credentials: String,
+    pub npi_number: Option<String>,
+    pub tax_id: Option<String>,
+    pub address_street: String,
+    pub address_city: String,
+    pub address_state: String,
+    pub address_zip: String,
+    pub phone: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SuperbillRecord {
+    pub id: String,
+    pub client_name: String,
+    pub service_date: String,
+    pub total_amount_cents: i64,
+    pub pdf_path: String,
+    pub created_at: String,
+}
+
+fn insert_superbill_record(
+    conn: &rusqlite::Connection,
+    id: &str,
+    session_id: Option<&str>,
+    client_id: &str,
+    service_date: &str,
+    diagnosis_codes_json: &str,
+    procedure_codes_json: &str,
+    total_amount_cents: i64,
+    pdf_path: &str,
+) -> Result<(), String> {
+    conn.execute(
+        r#"
+        INSERT INTO superbills (
+            id, session_id, client_id, service_date,
+            diagnosis_codes, procedure_codes, total_amount_cents, pdf_path
+        )
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+        "#,
+        rusqlite::params![
+            id,
+            session_id,
+            client_id,
+            service_date,
+            diagnosis_codes_json,
+            procedure_codes_json,
+            total_amount_cents,
+            pdf_path,
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn query_superbills(conn: &rusqlite::Connection) -> Result<Vec<SuperbillRecord>, String> {
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT sb.id,
+                   COALESCE(c.first_name || ' ' || c.last_name, 'Unknown'),
+                   sb.service_date,
+                   sb.total_amount_cents,
+                   COALESCE(sb.pdf_path, ''),
+                   sb.created_at
+            FROM superbills sb
+            LEFT JOIN clients c ON c.id = sb.client_id
+            ORDER BY sb.created_at DESC
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(SuperbillRecord {
+                id: row.get(0)?,
+                client_name: row.get(1)?,
+                service_date: row.get(2)?,
+                total_amount_cents: row.get(3)?,
+                pdf_path: row.get(4)?,
+                created_at: row.get(5)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
+}
+
+/// Render a superbill PDF to `$APPDATA/superbills/`, persist a local DB row,
+/// and return the absolute path. Clinical codes stay on this machine only.
 #[tauri::command]
-pub async fn generate_superbill_stub() -> Result<String, String> {
-    let path = "superbill_stub.pdf".to_string();
-    println!("[STUB] Would generate superbill PDF at {}", path);
-    Ok(path)
+pub async fn generate_superbill(
+    app: AppHandle,
+    input: GenerateSuperbillInput,
+) -> Result<String, String> {
+    if input.client_id.is_empty() {
+        return Err("clientId is required".to_string());
+    }
+    if input.diagnosis_codes.is_empty() {
+        return Err("At least one diagnosis code is required".to_string());
+    }
+    if input.service_codes.is_empty() {
+        return Err("At least one service code is required".to_string());
+    }
+    if input.therapist_info.practice_name.trim().is_empty()
+        || input.therapist_info.therapist_name.trim().is_empty()
+    {
+        return Err("Practice name and therapist name are required".to_string());
+    }
+
+    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
+
+    let client_exists: bool = conn
+        .query_row(
+            "SELECT 1 FROM clients WHERE id = ?1",
+            [&input.client_id],
+            |_| Ok(true),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .unwrap_or(false);
+    if !client_exists {
+        return Err(format!("Client {} not found locally — sync clients first", input.client_id));
+    }
+
+    if let Some(ref session_id) = input.session_id {
+        let session_ok: bool = conn
+            .query_row(
+                "SELECT 1 FROM sessions WHERE id = ?1",
+                [session_id],
+                |_| Ok(true),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?
+            .unwrap_or(false);
+        if !session_ok {
+            return Err(format!("Session {} not found", session_id));
+        }
+    }
+
+    let total_amount_cents: i64 = input
+        .service_codes
+        .iter()
+        .map(|s| (s.charge_cents as i64) * (s.units as i64))
+        .sum();
+
+    let invoice_id = uuid::Uuid::new_v4().to_string();
+    let invoice_short = invoice_id.chars().take(8).collect::<String>();
+    let invoice_number = format!("SB-{}", invoice_short.to_uppercase());
+
+    let diagnosis_codes_json = serde_json::to_string(
+        &input
+            .diagnosis_codes
+            .iter()
+            .map(|d| serde_json::json!({ "code": d.code, "description": d.description }))
+            .collect::<Vec<_>>(),
+    )
+    .map_err(|e| e.to_string())?;
+
+    let procedure_codes_json = serde_json::to_string(
+        &input
+            .service_codes
+            .iter()
+            .map(|s| {
+                serde_json::json!({
+                    "cptCode": s.cpt_code,
+                    "description": s.description,
+                    "units": s.units,
+                    "chargeCents": s.charge_cents,
+                    "diagnosisPointer": s.diagnosis_pointer,
+                })
+            })
+            .collect::<Vec<_>>(),
+    )
+    .map_err(|e| e.to_string())?;
+
+    let pdf_data = crate::superbill::SuperbillData {
+        therapist: crate::superbill::TherapistInfo {
+            practice_name: input.therapist_info.practice_name,
+            therapist_name: input.therapist_info.therapist_name,
+            credentials: input.therapist_info.credentials,
+            npi_number: input.therapist_info.npi_number,
+            tax_id: input.therapist_info.tax_id,
+            address_street: input.therapist_info.address_street,
+            address_city: input.therapist_info.address_city,
+            address_state: input.therapist_info.address_state,
+            address_zip: input.therapist_info.address_zip,
+            phone: input.therapist_info.phone,
+        },
+        client: crate::superbill::ClientInfo {
+            name: input.client_name,
+            address: input.client_address,
+            phone: input.client_phone,
+            date_of_birth: input.client_dob,
+        },
+        diagnosis_codes: input
+            .diagnosis_codes
+            .iter()
+            .map(|d| (d.code.clone(), d.description.clone()))
+            .collect(),
+        services: input
+            .service_codes
+            .iter()
+            .map(|s| crate::superbill::ServiceLine {
+                date: input.service_date.clone(),
+                cpt_code: s.cpt_code.clone(),
+                cpt_description: s.description.clone(),
+                diagnosis_pointer: s.diagnosis_pointer.clone(),
+                units: s.units,
+                charge_cents: s.charge_cents,
+            })
+            .collect(),
+        invoice_number,
+        invoice_date: input.service_date.clone(),
+    };
+
+    let superbills_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("superbills");
+    std::fs::create_dir_all(&superbills_dir).map_err(|e| e.to_string())?;
+
+    let file_name = format!("superbill_{}.pdf", invoice_short);
+    let output_path = superbills_dir.join(&file_name);
+
+    crate::superbill::generate_superbill_pdf(&pdf_data, &output_path)?;
+
+    let pdf_path = output_path.to_string_lossy().to_string();
+    insert_superbill_record(
+        &conn,
+        &invoice_id,
+        input.session_id.as_deref(),
+        &input.client_id,
+        &input.service_date,
+        &diagnosis_codes_json,
+        &procedure_codes_json,
+        total_amount_cents,
+        &pdf_path,
+    )?;
+
+    Ok(pdf_path)
+}
+
+#[tauri::command]
+pub async fn get_superbills(app: AppHandle) -> Result<Vec<SuperbillRecord>, String> {
+    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
+    query_superbills(&conn)
 }
 
 // ---------------------------------------------------------------------------
@@ -1789,5 +2074,66 @@ mod session_history_tests {
         let size = std::fs::metadata(&out).unwrap().len();
         assert!(size > 500, "PDF suspiciously small: {} bytes", size);
         let _ = std::fs::remove_file(&out);
+    }
+}
+
+#[cfg(test)]
+mod superbill_command_tests {
+    use rusqlite::Connection;
+
+    fn test_conn() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            r#"
+            CREATE TABLE clients (
+                id TEXT PRIMARY KEY,
+                first_name TEXT NOT NULL,
+                last_name TEXT NOT NULL,
+                email TEXT NOT NULL,
+                phone TEXT,
+                all_consents_signed INTEGER NOT NULL DEFAULT 0,
+                recording_consent_signed INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE superbills (
+                id TEXT PRIMARY KEY,
+                session_id TEXT,
+                client_id TEXT NOT NULL REFERENCES clients(id),
+                service_date TEXT NOT NULL,
+                diagnosis_codes TEXT NOT NULL,
+                procedure_codes TEXT NOT NULL,
+                total_amount_cents INTEGER NOT NULL,
+                pdf_path TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            INSERT INTO clients (id, first_name, last_name, email)
+            VALUES ('c1', 'Ada', 'Lovelace', 'ada@example.com');
+            "#,
+        )
+        .unwrap();
+        conn
+    }
+
+    #[test]
+    fn real_sql_insert_superbill_without_session() {
+        let conn = test_conn();
+        super::insert_superbill_record(
+            &conn,
+            "sb1",
+            None,
+            "c1",
+            "01/15/2026",
+            r#"[{"code":"F41.1"}]"#,
+            r#"[{"cptCode":"90834"}]"#,
+            12000,
+            "/tmp/superbills/sb1.pdf",
+        )
+        .unwrap();
+
+        let records = super::query_superbills(&conn).unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].id, "sb1");
+        assert_eq!(records[0].client_name, "Ada Lovelace");
+        assert_eq!(records[0].total_amount_cents, 12000);
+        assert_eq!(records[0].pdf_path, "/tmp/superbills/sb1.pdf");
     }
 }

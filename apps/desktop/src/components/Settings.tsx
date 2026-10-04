@@ -88,15 +88,6 @@ export function Settings({ onReopenWizard }: SettingsProps) {
     }
   }
 
-  async function generateSuperbillStub() {
-    try {
-      await invoke("generate_superbill_stub");
-      alert("Superbill PDF generated (stub)");
-    } catch (error) {
-      alert("Superbill generation would happen here (stub)");
-    }
-  }
-
   async function openDataFolder() {
     setOpening(true);
     try {
@@ -162,15 +153,9 @@ export function Settings({ onReopenWizard }: SettingsProps) {
 
         <section className="space-y-4">
           <h2 className="text-lg font-medium">Superbill</h2>
-          <button
-            onClick={generateSuperbillStub}
-            className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-accent transition-colors"
-          >
-            Generate Sample Superbill PDF
-          </button>
-          <p className="text-xs text-muted-foreground">
-            Superbills are generated locally with diagnosis and procedure codes. They never
-            leave your device.
+          <p className="text-sm text-muted-foreground">
+            Use the Superbill item in the left sidebar to create a PDF with diagnosis and
+            procedure codes. Superbills stay on this computer and are never synced to the web.
           </p>
         </section>
 
@@ -290,10 +275,10 @@ export function Settings({ onReopenWizard }: SettingsProps) {
         <section className="p-4 bg-muted/50 rounded-lg space-y-2">
           <h3 className="font-medium text-sm">Data Security</h3>
           <ul className="text-xs text-muted-foreground space-y-1">
-            <li>• All clinical data is stored locally in an encrypted SQLite database</li>
+            <li>• Clinical data is stored locally on this computer (the app does not encrypt the database yet — use full-disk encryption such as BitLocker)</li>
             <li>• Audio recordings are saved only on your device</li>
             <li>• Transcripts and SOAP notes never leave your computer</li>
-            <li>• Web sync is limited to client contact info and consent status flags</li>
+            <li>• Web sync is limited to client contact info and consent status (not session notes)</li>
           </ul>
         </section>
       </div>

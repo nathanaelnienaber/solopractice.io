@@ -102,7 +102,6 @@ export function Superbill() {
   useEffect(() => {
     loadClients();
     loadSuperbills();
-    loadTherapistInfo();
   }, []);
 
   async function loadClients() {
@@ -120,22 +119,6 @@ export function Superbill() {
       setSuperbills(result);
     } catch (error) {
       console.error("Failed to load superbills:", error);
-    }
-  }
-
-  async function loadTherapistInfo() {
-    try {
-      const settings = await invoke<Record<string, string>>("load_settings");
-      // Load from settings if available
-      if (settings) {
-        setTherapistInfo((prev) => ({
-          ...prev,
-          practiceName: settings.practiceName || prev.practiceName,
-          therapistName: settings.therapistName || prev.therapistName,
-        }));
-      }
-    } catch (error) {
-      console.error("Failed to load settings:", error);
     }
   }
 
@@ -201,6 +184,7 @@ export function Superbill() {
       const path = await invoke<string>("generate_superbill", {
         input: {
           sessionId: null,
+          clientId: selectedClient,
           clientName: `${client.firstName} ${client.lastName}`,
           clientDob: clientDob || null,
           clientAddress: clientAddress || null,

@@ -1,5 +1,6 @@
 /**
- * Consent types - web-safe (flags only, not clinical content)
+ * Consent types for status/sync. Form bodies and signatures live on the web;
+ * clinical chart content does not.
  */
 
 import type { ClientId, ConsentId, Timestamp } from "./common.js";

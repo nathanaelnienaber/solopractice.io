@@ -144,7 +144,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Security
     "security.title": "Your Privacy Matters",
     "security.localData": "Clinical notes and recordings stay on your computer",
-    "security.encrypted": "Data is encrypted and protected",
+    "security.encrypted": "Clinical notes stay on your computer",
     "security.noCloud": "No sensitive information is uploaded to the cloud",
   },
 
@@ -272,7 +272,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Security
     "security.title": "Tu Privacidad Importa",
     "security.localData": "Las notas clínicas y grabaciones permanecen en tu computadora",
-    "security.encrypted": "Los datos están encriptados y protegidos",
+    "security.encrypted": "Las notas clínicas permanecen en tu computadora",
     "security.noCloud": "No se sube información sensible a la nube",
   },
 
@@ -400,7 +400,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Security
     "security.title": "Ihre Privatsphäre Zählt",
     "security.localData": "Klinische Notizen und Aufnahmen bleiben auf Ihrem Computer",
-    "security.encrypted": "Daten sind verschlüsselt und geschützt",
+    "security.encrypted": "Klinische Notizen bleiben auf Ihrem Computer",
     "security.noCloud": "Keine sensiblen Informationen werden in die Cloud hochgeladen",
   },
 
@@ -528,7 +528,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Security
     "security.title": "Din Integritet Är Viktig",
     "security.localData": "Kliniska anteckningar och inspelningar stannar på din dator",
-    "security.encrypted": "Data är krypterad och skyddad",
+    "security.encrypted": "Kliniska anteckningar stannar på din dator",
     "security.noCloud": "Ingen känslig information laddas upp till molnet",
   },
 };

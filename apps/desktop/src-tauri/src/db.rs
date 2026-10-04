@@ -1,9 +1,10 @@
-//! Database module for encrypted local SQLite storage
+//! Database module for local SQLite storage
 //!
 //! # Security
 //!
-//! All clinical data is stored in an encrypted SQLite database.
-//! The encryption key is derived from a user-provided password.
+//! Clinical data is stored in a local SQLite file. The app does **not**
+//! encrypt this database yet (Gate B in PRODUCT_PLAN.md). Prefer full-disk
+//! encryption on the host until app-level encryption ships.
 //!
 //! Tables:
 //! - clients: local copy of client info (synced from web, minus PHI)
@@ -100,10 +101,12 @@ pub fn initialize_database(app: &AppHandle) -> Result<()> {
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
 
-        -- Superbills (LOCAL ONLY - contains Dx/CPT codes)
+        -- Superbills (LOCAL ONLY - contains Dx/CPT codes).
+        -- session_id is optional: the Superbill screen can generate a PDF for a
+        -- client without tying it to a recorded session.
         CREATE TABLE IF NOT EXISTS superbills (
             id TEXT PRIMARY KEY,
-            session_id TEXT NOT NULL REFERENCES sessions(id),
+            session_id TEXT,
             client_id TEXT NOT NULL REFERENCES clients(id),
             service_date TEXT NOT NULL,
             diagnosis_codes TEXT NOT NULL, -- JSON array
@@ -156,11 +159,56 @@ pub fn initialize_database(app: &AppHandle) -> Result<()> {
         "#,
     )?;
 
+    // Older builds created superbills.session_id as NOT NULL. Recreate the table
+    // once so standalone superbills (no session) can be saved. Safe on fresh DBs:
+    // the new definition already matches and the copy is a no-op shape-wise.
+    migrate_superbills_session_optional(&conn)?;
+
     println!("Database initialized at {:?}", db_path);
     Ok(())
 }
 
-/// Open a connection to the local encrypted-at-rest SQLite database.
+fn migrate_superbills_session_optional(conn: &Connection) -> Result<()> {
+    let notnull: i64 = conn.query_row(
+        r#"
+        SELECT "notnull" FROM pragma_table_info('superbills')
+        WHERE name = 'session_id'
+        "#,
+        [],
+        |r| r.get(0),
+    )?;
+
+    if notnull == 0 {
+        return Ok(());
+    }
+
+    conn.execute_batch(
+        r#"
+        CREATE TABLE superbills_migrated (
+            id TEXT PRIMARY KEY,
+            session_id TEXT,
+            client_id TEXT NOT NULL REFERENCES clients(id),
+            service_date TEXT NOT NULL,
+            diagnosis_codes TEXT NOT NULL,
+            procedure_codes TEXT NOT NULL,
+            total_amount_cents INTEGER NOT NULL,
+            pdf_path TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        INSERT INTO superbills_migrated
+            (id, session_id, client_id, service_date, diagnosis_codes,
+             procedure_codes, total_amount_cents, pdf_path, created_at)
+        SELECT id, session_id, client_id, service_date, diagnosis_codes,
+               procedure_codes, total_amount_cents, pdf_path, created_at
+        FROM superbills;
+        DROP TABLE superbills;
+        ALTER TABLE superbills_migrated RENAME TO superbills;
+        "#,
+    )?;
+    Ok(())
+}
+
+/// Open a connection to the local SQLite database (not app-encrypted yet).
 ///
 /// Every clinical-data command (sessions, transcripts, SOAP notes) should
 /// go through this helper rather than opening its own connection, so there

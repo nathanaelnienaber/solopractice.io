@@ -1,8 +1,9 @@
-# SoloPractice Desktop — Windows MVP
+# SoloPractice Desktop — Windows first
 
 Local-first therapy practice management. **Clinical data stays on your device — always.**
 
-> **Target:** Windows 10/11 (first tester: therapist's Windows PC)
+> **Target:** Windows 10/11 (first tester: therapist's Windows PC)  
+> **Product plan:** [`../../PRODUCT_PLAN.md`](../../PRODUCT_PLAN.md) (active gate, current truth). This README is how-to only.
 
 ## Quick Start (Windows)
 
@@ -40,11 +41,14 @@ SoloPractice stores clinical data in:
 
 ```
 %APPDATA%\com.solopractice.desktop\
-├── solopractice.db      # Encrypted SQLite (sessions, SOAP, Dx, CPT)
-└── recordings/          # Audio files (.wav)
+├── solopractice.db      # SQLite (sessions, SOAP, Dx, CPT). Not encrypted by the app.
+├── recordings/          # Audio files
+├── exports/             # SOAP PDFs
+├── models/              # whisper models (when downloaded via setup)
+└── tools/               # whisper binary (when downloaded via setup)
 ```
 
-**Do NOT store in OneDrive/Documents** — these locations may sync to cloud.
+The app does **not** encrypt the database. Use BitLocker on the PC. **Do NOT** put this folder under OneDrive/Documents — those sync to the cloud.
 
 To find your AppData folder:
 1. Press `Win + R`
@@ -68,9 +72,10 @@ Sessions flow through a durable pipeline that survives app restart:
 ```
 
 Jobs are persisted to SQLite. If the app crashes or closes:
-- Pending jobs resume on next launch
-- Failed jobs retry up to 3 times
-- Progress is tracked per-job
+- Pending jobs are picked up on next launch
+- Failed jobs stay `failed` (not requeued)
+- Jobs left `in_progress` after a crash are **not** auto-reset to pending
+- Superbill PDFs are generated from the Superbill sidebar screen (not a background job)
 
 ---
 
@@ -232,17 +237,19 @@ assertWebSafePayload(requestBody);
 // Throws WebSafetyViolationError if clinical fields detected
 ```
 
-### Desktop-Only Data
+### Where data lives
 
 ```
 Desktop SQLite:                Web Postgres:
-├── sessions                   ├── clients (contact only)
-├── recordings                 ├── consents (flags only)
-├── transcripts                ├── appointments
+├── sessions                   ├── clients (contact)
+├── recordings                 ├── consents (form text + signatures + status)
+├── transcripts                ├── appointments (incl. free-text notes — not for clinical content)
 ├── soap_notes                 └── invoices
 ├── superbills
-└── local_forms
+└── local_forms (table only; no UI yet)
 ```
+
+Desktop sync downloads contact info and consent status. It never uploads the clinical chart.
 
 ---
 
@@ -274,10 +281,10 @@ For local development without real APIs, the web portal logs stubs to console.
 → Audio capture requires Windows audio permissions
 
 ### Jobs stuck "in_progress"
-→ On restart, stuck jobs auto-recover to "pending"
+→ Not auto-recovered today. Mark or clear the row in the local DB only if you know what you are doing, or re-queue by creating a new job from the UI where available.
 
 ### Database locked
-→ Close any other SQLite viewers (DB Browser, etc.)
+→ Close any other SQLite viewers (DB Browser, etc.). Only one app instance at a time.
 
 ---
 

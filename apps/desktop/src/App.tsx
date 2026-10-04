@@ -6,9 +6,10 @@ import { JobQueue } from "./components/JobQueue";
 import { Settings } from "./components/Settings";
 import { Help } from "./components/Help";
 import { SetupWizard } from "./components/SetupWizard";
+import { Superbill } from "./components/Superbill";
 import type { SessionWithDetails } from "@solopractice/shared/desktop";
 
-type View = "clients" | "session" | "history" | "jobs" | "settings" | "help";
+type View = "clients" | "session" | "history" | "jobs" | "superbill" | "settings" | "help";
 
 const SETUP_DONE_KEY = "solopractice-setup-done";
 
@@ -88,6 +89,13 @@ export default function App() {
         >
           <QueueIcon />
         </NavButton>
+        <NavButton
+          active={view === "superbill"}
+          onClick={() => setView("superbill")}
+          title="Superbill"
+        >
+          <ReceiptIcon />
+        </NavButton>
         <div className="flex-1" />
         <NavButton
           active={view === "help"}
@@ -140,6 +148,7 @@ export default function App() {
           />
         )}
         {view === "jobs" && <JobQueue />}
+        {view === "superbill" && <Superbill />}
         {view === "help" && <Help />}
         {view === "settings" && <Settings onReopenWizard={reopenWizard} />}
       </main>
@@ -204,6 +213,18 @@ function QueueIcon() {
   return (
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+    </svg>
+  );
+}
+
+function ReceiptIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"
+      />
     </svg>
   );
 }

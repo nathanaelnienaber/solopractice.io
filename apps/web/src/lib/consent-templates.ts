@@ -193,7 +193,7 @@ I understand that my therapist may audio record our sessions for the following p
 
 ## Storage and Security
 
-- All recordings are stored locally on the therapist's secure, encrypted device
+- All recordings are stored locally on the therapist's computer (not uploaded to SoloPractice servers)
 - Recordings are NEVER uploaded to cloud services or external servers
 - Recordings are maintained according to state record retention requirements
 - Recordings will be destroyed after the retention period

@@ -1,6 +1,7 @@
 # Copywriting Review Needed
 
-**Status:** Awaiting professional copywriter review
+**Status:** Awaiting professional copywriter review  
+**Product claims:** Follow [`PRODUCT_PLAN.md`](./PRODUCT_PLAN.md) §2 (current truth) and §4 (compliance). Do not invent encryption, HIPAA-free, or “flags only” language.
 
 ## Goal
 
@@ -54,11 +55,13 @@ The primary users are:
 
 ### Tone Examples
 
-**Too technical:**
+**Too technical, and untrue of the current app:**
 > "Your session data is encrypted at rest and in transit using AES-256-GCM."
 
+The desktop database is not encrypted. Do not claim encryption until that ships.
+
 **Better:**
-> "Your session notes are protected and stay only on your computer."
+> "Your session notes stay on this computer."
 
 **Too technical:**
 > "Configure the Ollama model path in settings."

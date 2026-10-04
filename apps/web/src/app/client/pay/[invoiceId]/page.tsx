@@ -62,7 +62,8 @@ export default async function PaymentPage({ params, searchParams }: PageProps) {
               </div>
               <p className="text-lg font-medium">Thank you for your payment!</p>
               <p className="text-sm text-muted-foreground mt-2">
-                A receipt has been sent to {invoice.client.email}
+                Your payment was received. Contact your therapist if you need a
+                receipt.
               </p>
             </div>
           ) : showCancelled ? (

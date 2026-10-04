@@ -62,19 +62,15 @@ export default function HomePage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckIcon />
-                  View upcoming appointments
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckIcon />
                   Pay invoices securely
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckIcon />
-                  No account needed — magic link access
+                  No account needed — use the email link from your therapist
                 </li>
               </ul>
               <p className="text-sm text-muted-foreground">
-                Check your email for a link from your therapist.
+                Check your email for a consent or payment link from your therapist.
               </p>
             </CardContent>
           </Card>

@@ -45,6 +45,7 @@ interface FullSessionData {
 interface SessionHistoryProps {
   clientId: string;
   clientName: string;
+  canRecord?: boolean;
   onClose: () => void;
   onStartNewSession: () => void;
 }
@@ -52,6 +53,7 @@ interface SessionHistoryProps {
 export function SessionHistory({
   clientId,
   clientName,
+  canRecord = true,
   onClose,
   onStartNewSession,
 }: SessionHistoryProps) {
@@ -157,7 +159,13 @@ export function SessionHistory({
         </div>
         <button
           onClick={onStartNewSession}
-          className="px-4 py-2 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-lg text-sm font-medium hover:opacity-90"
+          disabled={!canRecord}
+          title={
+            canRecord
+              ? "Start a new session"
+              : "Recording consent required before starting a session"
+          }
+          className="px-4 py-2 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           + New Session
         </button>
@@ -177,7 +185,8 @@ export function SessionHistory({
               <p className="text-[var(--muted-foreground)]">No sessions yet</p>
               <button
                 onClick={onStartNewSession}
-                className="mt-4 px-4 py-2 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-lg text-sm"
+                disabled={!canRecord}
+                className="mt-4 px-4 py-2 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Start First Session
               </button>
@@ -216,7 +225,17 @@ export function SessionHistory({
           {selectedSession ? (
             <SessionDetails
               session={selectedSession}
-              onOpenSoapEditor={() => setShowSoapEditor(true)}
+              onOpenSoapEditor={() => {
+                const existing = selectedSession.soapNote;
+                setEditingSoap({
+                  subjective: existing?.subjective ?? "",
+                  objective: existing?.objective ?? "",
+                  assessment: existing?.assessment ?? "",
+                  plan: existing?.plan ?? "",
+                  isDraft: existing?.isDraft ?? true,
+                });
+                setShowSoapEditor(true);
+              }}
               onExportPdf={() => exportSoapPdf(selectedSession.session.id)}
               exportingPdf={exportingPdf === selectedSession.session.id}
             />
@@ -237,8 +256,9 @@ export function SessionHistory({
           onSave={async () => {
             try {
               await invoke("save_soap_note", {
+                sessionId: selectedSession.session.id,
                 clientId,
-                soapNote: editingSoap,
+                soapNote: { ...editingSoap, isDraft: false },
               });
               setShowSoapEditor(false);
               loadSessions();

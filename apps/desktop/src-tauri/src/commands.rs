@@ -177,7 +177,23 @@ pub async fn get_client(app: AppHandle, client_id: String) -> Result<Option<Clie
 // created locally had no path to ever get consent signed, since consent
 // capture only exists on the web portal today.
 
+/// Gate A / product rule: recording requires recording consent on file.
+/// Shared by `start_recording` and unit tests so the check cannot drift
+/// from the SQL shape used by sync.
+fn assert_recording_allowed(conn: &rusqlite::Connection, client_id: &str) -> Result<(), String> {
+    let client = query_client_by_id(conn, client_id)?
+        .ok_or_else(|| "Client not found".to_string())?;
+    if !client.recording_consent_signed {
+        return Err(
+            "Recording blocked: session recording consent is not signed. Send the consent link from the web portal."
+                .to_string(),
+        );
+    }
+    Ok(())
+}
+
 fn insert_new_session(conn: &rusqlite::Connection, client_id: &str) -> Result<String, String> {
+    assert_recording_allowed(conn, client_id)?;
     let id = uuid::Uuid::new_v4().to_string();
     conn.execute(
         r#"
@@ -185,6 +201,23 @@ fn insert_new_session(conn: &rusqlite::Connection, client_id: &str) -> Result<St
         VALUES (?1, ?2, 'in_progress', datetime('now'))
         "#,
         rusqlite::params![&id, client_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(id)
+}
+
+fn enqueue_job(
+    conn: &rusqlite::Connection,
+    job_type: &str,
+    payload_json: &str,
+) -> Result<String, String> {
+    let id = uuid::Uuid::new_v4().to_string();
+    conn.execute(
+        r#"
+        INSERT INTO jobs (id, job_type, status, payload)
+        VALUES (?1, ?2, 'pending', ?3)
+        "#,
+        rusqlite::params![&id, job_type, payload_json],
     )
     .map_err(|e| e.to_string())?;
     Ok(id)
@@ -220,28 +253,56 @@ fn upsert_soap_note(
 
     let note_id = match existing {
         Some(id) => {
-            conn.execute(
-                r#"
-                UPDATE soap_notes
-                SET subjective = ?1, objective = ?2, assessment = ?3, plan = ?4,
-                    is_draft = ?5, updated_at = datetime('now')
-                WHERE id = ?6
-                "#,
-                rusqlite::params![subjective, objective, assessment, plan, is_draft as i64, id],
-            )
-            .map_err(|e| e.to_string())?;
+            if is_draft {
+                conn.execute(
+                    r#"
+                    UPDATE soap_notes
+                    SET subjective = ?1, objective = ?2, assessment = ?3, plan = ?4,
+                        is_draft = 1, signed_at = NULL, signed_by = NULL,
+                        updated_at = datetime('now')
+                    WHERE id = ?5
+                    "#,
+                    rusqlite::params![subjective, objective, assessment, plan, id],
+                )
+                .map_err(|e| e.to_string())?;
+            } else {
+                conn.execute(
+                    r#"
+                    UPDATE soap_notes
+                    SET subjective = ?1, objective = ?2, assessment = ?3, plan = ?4,
+                        is_draft = 0,
+                        signed_at = COALESCE(signed_at, datetime('now')),
+                        signed_by = COALESCE(signed_by, 'therapist'),
+                        updated_at = datetime('now')
+                    WHERE id = ?5
+                    "#,
+                    rusqlite::params![subjective, objective, assessment, plan, id],
+                )
+                .map_err(|e| e.to_string())?;
+            }
             id
         }
         None => {
             let id = uuid::Uuid::new_v4().to_string();
-            conn.execute(
-                r#"
-                INSERT INTO soap_notes (id, session_id, client_id, subjective, objective, assessment, plan, is_draft)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
-                "#,
-                rusqlite::params![&id, session_id, client_id, subjective, objective, assessment, plan, is_draft as i64],
-            )
-            .map_err(|e| e.to_string())?;
+            if is_draft {
+                conn.execute(
+                    r#"
+                    INSERT INTO soap_notes (id, session_id, client_id, subjective, objective, assessment, plan, is_draft)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1)
+                    "#,
+                    rusqlite::params![&id, session_id, client_id, subjective, objective, assessment, plan],
+                )
+                .map_err(|e| e.to_string())?;
+            } else {
+                conn.execute(
+                    r#"
+                    INSERT INTO soap_notes (id, session_id, client_id, subjective, objective, assessment, plan, is_draft, signed_at, signed_by)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, datetime('now'), 'therapist')
+                    "#,
+                    rusqlite::params![&id, session_id, client_id, subjective, objective, assessment, plan],
+                )
+                .map_err(|e| e.to_string())?;
+            }
             id
         }
     };
@@ -1183,13 +1244,20 @@ fn insert_recording_record(
         rusqlite::params![&recording_id, session_id, file_path, format, size_bytes],
     )
     .map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE sessions SET recording_id = ?1 WHERE id = ?2",
+        rusqlite::params![&recording_id, session_id],
+    )
+    .map_err(|e| e.to_string())?;
     Ok(recording_id)
 }
 
 /// Writes captured audio bytes (handed over from the frontend's
 /// MediaRecorder Blob) to `$APPDATA/recordings/<session_id>.<format>` and
 /// records the recording's metadata in the local recordings table, linked
-/// to the given session. Returns the absolute file path written.
+/// to the given session. Also enqueues a local transcription job (whisper
+/// if configured; otherwise the job fails and the therapist can enter notes
+/// manually). Returns the absolute file path written.
 #[tauri::command]
 pub async fn save_recording_file(
     app: AppHandle,
@@ -1209,15 +1277,24 @@ pub async fn save_recording_file(
     std::fs::write(&file_path, &audio_bytes).map_err(|e| e.to_string())?;
 
     let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
-    insert_recording_record(
+    let path_str = file_path.to_string_lossy().to_string();
+    let recording_id = insert_recording_record(
         &conn,
         &session_id,
-        &file_path.to_string_lossy(),
+        &path_str,
         &format,
         audio_bytes.len() as i64,
     )?;
 
-    Ok(file_path.to_string_lossy().to_string())
+    let payload = serde_json::json!({
+        "sessionId": session_id,
+        "recordingId": recording_id,
+        "audioPath": path_str,
+    })
+    .to_string();
+    enqueue_job(&conn, "transcription", &payload)?;
+
+    Ok(path_str)
 }
 
 #[cfg(test)]
@@ -1757,6 +1834,12 @@ mod session_lifecycle_tests {
     #[test]
     fn real_sql_create_session_for_client() {
         let conn = test_conn();
+        // Default seed client has recording_consent_signed = 0; allow record for this path.
+        conn.execute(
+            "UPDATE clients SET recording_consent_signed = 1 WHERE id = 'c1'",
+            [],
+        )
+        .unwrap();
         let session_id = insert_new_session(&conn, "c1").unwrap();
         let status: String = conn.query_row(
             "SELECT status FROM sessions WHERE id = ?1", [&session_id], |r| r.get(0)
@@ -1765,21 +1848,46 @@ mod session_lifecycle_tests {
     }
 
     #[test]
+    fn real_sql_insert_new_session_rejects_unsigned_recording_consent() {
+        let conn = test_conn();
+        let err = insert_new_session(&conn, "c1").unwrap_err();
+        assert!(
+            err.to_lowercase().contains("recording"),
+            "expected recording-consent error, got: {err}"
+        );
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM sessions", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[test]
     fn real_sql_save_soap_note_links_to_session_not_just_client() {
         let conn = test_conn();
+        conn.execute(
+            "UPDATE clients SET recording_consent_signed = 1 WHERE id = 'c1'",
+            [],
+        )
+        .unwrap();
         let session_id = insert_new_session(&conn, "c1").unwrap();
         let note_id = upsert_soap_note(&conn, &session_id, "c1", "S", "O", "A", "P", false).unwrap();
 
-        let (linked_session, is_draft): (String, i64) = conn.query_row(
-            "SELECT session_id, is_draft FROM soap_notes WHERE id = ?1", [&note_id], |r| Ok((r.get(0)?, r.get(1)?))
+        let (linked_session, is_draft, signed_at): (String, i64, Option<String>) = conn.query_row(
+            "SELECT session_id, is_draft, signed_at FROM soap_notes WHERE id = ?1", [&note_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))
         ).unwrap();
         assert_eq!(linked_session, session_id);
         assert_eq!(is_draft, 0);
+        assert!(signed_at.is_some(), "finalized notes should stamp signed_at");
     }
 
     #[test]
     fn real_sql_upsert_soap_note_updates_not_duplicates() {
         let conn = test_conn();
+        conn.execute(
+            "UPDATE clients SET recording_consent_signed = 1 WHERE id = 'c1'",
+            [],
+        )
+        .unwrap();
         let session_id = insert_new_session(&conn, "c1").unwrap();
         let first_id = upsert_soap_note(&conn, &session_id, "c1", "S1", "O1", "A1", "P1", true).unwrap();
         let second_id = upsert_soap_note(&conn, &session_id, "c1", "S2", "O2", "A2", "P2", false).unwrap();

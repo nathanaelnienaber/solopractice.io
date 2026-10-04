@@ -13,8 +13,8 @@ interface Client {
 
 interface ClientListProps {
   selectedClientId: string | null;
-  onSelectClient: (id: string, name: string) => void;
-  onViewHistory: (id: string, name: string) => void;
+  onSelectClient: (id: string, name: string, canRecord: boolean) => void;
+  onViewHistory: (id: string, name: string, canRecord: boolean) => void;
 }
 
 export function ClientList({ selectedClientId, onSelectClient, onViewHistory }: ClientListProps) {
@@ -33,7 +33,9 @@ export function ClientList({ selectedClientId, onSelectClient, onViewHistory }: 
       setClients(result);
     } catch (error) {
       console.error("Failed to load clients:", error);
-      setClients(getMockClients());
+      // Do not invent mock clients on failure — that bypasses consent state
+      // and confuses Gate A walkthroughs. Show the empty/error state instead.
+      setClients([]);
     } finally {
       setLoading(false);
     }
@@ -101,8 +103,20 @@ export function ClientList({ selectedClientId, onSelectClient, onViewHistory }: 
                 key={client.id}
                 client={client}
                 selected={client.id === selectedClientId}
-                onSelect={() => onSelectClient(client.id, `${client.firstName} ${client.lastName}`)}
-                onViewHistory={() => onViewHistory(client.id, `${client.firstName} ${client.lastName}`)}
+                onSelect={() =>
+                  onSelectClient(
+                    client.id,
+                    `${client.firstName} ${client.lastName}`,
+                    client.recordingConsentSigned
+                  )
+                }
+                onViewHistory={() =>
+                  onViewHistory(
+                    client.id,
+                    `${client.firstName} ${client.lastName}`,
+                    client.recordingConsentSigned
+                  )
+                }
               />
             ))}
           </div>
@@ -111,7 +125,7 @@ export function ClientList({ selectedClientId, onSelectClient, onViewHistory }: 
 
       <div className="p-4 border-t border-border bg-muted/50">
         <p className="text-xs text-muted-foreground">
-          Clients sync from web portal. Recording requires all consents signed.
+          Clients sync from web portal. Recording requires signed recording consent.
         </p>
       </div>
     </div>
@@ -186,32 +200,3 @@ function ClientCard({
   );
 }
 
-function getMockClients(): Client[] {
-  return [
-    {
-      id: "client-1",
-      firstName: "Test",
-      lastName: "Client",
-      email: "test@example.com",
-      allConsentsSigned: true,
-      recordingConsentSigned: true,
-    },
-    {
-      id: "client-2",
-      firstName: "Jane",
-      lastName: "Doe",
-      email: "jane@example.com",
-      allConsentsSigned: false,
-      recordingConsentSigned: false,
-    },
-    {
-      id: "client-3",
-      firstName: "John",
-      lastName: "Smith",
-      email: "john@example.com",
-      phone: "+1 555 123 4567",
-      allConsentsSigned: true,
-      recordingConsentSigned: true,
-    },
-  ];
-}

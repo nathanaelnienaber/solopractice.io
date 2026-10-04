@@ -88,9 +88,9 @@ export default function ClientsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              In the desktop app, clients will appear greyed out with &quot;Record blocked&quot;
-              until all required consents are signed. The desktop app syncs consent status
-              from this web portal.
+              In the desktop app, clients show &quot;Record blocked&quot; until the
+              session recording consent is signed. The desktop app syncs consent
+              status from this web portal.
             </p>
           </CardContent>
         </Card>
@@ -105,12 +105,19 @@ function ClientCard({ client, onUpdate }: { client: Client; onUpdate: () => void
   async function sendConsentInvite() {
     setSendingInvite(true);
     try {
-      await fetch(`/api/clients/${client.id}/send-consent-invite`, {
+      const res = await fetch(`/api/clients/${client.id}/send-consent-invite`, {
         method: "POST",
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(
+          typeof data.error === "string" ? data.error : "Failed to send invite"
+        );
+      }
       alert("Consent invite sent!");
-    } catch {
-      alert("Failed to send invite");
+      onUpdate();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to send invite");
     } finally {
       setSendingInvite(false);
     }

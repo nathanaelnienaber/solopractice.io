@@ -52,9 +52,9 @@ export function DownloadPageContent() {
             Download the SoloPractice app
           </h1>
           <p className="text-xl text-muted-foreground max-w-xl mx-auto">
-            This is the app you’ll use every day to manage your practice —
-            clients, appointments, invoices, and your clinical notes. It runs
-            right on your computer, and your clinical notes never leave it.
+            This is the app you’ll use every day for clinical work — clients,
+            session recording, notes, and superbills. Scheduling and invoices
+            stay on the web portal. Clinical notes never leave this computer.
           </p>
         </div>
 

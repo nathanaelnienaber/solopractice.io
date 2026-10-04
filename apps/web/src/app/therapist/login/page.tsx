@@ -49,7 +49,7 @@ export default function TherapistLoginPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Click the link in your email to sign in. The link expires in 1 hour.
+              Click the link in your email to sign in. The link expires in 15 minutes.
             </p>
             <Button
               variant="outline"

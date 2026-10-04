@@ -17,6 +17,7 @@ export default function App() {
   const [view, setView] = useState<View>("clients");
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedClientName, setSelectedClientName] = useState<string>("");
+  const [selectedCanRecord, setSelectedCanRecord] = useState(false);
   const [currentSession, setCurrentSession] = useState<SessionWithDetails | null>(null);
   const [showWizard, setShowWizard] = useState(() => {
     try {
@@ -69,8 +70,12 @@ export default function App() {
         <NavButton
           active={view === "session"}
           onClick={() => setView("session")}
-          title="Session"
-          disabled={!selectedClientId}
+          title={
+            selectedClientId && !selectedCanRecord
+              ? "Session (recording consent required)"
+              : "Session"
+          }
+          disabled={!selectedClientId || !selectedCanRecord}
         >
           <MicIcon />
         </NavButton>
@@ -118,14 +123,18 @@ export default function App() {
         {view === "clients" && (
           <ClientList
             selectedClientId={selectedClientId}
-            onSelectClient={(id, name) => {
+            onSelectClient={(id, name, canRecord) => {
               setSelectedClientId(id);
               setSelectedClientName(name);
-              setView("session");
+              setSelectedCanRecord(canRecord);
+              if (canRecord) {
+                setView("session");
+              }
             }}
-            onViewHistory={(id, name) => {
+            onViewHistory={(id, name, canRecord) => {
               setSelectedClientId(id);
               setSelectedClientName(name);
+              setSelectedCanRecord(canRecord);
               setView("history");
             }}
           />
@@ -143,8 +152,13 @@ export default function App() {
           <SessionHistory
             clientId={selectedClientId}
             clientName={selectedClientName}
+            canRecord={selectedCanRecord}
             onClose={() => setView("clients")}
-            onStartNewSession={() => setView("session")}
+            onStartNewSession={() => {
+              if (selectedCanRecord) {
+                setView("session");
+              }
+            }}
           />
         )}
         {view === "jobs" && <JobQueue />}

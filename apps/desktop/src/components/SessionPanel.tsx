@@ -64,7 +64,10 @@ export function SessionPanel({
       });
       await invoke("stop_recording", { sessionId });
 
-      // Transcription/drafting job enqueueing lands in Phase 5.
+      // save_recording_file already enqueued a local transcription job.
+      // Open an empty SOAP editor so the therapist can write notes manually
+      // (Gate A path when whisper isn't configured) while jobs run in the
+      // background and appear under Session History / Jobs.
       setState("editing");
       setSoapNote({
         subjective: "",
@@ -184,8 +187,8 @@ export function SessionPanel({
               Stop Recording
             </button>
             <p className="text-xs text-muted-foreground max-w-xs text-center">
-              Audio is saved locally. Transcription and SOAP draft will process
-              in the background.
+              Audio is saved locally. If whisper.cpp is set up, transcription and
+              a SOAP draft run in the background; otherwise write the note by hand.
             </p>
           </div>
         )}

@@ -59,18 +59,23 @@ export async function sendMagicLink(
   const subject =
     type === "therapist"
       ? "Sign in to SoloPractice"
-      : "Access your appointment portal";
+      : "Your SoloPractice link";
+
+  const expiryCopy =
+    type === "therapist"
+      ? "This link expires in 15 minutes."
+      : "This link expires in 7 days.";
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
       <h2>Welcome to SoloPractice</h2>
-      <p>Click the link below to ${type === "therapist" ? "sign in to your practice dashboard" : "access your appointment portal"}:</p>
+      <p>Click the link below to ${type === "therapist" ? "sign in to your practice dashboard" : "open the secure link from your therapist"}:</p>
       <p style="margin: 24px 0;">
         <a href="${magicLinkUrl}" style="background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none;">
-          ${type === "therapist" ? "Sign In" : "Access Portal"}
+          ${type === "therapist" ? "Sign In" : "Open Link"}
         </a>
       </p>
-      <p style="color: #666; font-size: 14px;">This link expires in 1 hour.</p>
+      <p style="color: #666; font-size: 14px;">${expiryCopy}</p>
       <p style="color: #666; font-size: 14px;">If you didn't request this, you can safely ignore this email.</p>
     </div>
   `;

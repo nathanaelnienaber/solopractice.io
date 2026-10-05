@@ -30,18 +30,46 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
   }
 
+  if (invoice.status !== "draft") {
+    return NextResponse.json(
+      { error: "Only draft invoices can be sent" },
+      { status: 400 }
+    );
+  }
+
+  if (!invoice.client?.email) {
+    return NextResponse.json(
+      { error: "Client has no email address" },
+      { status: 400 }
+    );
+  }
+
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
   const paymentUrl = `${baseUrl}/client/pay/${invoice.id}`;
 
-  await sendInvoiceNotification(
-    invoice.client.email,
-    invoice.client.firstName,
-    `${therapist.firstName} ${therapist.lastName}`,
-    invoice.amountCents / 100,
-    new Date(invoice.dueDate).toLocaleDateString(),
-    paymentUrl
-  );
+  try {
+    await sendInvoiceNotification(
+      invoice.client.email,
+      invoice.client.firstName,
+      `${therapist.firstName} ${therapist.lastName}`,
+      invoice.amountCents / 100,
+      new Date(invoice.dueDate).toLocaleDateString(),
+      paymentUrl
+    );
+  } catch (error) {
+    console.error("[invoices/send] Resend failed:", error);
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to send invoice email",
+      },
+      { status: 502 }
+    );
+  }
 
+  // Mark sent only after Resend accepted the message.
   await db
     .update(invoices)
     .set({ status: "sent", sentAt: new Date(), updatedAt: new Date() })

@@ -63,13 +63,27 @@ export function InvoiceCard({
   const { t, language } = useI18n();
   const locale = language === "en" ? "en-US" : language;
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
   const [editing, setEditing] = useState(false);
 
   async function sendInvoice() {
     setSending(true);
+    setSendError("");
     try {
-      await fetch(`/api/invoices/${invoice.id}/send`, { method: "POST" });
+      const res = await fetch(`/api/invoices/${invoice.id}/send`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(
+          typeof data.error === "string" ? data.error : t("invoices.sendFailed")
+        );
+      }
       onUpdate();
+    } catch (err) {
+      setSendError(
+        err instanceof Error ? err.message : t("invoices.sendFailed")
+      );
     } finally {
       setSending(false);
     }
@@ -125,6 +139,11 @@ export function InvoiceCard({
               )}
             </div>
           </div>
+          {sendError && (
+            <p className="mt-3 text-sm text-destructive" role="alert">
+              {sendError}
+            </p>
+          )}
         </CardContent>
       </Card>
 

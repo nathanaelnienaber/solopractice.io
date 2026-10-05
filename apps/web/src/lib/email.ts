@@ -26,9 +26,12 @@ export interface SendEmailOptions {
 }
 
 export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
+  // Never pretend a send succeeded when Resend is not configured. The old
+  // stub logged and returned a fake id, which let invoice "Send" mark the
+  // row as sent with no message leaving the server.
   if (!process.env.RESEND_API_KEY) {
-    console.log(`[EMAIL STUB] To: ${to}, Subject: ${subject}`);
-    return { id: "stub-" + Date.now() };
+    console.error(`[EMAIL] RESEND_API_KEY missing; refusing to send to ${to}`);
+    throw new Error("Email is not configured (RESEND_API_KEY missing)");
   }
 
   const { data, error } = await resend.emails.send({

@@ -63,6 +63,9 @@ export default async function TherapistDashboard() {
             </p>
           </div>
           <nav className="flex items-center gap-4">
+            <Link href="/therapist/calendar" className="text-sm hover:text-primary">
+              Calendar
+            </Link>
             <Link href="/therapist/clients" className="text-sm hover:text-primary">
               Clients
             </Link>
@@ -108,7 +111,9 @@ export default async function TherapistDashboard() {
               <CardTitle className="text-3xl">{upcomingAppointmentCount?.count ?? 0}</CardTitle>
             </CardHeader>
             <CardContent>
-              <Button variant="ghost" size="sm" disabled>Coming soon &rarr;</Button>
+              <Link href="/therapist/calendar">
+                <Button variant="ghost" size="sm">View calendar &rarr;</Button>
+              </Link>
             </CardContent>
           </Card>
         </div>

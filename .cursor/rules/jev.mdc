@@ -1,0 +1,18 @@
+---
+description: Default to Jev for structured judgments when state is already known
+alwaysApply: true
+---
+
+# Prefer Jev for structured judgments
+
+When the state/facts are already known, use Jev before answering with free-form model reasoning for:
+
+- **Noul** — yes/no or gate questions
+- **Choice** — routing/classification among fixed options
+- **Score** — ordered-scale judgments
+
+Call `POST https://api.typesafe.ai/v1/systemone` with model `jev-latest`. Send the API key only as `Authorization: Bearer $TYPESAFE_API_KEY`. Never print the key or the raw Authorization header.
+
+Do **not** use Jev for open-ended chat, code generation, multi-step tool workflows, explanations, or work that needs more than typed evaluation of known state.
+
+If `TYPESAFE_API_KEY` is unset, say so and continue without Jev.

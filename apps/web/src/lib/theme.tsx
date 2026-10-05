@@ -1,8 +1,11 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { THEME_STORAGE_KEY } from "@/lib/theme-boot";
 
-type Theme = "light" | "dark" | "system";
+export type Theme = "light" | "dark" | "system";
+
+export { THEME_STORAGE_KEY };
 
 interface ThemeContextType {
   theme: Theme;
@@ -12,28 +15,32 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+function isTheme(value: string | null): value is Theme {
+  return value === "light" || value === "dark" || value === "system";
+}
+
+/** Apply light/dark to <html>. Matches the pre-hydration script in layout. */
+export function applyResolvedTheme(isDark: boolean) {
+  const root = document.documentElement;
+  root.classList.toggle("dark", isDark);
+  root.style.colorScheme = isDark ? "dark" : "light";
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("system");
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
-    const stored = localStorage.getItem("solopractice-theme") as Theme | null;
-    if (stored) {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (isTheme(stored)) {
       setThemeState(stored);
     }
   }, []);
 
   useEffect(() => {
-    const root = document.documentElement;
-
     const applyTheme = (isDark: boolean) => {
-      if (isDark) {
-        root.classList.add("dark");
-        setResolvedTheme("dark");
-      } else {
-        root.classList.remove("dark");
-        setResolvedTheme("light");
-      }
+      applyResolvedTheme(isDark);
+      setResolvedTheme(isDark ? "dark" : "light");
     };
 
     if (theme === "system") {
@@ -43,14 +50,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       const listener = (e: MediaQueryListEvent) => applyTheme(e.matches);
       mediaQuery.addEventListener("change", listener);
       return () => mediaQuery.removeEventListener("change", listener);
-    } else {
-      applyTheme(theme === "dark");
     }
+
+    applyTheme(theme === "dark");
   }, [theme]);
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
-    localStorage.setItem("solopractice-theme", newTheme);
+    localStorage.setItem(THEME_STORAGE_KEY, newTheme);
   };
 
   return (

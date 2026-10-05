@@ -19,6 +19,7 @@ import {
 import { DesktopApiKeyPanel } from "./desktop-api-key-panel";
 import { ConsentFormsPanel } from "./consent-forms-panel";
 import { LanguagePanel } from "./language-panel";
+import { PracticeInfoPanel } from "./practice-info-panel";
 
 export default async function SettingsPage({
   searchParams,
@@ -70,26 +71,21 @@ export default async function SettingsPage({
         <Card>
           <CardHeader>
             <CardTitle>Practice Information</CardTitle>
+            <CardDescription>
+              Update how your name and practice appear to clients.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Name</p>
-                <p className="font-medium">{therapist.firstName} {therapist.lastName}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Credentials</p>
-                <p className="font-medium">{therapist.credentials}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">License State</p>
-                <p className="font-medium">{therapist.licenseState}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium">{therapist.email}</p>
-              </div>
-            </div>
+          <CardContent>
+            <PracticeInfoPanel
+              initial={{
+                firstName: therapist.firstName,
+                lastName: therapist.lastName,
+                credentials: therapist.credentials,
+                licenseState: therapist.licenseState,
+                practiceName: therapist.practiceName,
+                email: therapist.email,
+              }}
+            />
           </CardContent>
         </Card>
 

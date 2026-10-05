@@ -98,7 +98,7 @@ Monorepo: `apps/desktop` (Tauri 2 + React + Rust), `apps/web` (Next.js + Drizzle
 | Pay-page receipt | Webhook marks invoice paid; pay page no longer claims a receipt email was sent (Gate A). Real receipt email still later. |
 | Job retry | Failed jobs stay `failed`; processor only picks `pending`. |
 | Desktop API key | Stored plaintext on therapist row (desktop must send raw value). |
-| Consent legal status | Boilerplate drafts. **Fake clients only** until attorney review. |
+| Consent legal status | Boilerplate drafts. Informed Consent for Treatment expanded to a US + territories + cross-border “one-stop” draft scaffold (`1.1.0-draft`); still **fake clients only** until Gate B attorney review. |
 | Local PHI form library | `local_forms` table exists; no UI. |
 | Backup | Not implemented. |
 | Gate A Windows walkthrough | Not yet run on her PC. Checklist: [docs/GATE_A_WALKTHROUGH.md](docs/GATE_A_WALKTHROUGH.md). Whisper model still open. |
@@ -131,7 +131,7 @@ Monorepo: `apps/desktop` (Tauri 2 + React + Rust), `apps/web` (Next.js + Drizzle
 
 ### Consent pack (draft; not legal advice)
 
-1. Informed consent  
+1. Informed consent (expanded one-stop treatment draft: services, confidentiality exceptions, fees, telehealth/tech basics, US + cross-border jurisdiction/licensing acknowledgment, emergencies/limits of care, rights, signatures — still Gate A scaffold)  
 2. Notice of Privacy Practices  
 3. Telehealth consent  
 4. Session recording consent (Record gate)  

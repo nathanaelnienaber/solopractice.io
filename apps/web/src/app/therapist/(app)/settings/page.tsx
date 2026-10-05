@@ -148,6 +148,28 @@ export default async function SettingsPage({
           </CardContent>
         </Card>
 
+        <Card id="sms-reminders">
+          <CardHeader>
+            <CardTitle>SMS Appointment Reminders</CardTitle>
+            <CardDescription>
+              Automatic texts go out about 24 hours before an appointment when
+              the client has a phone number and no reminder has been sent yet.
+              You can still send manually from the appointments list.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Auto reminders need Twilio credentials (
+              <code className="text-xs">TWILIO_ACCOUNT_SID</code>,{" "}
+              <code className="text-xs">TWILIO_AUTH_TOKEN</code>,{" "}
+              <code className="text-xs">TWILIO_PHONE_NUMBER</code>) and a{" "}
+              <code className="text-xs">CRON_SECRET</code> on the Vercel project
+              so the hourly cron can run. Without Twilio, nothing is auto-sent
+              (manual Send Reminder still stubs locally).
+            </p>
+          </CardContent>
+        </Card>
+
         <Card id="desktop">
           <CardHeader>
             <CardTitle>Desktop App</CardTitle>

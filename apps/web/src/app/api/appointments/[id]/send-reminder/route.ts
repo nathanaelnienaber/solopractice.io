@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, appointments, clients, therapists } from "@/db";
+import { db, appointments, clients } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { getSessionTherapist } from "@/lib/auth";
-import { sendSms } from "@/lib/sms";
+import { sendAndMarkAppointmentReminder } from "@/lib/appointment-reminders";
+import { isTwilioConfigured } from "@/lib/sms";
 
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const therapist = await getSessionTherapist();
@@ -15,7 +16,6 @@ export async function POST(
 
   const { id } = await params;
 
-  // Get appointment with client info
   const result = await db
     .select({
       appointment: appointments,
@@ -44,45 +44,34 @@ export async function POST(
     );
   }
 
-  // Format the appointment date/time
-  const scheduledDate = new Date(appointment.scheduledAt);
-  const dateStr = scheduledDate.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
-  const timeStr = scheduledDate.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
+  const outcome = await sendAndMarkAppointmentReminder({
+    appointmentId: id,
+    phone: client.phone,
+    clientFirstName: client.firstName,
+    therapistFirstName: therapist.firstName,
+    therapistLastName: therapist.lastName,
+    scheduledAt: new Date(appointment.scheduledAt),
   });
 
-  // Compose reminder message
-  const message = `Hi ${client.firstName}, this is a reminder of your appointment with ${therapist.firstName} ${therapist.lastName} on ${dateStr} at ${timeStr}. Please reply CONFIRM to confirm or call if you need to reschedule.`;
-
-  const smsResult = await sendSms({ to: client.phone, body: message });
-
-  if (smsResult.success) {
-    // Update appointment to record reminder was sent
-    await db
-      .update(appointments)
-      .set({
-        reminderSentAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(appointments.id, id));
-
-    return NextResponse.json({
-      success: true,
-      message: "Reminder sent successfully",
-      sid: smsResult.sid,
-    });
-  } else {
+  if (!outcome.ok) {
+    if (outcome.alreadySent) {
+      return NextResponse.json(
+        { success: false, error: outcome.error },
+        { status: 409 }
+      );
+    }
     return NextResponse.json(
-      {
-        success: false,
-        error: smsResult.error || "Failed to send SMS",
-      },
+      { success: false, error: outcome.error },
       { status: 500 }
     );
   }
+
+  return NextResponse.json({
+    success: true,
+    message: outcome.stub
+      ? "Reminder marked sent (Twilio stub — no real SMS)"
+      : "Reminder sent successfully",
+    sid: outcome.sid,
+    stub: outcome.stub || !isTwilioConfigured(),
+  });
 }

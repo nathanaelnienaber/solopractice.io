@@ -1,7 +1,8 @@
 /**
  * SMS Provider - Twilio
  *
- * Used for appointment reminders.
+ * Used for appointment reminders. Prefer `sendAndMarkAppointmentReminder` in
+ * `appointment-reminders.ts` for the full send + mark path.
  */
 
 import twilio from "twilio";
@@ -16,6 +17,13 @@ const client =
     : null;
 
 const FROM_PHONE = process.env.TWILIO_PHONE_NUMBER ?? "+15555555555";
+
+/** True when Twilio SID + auth token are present (real SMS, not stub). */
+export function isTwilioConfigured(): boolean {
+  return Boolean(
+    process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN,
+  );
+}
 
 export interface SendSmsOptions {
   to: string;
@@ -34,6 +42,10 @@ export interface SendSmsResult {
  * Twilio throws on failure and returns a MessageInstance on success, while the
  * no-credentials stub returns a synthetic sid. Callers need one uniform shape,
  * so failures are caught and converted here rather than at every call site.
+ *
+ * Stub mode: logs `[SMS STUB]` and returns success with a synthetic sid.
+ * Auto-reminder cron skips entirely when not configured; manual Send Reminder
+ * still uses this path and will mark reminderSentAt even in stub mode.
  */
 export async function sendSms({
   to,
@@ -57,16 +69,4 @@ export async function sendSms({
     console.error(`[SMS] Failed to send to ${to}: ${message}`);
     return { sid: "", success: false, error: message };
   }
-}
-
-export async function sendAppointmentReminder(
-  phone: string,
-  clientName: string,
-  therapistName: string,
-  appointmentDate: string,
-  appointmentTime: string
-) {
-  const body = `Hi ${clientName}, reminder: You have an appointment with ${therapistName} on ${appointmentDate} at ${appointmentTime}. Reply STOP to unsubscribe.`;
-
-  return sendSms({ to: phone, body });
 }

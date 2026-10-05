@@ -83,7 +83,7 @@ Monorepo: `apps/desktop` (Tauri 2 + React + Rust), `apps/web` (Next.js + Drizzle
 - Record blocked until recording consent is signed  
 - Record → local audio → whisper.cpp job (if binary + model configured) or manual transcript  
 - Ollama SOAP draft on `127.0.0.1` → edit → save → SOAP PDF export (drafts refused)  
-- Appointments list/create; therapist-triggered Twilio SMS reminder  
+- Appointments list/create; Twilio SMS reminders (auto ~24h before via Vercel Cron + manual Send Reminder)  
 - Invoice → Stripe Checkout (card) → Connect payout with 1% fee  
 - Superbill screen in the desktop sidebar → `generate_superbill` writes a PDF under `app_data_dir/superbills/`, saves a local DB row, opens via OS viewer; history via `get_superbills`  
 - Desktop runs on Windows (target) and Linux (dev); Mac not a target yet  
@@ -113,7 +113,7 @@ Monorepo: `apps/desktop` (Tauri 2 + React + Rust), `apps/web` (Next.js + Drizzle
 | Web | Next.js App Router + Postgres (Neon) + Drizzle |
 | Auth | Therapist magic link; client consent link (7 days on client row) |
 | Payments | Stripe Connect Express, card, 1% fee |
-| SMS | Twilio (manual send) |
+| SMS | Twilio (auto ~24h before + manual send) |
 | Email | Resend |
 | Boundary | `@solopractice/shared/web` vs `/desktop`; API blocklist on write routes |
 

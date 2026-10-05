@@ -1,47 +1,38 @@
 import { useTheme } from "../lib/theme";
 
+const THEME_CYCLE = ["light", "dark", "system"] as const;
+
+const THEME_LABELS = {
+  light: "Light",
+  dark: "Dark",
+  system: "System",
+} as const;
+
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
 
+  const currentIndex = THEME_CYCLE.indexOf(theme);
+  const nextTheme =
+    THEME_CYCLE[(currentIndex + 1) % THEME_CYCLE.length] ?? "light";
+
+  const ariaLabel = `${THEME_LABELS[theme]} mode. Switch to ${THEME_LABELS[nextTheme].toLowerCase()} mode`;
+
   return (
-    <div className="flex items-center gap-1 p-1 bg-[var(--muted)] rounded-lg">
-      <button
-        onClick={() => setTheme("light")}
-        className={`p-2 rounded-md transition-colors ${
-          theme === "light"
-            ? "bg-[var(--background)] text-[var(--foreground)] shadow-sm"
-            : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-        }`}
-        title="Light mode"
-        aria-label="Light mode"
-      >
-        <SunIcon />
-      </button>
-      <button
-        onClick={() => setTheme("dark")}
-        className={`p-2 rounded-md transition-colors ${
-          theme === "dark"
-            ? "bg-[var(--background)] text-[var(--foreground)] shadow-sm"
-            : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-        }`}
-        title="Dark mode"
-        aria-label="Dark mode"
-      >
+    <button
+      type="button"
+      onClick={() => setTheme(nextTheme)}
+      className="p-2 rounded-lg bg-[var(--muted)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
+      title={ariaLabel}
+      aria-label={ariaLabel}
+    >
+      {theme === "dark" ? (
         <MoonIcon />
-      </button>
-      <button
-        onClick={() => setTheme("system")}
-        className={`p-2 rounded-md transition-colors ${
-          theme === "system"
-            ? "bg-[var(--background)] text-[var(--foreground)] shadow-sm"
-            : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-        }`}
-        title="System preference"
-        aria-label="System preference"
-      >
+      ) : theme === "system" ? (
         <MonitorIcon />
-      </button>
-    </div>
+      ) : (
+        <SunIcon />
+      )}
+    </button>
   );
 }
 

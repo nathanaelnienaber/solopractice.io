@@ -161,6 +161,7 @@ const translations: Record<Language, Record<string, string>> = {
     "invoices.description": "Description",
     "invoices.descriptionPlaceholder": "Session on...",
     "invoices.sendInvoice": "Send invoice",
+    "invoices.resendInvoice": "Resend email",
     "invoices.sendFailed": "Failed to send invoice email",
     "invoices.editDraft": "Edit draft invoice",
     "invoices.editDraftDesc":
@@ -396,6 +397,7 @@ const translations: Record<Language, Record<string, string>> = {
     "invoices.description": "Descripción",
     "invoices.descriptionPlaceholder": "Sesión del...",
     "invoices.sendInvoice": "Enviar factura",
+    "invoices.resendInvoice": "Reenviar correo",
     "invoices.sendFailed": "No se pudo enviar el correo de la factura",
     "invoices.editDraft": "Editar borrador de factura",
     "invoices.editDraftDesc":
@@ -631,6 +633,7 @@ const translations: Record<Language, Record<string, string>> = {
     "invoices.description": "Beschreibung",
     "invoices.descriptionPlaceholder": "Sitzung am...",
     "invoices.sendInvoice": "Rechnung senden",
+    "invoices.resendInvoice": "E-Mail erneut senden",
     "invoices.sendFailed": "Rechnungs-E-Mail konnte nicht gesendet werden",
     "invoices.editDraft": "Entwurf bearbeiten",
     "invoices.editDraftDesc":
@@ -866,6 +869,7 @@ const translations: Record<Language, Record<string, string>> = {
     "invoices.description": "Beskrivning",
     "invoices.descriptionPlaceholder": "Session den...",
     "invoices.sendInvoice": "Skicka faktura",
+    "invoices.resendInvoice": "Skicka mejl igen",
     "invoices.sendFailed": "Kunde inte skicka fakturamejl",
     "invoices.editDraft": "Redigera fakturautkast",
     "invoices.editDraftDesc":

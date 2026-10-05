@@ -13,6 +13,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useI18n } from "@/lib/i18n";
+import {
+  canEmailInvoiceStatus,
+  displayInvoiceStatus,
+} from "@/lib/invoice-status";
 
 export interface InvoiceCardData {
   id: string;
@@ -89,8 +93,12 @@ export function InvoiceCard({
     }
   }
 
-  const badge = statusBadge(invoice.status, t);
+  const shownStatus = displayInvoiceStatus(invoice.status, invoice.dueDate);
+  const badge = statusBadge(shownStatus, t);
   const isDraft = invoice.status === "draft";
+  const canEmail =
+    canEmailInvoiceStatus(invoice.status) ||
+    canEmailInvoiceStatus(shownStatus);
 
   return (
     <>
@@ -117,23 +125,28 @@ export function InvoiceCard({
                 </p>
                 <Badge variant={badge.variant}>{badge.label}</Badge>
               </div>
-              {isDraft && (
+              {canEmail && (
                 <div className="flex flex-col gap-2 sm:w-full sm:min-w-[8.5rem]">
+                  {isDraft && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setEditing(true)}
+                    >
+                      {t("common.edit")}
+                    </Button>
+                  )}
                   <Button
                     size="sm"
-                    variant="outline"
                     className="w-full"
-                    onClick={() => setEditing(true)}
-                  >
-                    {t("common.edit")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="w-full"
+                    variant={isDraft ? "default" : "outline"}
                     onClick={sendInvoice}
                     loading={sending}
                   >
-                    {t("invoices.sendInvoice")}
+                    {isDraft
+                      ? t("invoices.sendInvoice")
+                      : t("invoices.resendInvoice")}
                   </Button>
                 </div>
               )}

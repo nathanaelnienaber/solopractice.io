@@ -2,8 +2,9 @@
  * Route-level tests for POST /api/invoices/[id]/send.
  *
  * Contract: status flips to "sent" only after Resend accepts the message.
- * Failures (missing key, Resend error, non-draft) must return a clear error
- * and leave the invoice untouched — the therapist UI surfaces that error.
+ * Failures (missing key, Resend error, non-emailable status) must return a
+ * clear error and leave the invoice untouched — the therapist UI surfaces that.
+ * Sent/viewed/overdue may be resent; paid/cancelled may not.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -126,7 +127,7 @@ describe("POST /api/invoices/[id]/send", () => {
     expect(updateSetWhereMock).not.toHaveBeenCalled();
   });
 
-  it("refuses non-draft invoices without emailing", async () => {
+  it("allows resend for already-sent invoices without changing status", async () => {
     invoiceRow = {
       ...DRAFT_INVOICE,
       status: "sent",
@@ -136,8 +137,27 @@ describe("POST /api/invoices/[id]/send", () => {
     const response = await sendInvoice(DRAFT_INVOICE.id);
     const body = await response.json();
 
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(sendInvoiceNotificationMock).toHaveBeenCalledTimes(1);
+    expect(updateSetWhereMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "sent" }),
+      expect.anything()
+    );
+  });
+
+  it("refuses paid invoices without emailing", async () => {
+    invoiceRow = {
+      ...DRAFT_INVOICE,
+      status: "paid",
+      client: { ...CLIENT },
+    };
+
+    const response = await sendInvoice(DRAFT_INVOICE.id);
+    const body = await response.json();
+
     expect(response.status).toBe(400);
-    expect(body.error).toMatch(/draft/i);
+    expect(body.error).toMatch(/paid/i);
     expect(sendInvoiceNotificationMock).not.toHaveBeenCalled();
     expect(updateSetWhereMock).not.toHaveBeenCalled();
   });

@@ -93,12 +93,14 @@ describe("POST /api/invoices/[id]/send", () => {
     sendInvoiceNotificationMock.mockResolvedValue({ id: "email_ok" });
   });
 
-  it("marks sent only after Resend succeeds", async () => {
+  it("marks sent only after Resend succeeds and returns to + emailId", async () => {
     const response = await sendInvoice(DRAFT_INVOICE.id);
     const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
+    expect(body.to).toBe(CLIENT.email);
+    expect(body.emailId).toBe("email_ok");
     expect(sendInvoiceNotificationMock).toHaveBeenCalledTimes(1);
     expect(sendInvoiceNotificationMock).toHaveBeenCalledWith(
       CLIENT.email,
@@ -106,8 +108,29 @@ describe("POST /api/invoices/[id]/send", () => {
       "Ada Therapist",
       150,
       expect.any(String),
-      expect.stringContaining(`/client/pay/${DRAFT_INVOICE.id}`)
+      expect.stringContaining(`/client/pay/${DRAFT_INVOICE.id}`),
+      { replyTo: THERAPIST.email }
     );
+    expect(updateSetWhereMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "sent" }),
+      expect.anything()
+    );
+  });
+
+  it("resends for already-sent invoices without changing status away from sent", async () => {
+    invoiceRow = {
+      ...DRAFT_INVOICE,
+      status: "sent",
+      client: { ...CLIENT },
+    };
+
+    const response = await sendInvoice(DRAFT_INVOICE.id);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.to).toBe(CLIENT.email);
+    expect(sendInvoiceNotificationMock).toHaveBeenCalledTimes(1);
     expect(updateSetWhereMock).toHaveBeenCalledWith(
       expect.objectContaining({ status: "sent" }),
       expect.anything()
@@ -125,25 +148,6 @@ describe("POST /api/invoices/[id]/send", () => {
     expect(response.status).toBe(502);
     expect(body.error).toMatch(/Resend send failed/i);
     expect(updateSetWhereMock).not.toHaveBeenCalled();
-  });
-
-  it("allows resend for already-sent invoices without changing status", async () => {
-    invoiceRow = {
-      ...DRAFT_INVOICE,
-      status: "sent",
-      client: { ...CLIENT },
-    };
-
-    const response = await sendInvoice(DRAFT_INVOICE.id);
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body.success).toBe(true);
-    expect(sendInvoiceNotificationMock).toHaveBeenCalledTimes(1);
-    expect(updateSetWhereMock).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "sent" }),
-      expect.anything()
-    );
   });
 
   it("refuses paid invoices without emailing", async () => {

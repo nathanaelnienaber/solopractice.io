@@ -68,21 +68,31 @@ export function InvoiceCard({
   const locale = language === "en" ? "en-US" : language;
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
+  const [sendInfo, setSendInfo] = useState("");
   const [editing, setEditing] = useState(false);
 
   async function sendInvoice() {
     setSending(true);
     setSendError("");
+    setSendInfo("");
     try {
       const res = await fetch(`/api/invoices/${invoice.id}/send`, {
         method: "POST",
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(
           typeof data.error === "string" ? data.error : t("invoices.sendFailed")
         );
       }
+      const to = typeof data.to === "string" ? data.to : "";
+      const emailId = typeof data.emailId === "string" ? data.emailId : "";
+      setSendInfo(
+        to
+          ? t("invoices.emailedTo").replace("{email}", to) +
+              (emailId ? ` (${emailId})` : "")
+          : t("invoices.sendSucceeded")
+      );
       onUpdate();
     } catch (err) {
       setSendError(
@@ -155,6 +165,11 @@ export function InvoiceCard({
           {sendError && (
             <p className="mt-3 text-sm text-destructive" role="alert">
               {sendError}
+            </p>
+          )}
+          {sendInfo && !sendError && (
+            <p className="mt-3 text-sm text-muted-foreground" role="status">
+              {sendInfo}
             </p>
           )}
         </CardContent>

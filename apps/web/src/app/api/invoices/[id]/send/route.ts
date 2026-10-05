@@ -3,6 +3,10 @@ import { db, invoices } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { getSessionTherapist } from "@/lib/auth";
 import { sendInvoiceNotification } from "@/lib/email";
+import {
+  canEmailInvoiceStatus,
+  displayInvoiceStatus,
+} from "@/lib/invoice-status";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -30,9 +34,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
   }
 
-  if (invoice.status !== "draft") {
+  // Allow email when DB status or derived (past-due) status is emailable.
+  const effectiveStatus = displayInvoiceStatus(invoice.status, invoice.dueDate);
+  if (
+    !canEmailInvoiceStatus(invoice.status) &&
+    !canEmailInvoiceStatus(effectiveStatus)
+  ) {
     return NextResponse.json(
-      { error: "Only draft invoices can be sent" },
+      {
+        error: `Cannot email an invoice with status "${invoice.status}"`,
+      },
       { status: 400 }
     );
   }
@@ -69,10 +80,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  // Mark sent only after Resend accepted the message.
+  // Draft → sent after first successful email. Resends keep status (including
+  // viewed) but refresh sentAt. Do not clear overdue in DB if it was stored.
   await db
     .update(invoices)
-    .set({ status: "sent", sentAt: new Date(), updatedAt: new Date() })
+    .set({
+      status: invoice.status === "draft" ? "sent" : invoice.status,
+      sentAt: new Date(),
+      updatedAt: new Date(),
+    })
     .where(eq(invoices.id, id));
 
   return NextResponse.json({ success: true, paymentUrl });

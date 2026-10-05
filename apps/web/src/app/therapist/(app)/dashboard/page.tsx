@@ -155,7 +155,7 @@ export default async function TherapistDashboard() {
                             ? "Consents complete"
                             : `${signedCount}/${totalRequired} signed`}
                         </Badge>
-                        <Link href={`/therapist/clients?id=${client.id}`}>
+                        <Link href={`/therapist/clients/${client.id}`}>
                           <Button variant="ghost" size="sm">View</Button>
                         </Link>
                       </div>

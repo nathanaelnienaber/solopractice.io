@@ -4,14 +4,21 @@ import { eq, and } from "drizzle-orm";
 import { getSessionTherapist, generateId } from "@/lib/auth";
 import { validateWebSafeRequest, webSafetyErrorResponse } from "@/lib/web-safety";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const therapist = await getSessionTherapist();
   if (!therapist) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const clientId = new URL(request.url).searchParams.get("clientId");
+
   const invoiceList = await db.query.invoices.findMany({
-    where: eq(invoices.therapistId, therapist.id),
+    where: clientId
+      ? and(
+          eq(invoices.therapistId, therapist.id),
+          eq(invoices.clientId, clientId)
+        )
+      : eq(invoices.therapistId, therapist.id),
     with: {
       client: true,
     },

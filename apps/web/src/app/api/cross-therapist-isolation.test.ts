@@ -242,7 +242,8 @@ afterEach(() => {
 describe("invoices: therapist A cannot reach therapist B's invoice", () => {
   it("GET /api/invoices does not list B's invoices", async () => {
     const { GET } = await import("@/app/api/invoices/route");
-    const response = await GET();
+    const request = new NextRequest("http://localhost:3847/api/invoices");
+    const response = await GET(request);
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -366,7 +367,8 @@ describe("unauthenticated session is rejected on therapist routes", () => {
 
   it("GET /api/invoices returns 401 with no valid session", async () => {
     const { GET } = await import("@/app/api/invoices/route");
-    expect((await GET()).status).toBe(401);
+    const request = new NextRequest("http://localhost:3847/api/invoices");
+    expect((await GET(request)).status).toBe(401);
   });
 
   it("GET /api/clients returns 401 with no valid session", async () => {

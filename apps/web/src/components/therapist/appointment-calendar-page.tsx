@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -82,7 +83,10 @@ function defaultSlotForDay(day: Date): Date {
 export function AppointmentCalendarPage() {
   const { t, language } = useI18n();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const locale = language === "en" ? "en-US" : language;
+  const filterClientId = searchParams.get("clientId");
+  const openNewFromQuery = searchParams.get("new") === "1";
 
   const [view, setView] = useState<CalendarView>("week");
   const [anchorDate, setAnchorDate] = useState(() => new Date());
@@ -92,8 +96,10 @@ export function AppointmentCalendarPage() {
   const [error, setError] = useState<string | null>(null);
   const [showNewModal, setShowNewModal] = useState(false);
   const [newAppointmentDefault, setNewAppointmentDefault] = useState<Date | undefined>();
+  const [defaultClientId, setDefaultClientId] = useState<string | undefined>();
   const [editingAppointment, setEditingAppointment] =
     useState<Appointment | null>(null);
+  const [consumedNewQuery, setConsumedNewQuery] = useState(false);
 
   const visibleRange = useMemo(
     () => getVisibleRange(view, anchorDate),
@@ -135,13 +141,39 @@ export function AppointmentCalendarPage() {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    if (filterClientId) {
+      setDefaultClientId(filterClientId);
+    }
+  }, [filterClientId]);
+
+  useEffect(() => {
+    if (openNewFromQuery && filterClientId && !consumedNewQuery) {
+      setDefaultClientId(filterClientId);
+      setShowNewModal(true);
+      setConsumedNewQuery(true);
+    }
+  }, [openNewFromQuery, filterClientId, consumedNewQuery]);
+
+  const filteredAppointments = useMemo(() => {
+    if (!filterClientId) return appointments;
+    return appointments.filter((apt) => apt.clientId === filterClientId);
+  }, [appointments, filterClientId]);
+
+  const filterClientName = useMemo(() => {
+    if (!filterClientId) return null;
+    const match = clients.find((c) => c.id === filterClientId);
+    return match ? `${match.firstName} ${match.lastName}` : null;
+  }, [clients, filterClientId]);
+
   function openNewAppointment(day?: Date) {
     setNewAppointmentDefault(day ? defaultSlotForDay(day) : undefined);
+    if (filterClientId) setDefaultClientId(filterClientId);
     setShowNewModal(true);
   }
 
   function getAppointmentsForDay(day: Date): Appointment[] {
-    return appointments
+    return filteredAppointments
       .filter((apt) => isSameDay(new Date(apt.scheduledAt), day))
       .sort(
         (a, b) =>
@@ -167,7 +199,7 @@ export function AppointmentCalendarPage() {
     }
   }
 
-  const upcomingScheduled = appointments
+  const upcomingScheduled = filteredAppointments
     .filter(
       (apt) =>
         apt.status === "scheduled" && new Date(apt.scheduledAt) >= today
@@ -182,6 +214,21 @@ export function AppointmentCalendarPage() {
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
         <div>
           <h1 className="text-2xl font-semibold">{t("calendar.title")}</h1>
+          {filterClientId ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Badge variant="outline">
+                {filterClientName
+                  ? t("calendar.filteredTo").replace("{name}", filterClientName)
+                  : t("calendar.filteredClient")}
+              </Badge>
+              <Link
+                href="/therapist/calendar"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                {t("calendar.clearFilter")}
+              </Link>
+            </div>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -228,7 +275,10 @@ export function AppointmentCalendarPage() {
               open={showNewModal}
               onOpenChange={(open) => {
                 setShowNewModal(open);
-                if (!open) setNewAppointmentDefault(undefined);
+                if (!open) {
+                  setNewAppointmentDefault(undefined);
+                  if (!filterClientId) setDefaultClientId(undefined);
+                }
               }}
             >
               <DialogTrigger asChild>
@@ -246,14 +296,17 @@ export function AppointmentCalendarPage() {
                 <AppointmentForm
                   clients={clients}
                   defaultScheduledAt={newAppointmentDefault}
+                  defaultClientId={defaultClientId}
                   onSave={() => {
                     setShowNewModal(false);
                     setNewAppointmentDefault(undefined);
+                    if (!filterClientId) setDefaultClientId(undefined);
                     loadData();
                   }}
                   onCancel={() => {
                     setShowNewModal(false);
                     setNewAppointmentDefault(undefined);
+                    if (!filterClientId) setDefaultClientId(undefined);
                   }}
                 />
               </DialogContent>
@@ -561,6 +614,7 @@ function AppointmentForm({
   clients,
   appointment,
   defaultScheduledAt,
+  defaultClientId,
   onSave,
   onCancel,
   onDelete,
@@ -568,12 +622,15 @@ function AppointmentForm({
   clients: Client[];
   appointment?: Appointment;
   defaultScheduledAt?: Date;
+  defaultClientId?: string;
   onSave: () => void;
   onCancel: () => void;
   onDelete?: () => void;
 }) {
   const { t } = useI18n();
-  const [clientId, setClientId] = useState(appointment?.clientId || "");
+  const [clientId, setClientId] = useState(
+    appointment?.clientId || defaultClientId || ""
+  );
   const [scheduledAt, setScheduledAt] = useState(
     appointment?.scheduledAt
       ? formatDateForInput(new Date(appointment.scheduledAt))
@@ -594,6 +651,12 @@ function AppointmentForm({
       setScheduledAt(formatDateForInput(defaultScheduledAt));
     }
   }, [appointment, defaultScheduledAt]);
+
+  useEffect(() => {
+    if (!appointment && defaultClientId) {
+      setClientId(defaultClientId);
+    }
+  }, [appointment, defaultClientId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

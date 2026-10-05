@@ -57,16 +57,19 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
   const paymentUrl = `${baseUrl}/client/pay/${invoice.id}`;
+  const to = invoice.client.email;
 
+  let emailId: string;
   try {
-    await sendInvoiceNotification(
-      invoice.client.email,
+    const result = await sendInvoiceNotification(
+      to,
       invoice.client.firstName,
       `${therapist.firstName} ${therapist.lastName}`,
       invoice.amountCents / 100,
       new Date(invoice.dueDate).toLocaleDateString(),
       paymentUrl
     );
+    emailId = result.id;
   } catch (error) {
     console.error("[invoices/send] Resend failed:", error);
     return NextResponse.json(
@@ -80,8 +83,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  // Draft → sent after first successful email. Resends keep status (including
-  // viewed) but refresh sentAt. Do not clear overdue in DB if it was stored.
+  // Mark sent only after Resend accepted the message (with a real id).
+  // Draft → sent on first send; resends keep status (incl. viewed) and refresh sentAt.
   await db
     .update(invoices)
     .set({
@@ -91,5 +94,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     })
     .where(eq(invoices.id, id));
 
-  return NextResponse.json({ success: true, paymentUrl });
+  console.info(
+    `[invoices/send] Resend accepted id=${emailId} to=${to} invoice=${id}`
+  );
+
+  return NextResponse.json({
+    success: true,
+    paymentUrl,
+    to,
+    emailId,
+  });
 }

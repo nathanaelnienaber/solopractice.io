@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -17,19 +18,34 @@ const links = [
 
 export function TherapistNav({ subtitle }: { subtitle?: string }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { t } = useI18n();
+
+  async function handleSignOut() {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    });
+    router.push("/therapist/login");
+    router.refresh();
+  }
 
   return (
     <header className="border-b border-border">
       <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">SoloPractice</h1>
+          <Link
+            href="/therapist/dashboard"
+            className="text-xl font-semibold hover:text-primary"
+          >
+            SoloPractice
+          </Link>
           {subtitle ? (
             <p className="text-sm text-muted-foreground">{subtitle}</p>
           ) : null}
         </div>
         <div className="flex items-center gap-4 flex-wrap justify-end">
-          <nav className="flex items-center gap-4 flex-wrap">
+          <nav className="flex items-center gap-4 flex-wrap" aria-label="Therapist">
             {links.map(({ href, key }) => (
               <Link
                 key={href}
@@ -47,6 +63,14 @@ export function TherapistNav({ subtitle }: { subtitle?: string }) {
           </nav>
           <LanguageToggle />
           <ThemeToggle />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleSignOut}
+          >
+            {t("nav.signOut")}
+          </Button>
         </div>
       </div>
     </header>

@@ -53,33 +53,11 @@ export default async function TherapistDashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold">SoloPractice</h1>
-            <p className="text-sm text-muted-foreground">
-              {therapist.practiceName || `${therapist.firstName} ${therapist.lastName}, ${therapist.credentials}`}
-            </p>
-          </div>
-          <nav className="flex items-center gap-4">
-            <Link href="/therapist/calendar" className="text-sm hover:text-primary">
-              Calendar
-            </Link>
-            <Link href="/therapist/clients" className="text-sm hover:text-primary">
-              Clients
-            </Link>
-            <Link href="/therapist/invoices" className="text-sm hover:text-primary">
-              Invoices
-            </Link>
-            <Link href="/therapist/settings" className="text-sm hover:text-primary">
-              Settings
-            </Link>
-          </nav>
-        </div>
-      </header>
+    <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold">Dashboard</h1>
+      </div>
 
-      <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
         <div className="grid md:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="pb-2">
@@ -188,7 +166,6 @@ export default async function TherapistDashboard() {
             )}
           </CardContent>
         </Card>
-      </main>
-    </div>
+    </main>
   );
 }

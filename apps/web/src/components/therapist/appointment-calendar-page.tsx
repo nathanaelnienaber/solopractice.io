@@ -30,7 +30,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/i18n";
-import { TherapistNav } from "@/components/therapist/TherapistNav";
 import {
   CALENDAR_HOURS,
   type CalendarView,
@@ -179,10 +178,12 @@ export function AppointmentCalendarPage() {
     );
 
   return (
-    <div className="min-h-screen bg-background">
-      <TherapistNav subtitle={t("calendar.title")} />
-
+    <>
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold">{t("calendar.title")}</h1>
+        </div>
+
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -510,7 +511,7 @@ export function AppointmentCalendarPage() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
 

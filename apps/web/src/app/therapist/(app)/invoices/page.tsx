@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useState, useEffect } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,20 +72,12 @@ function InvoicesView() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/therapist/dashboard" className="text-muted-foreground hover:text-foreground">
-              &larr;
-            </Link>
-            <h1 className="text-xl font-semibold">Invoices</h1>
-          </div>
-          <Button onClick={() => setShowCreateForm(true)}>Create Invoice</Button>
-        </div>
-      </header>
+    <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold">Invoices</h1>
+        <Button onClick={() => setShowCreateForm(true)}>Create Invoice</Button>
+      </div>
 
-      <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
         {showCreateForm && (
           <CreateInvoiceForm
             clients={clients}
@@ -127,8 +118,7 @@ function InvoicesView() {
             </p>
           </CardContent>
         </Card>
-      </main>
-    </div>
+    </main>
   );
 }
 

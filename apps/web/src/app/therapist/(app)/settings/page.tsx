@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getSessionTherapist } from "@/lib/auth";
 import {
   retrieveAccountOrNull,
@@ -61,17 +60,11 @@ export default async function SettingsPage({
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link href="/therapist/dashboard" className="text-muted-foreground hover:text-foreground">
-            &larr;
-          </Link>
-          <h1 className="text-xl font-semibold">Settings</h1>
-        </div>
-      </header>
+    <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold">Settings</h1>
+      </div>
 
-      <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
         <Card>
           <CardHeader>
             <CardTitle>Practice Information</CardTitle>
@@ -175,7 +168,6 @@ export default async function SettingsPage({
             <DesktopApiKeyPanel />
           </CardContent>
         </Card>
-      </main>
-    </div>
+    </main>
   );
 }

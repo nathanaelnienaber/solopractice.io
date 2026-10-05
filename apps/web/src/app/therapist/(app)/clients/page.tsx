@@ -41,20 +41,12 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/therapist/dashboard" className="text-muted-foreground hover:text-foreground">
-              &larr;
-            </Link>
-            <h1 className="text-xl font-semibold">Clients</h1>
-          </div>
-          <Button onClick={() => setShowAddForm(true)}>Add Client</Button>
-        </div>
-      </header>
+    <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold">Clients</h1>
+        <Button onClick={() => setShowAddForm(true)}>Add Client</Button>
+      </div>
 
-      <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
         {showAddForm && (
           <AddClientForm
             onClose={() => setShowAddForm(false)}
@@ -94,8 +86,7 @@ export default function ClientsPage() {
             </p>
           </CardContent>
         </Card>
-      </main>
-    </div>
+    </main>
   );
 }
 

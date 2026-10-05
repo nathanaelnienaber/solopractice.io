@@ -1,8 +1,11 @@
 /**
- * Route-level tests for PATCH /api/invoices/[id].
+ * Route-level tests for PATCH / DELETE /api/invoices/[id].
  *
  * Draft-only edit guard: therapists may change amount / description / due
  * date while status === "draft". Sent and paid invoices must be refused.
+ *
+ * Delete: unpaid invoices (draft/sent/…) may be removed; paid and refunded
+ * invoices are kept as payment history.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -29,6 +32,7 @@ let invoiceRow: Record<string, unknown> | undefined = DRAFT_INVOICE;
 let sessionTherapist: typeof THERAPIST | null = THERAPIST;
 
 const updateSetWhereMock = vi.fn();
+const deleteWhereMock = vi.fn();
 vi.mock("@/db", async () => {
   const actual = await vi.importActual<typeof import("@/db")>("@/db");
   return {
@@ -46,6 +50,12 @@ vi.mock("@/db", async () => {
             return Promise.resolve();
           },
         }),
+      }),
+      delete: () => ({
+        where: (cond: unknown) => {
+          deleteWhereMock(cond);
+          return Promise.resolve();
+        },
       }),
     },
   };
@@ -76,6 +86,15 @@ async function patchInvoice(
     }
   );
   return PATCH(request, { params: Promise.resolve({ id }) });
+}
+
+async function deleteInvoice(id: string) {
+  const { DELETE } = await import("./route");
+  const request = new NextRequest(
+    `https://www.solopractice.io/api/invoices/${id}`,
+    { method: "DELETE" }
+  );
+  return DELETE(request, { params: Promise.resolve({ id }) });
 }
 
 beforeEach(() => {
@@ -145,5 +164,50 @@ describe("PATCH /api/invoices/[id]", () => {
   it("rejects non-positive amountCents", async () => {
     const res = await patchInvoice(DRAFT_INVOICE.id, { amountCents: 0 });
     expect(res.status).toBe(400);
+  });
+});
+
+describe("DELETE /api/invoices/[id]", () => {
+  it("returns 401 when unauthenticated", async () => {
+    sessionTherapist = null;
+    const res = await deleteInvoice(DRAFT_INVOICE.id);
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 404 when invoice is missing", async () => {
+    invoiceRow = undefined;
+    const res = await deleteInvoice("inv_missing");
+    expect(res.status).toBe(404);
+  });
+
+  it("deletes draft invoices", async () => {
+    const res = await deleteInvoice(DRAFT_INVOICE.id);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(deleteWhereMock).toHaveBeenCalled();
+  });
+
+  it("deletes sent invoices", async () => {
+    invoiceRow = { ...DRAFT_INVOICE, status: "sent" };
+    const res = await deleteInvoice(DRAFT_INVOICE.id);
+    expect(res.status).toBe(200);
+    expect(deleteWhereMock).toHaveBeenCalled();
+  });
+
+  it("refuses paid invoices", async () => {
+    invoiceRow = { ...DRAFT_INVOICE, status: "paid" };
+    const res = await deleteInvoice(DRAFT_INVOICE.id);
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toMatch(/paid/i);
+    expect(deleteWhereMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses refunded invoices", async () => {
+    invoiceRow = { ...DRAFT_INVOICE, status: "refunded" };
+    const res = await deleteInvoice(DRAFT_INVOICE.id);
+    expect(res.status).toBe(400);
+    expect(deleteWhereMock).not.toHaveBeenCalled();
   });
 });

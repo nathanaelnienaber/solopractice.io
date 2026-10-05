@@ -84,7 +84,7 @@ Monorepo: `apps/desktop` (Tauri 2 + React + Rust), `apps/web` (Next.js + Drizzle
 - Record → local audio → whisper.cpp job (if binary + model configured) or manual transcript  
 - Ollama SOAP draft on `127.0.0.1` → edit → save → SOAP PDF export (drafts refused)  
 - Appointments list/create; Twilio SMS reminders (auto ~24h before via Vercel Cron + manual Send Reminder)  
-- Invoice → Stripe Checkout (card) → Connect payout with 1% fee; webhook marks **Paid**. Therapist InvoiceCard shows **Overdue** when an unpaid sent/viewed invoice’s due date is before today (display-derived; not a cron). **Resend email** on Sent/Viewed/Overdue (same send route as first send).  
+- Invoice → Stripe Checkout (card) → Connect payout with 1% fee; webhook marks **Paid**. Therapist InvoiceCard shows **Overdue** when an unpaid sent/viewed invoice’s due date is before today (display-derived; not a cron). **Resend email** on Sent/Viewed/Overdue (same send route as first send). Draft invoices can **Edit** (amount/description/due date) or **Delete**; unpaid sent/viewed/overdue can **Delete** (confirm dialog) or **Resend**. Paid/refunded invoices cannot be deleted. Phone-first card: status badge top-right, stacked full-width actions.  
 - Superbill screen in the desktop sidebar → `generate_superbill` writes a PDF under `app_data_dir/superbills/`, saves a local DB row, opens via OS viewer; history via `get_superbills`  
 - Desktop runs on Windows (target) and Linux (dev); Mac not a target yet  
 

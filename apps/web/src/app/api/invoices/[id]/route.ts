@@ -125,3 +125,42 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     },
   });
 }
+
+const NON_DELETABLE_STATUSES = new Set(["paid", "refunded"]);
+
+/**
+ * DELETE /api/invoices/[id]
+ *
+ * Therapist-owned delete for unpaid invoices (draft / sent / viewed / overdue
+ * / cancelled / partial). Paid and refunded invoices are kept as payment history.
+ */
+export async function DELETE(
+  _request: NextRequest,
+  { params }: RouteParams
+) {
+  const therapist = await getSessionTherapist();
+  if (!therapist) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  const existing = await db.query.invoices.findFirst({
+    where: and(eq(invoices.id, id), eq(invoices.therapistId, therapist.id)),
+  });
+
+  if (!existing) {
+    return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+  }
+
+  if (NON_DELETABLE_STATUSES.has(existing.status)) {
+    return NextResponse.json(
+      { error: "Paid and refunded invoices cannot be deleted" },
+      { status: 400 }
+    );
+  }
+
+  await db.delete(invoices).where(eq(invoices.id, id));
+
+  return NextResponse.json({ success: true });
+}

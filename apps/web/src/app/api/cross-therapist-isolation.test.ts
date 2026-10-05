@@ -155,6 +155,7 @@ function makeTableQuery(rows: Record<string, unknown>[]) {
 }
 
 const updateWhereSpy = vi.fn();
+const deleteWhereSpy = vi.fn();
 
 vi.mock("@/db", async () => {
   const actual = await vi.importActual<typeof import("@/db")>("@/db");
@@ -173,6 +174,12 @@ vi.mock("@/db", async () => {
             return Promise.resolve();
           },
         }),
+      }),
+      delete: () => ({
+        where: (...args: unknown[]) => {
+          deleteWhereSpy(...args);
+          return Promise.resolve();
+        },
       }),
       insert: () => ({
         values: () => Promise.resolve(),
@@ -266,6 +273,22 @@ describe("invoices: therapist A cannot reach therapist B's invoice", () => {
     expect(response.status).toBe(404);
     // The real damage would be emailing B's client; assert we never did.
     expect(sendInvoiceNotificationMock).not.toHaveBeenCalled();
+    expect(lastPredicateColumns).toContain("therapist_id");
+  });
+
+  it("DELETE /api/invoices/[id] returns 404 for B's invoice", async () => {
+    const { DELETE } = await import("@/app/api/invoices/[id]/route");
+
+    const request = new NextRequest(
+      `http://localhost:3847/api/invoices/${B_INVOICE.id}`,
+      { method: "DELETE" },
+    );
+    const response = await DELETE(request, {
+      params: Promise.resolve({ id: B_INVOICE.id }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(deleteWhereSpy).not.toHaveBeenCalled();
     expect(lastPredicateColumns).toContain("therapist_id");
   });
 

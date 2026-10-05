@@ -104,10 +104,21 @@ function InvoicesView() {
           <CardHeader>
             <CardTitle className="text-sm font-medium">Platform Fee</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              SoloPractice charges a 1% platform fee on all payments, in addition to
-              Stripe&apos;s standard processing fees. This is the only cost — no monthly subscription.
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>
+              No charge for clients, for storing notes, or for the local AI that
+              drafts session notes from transcripts. Other tools are often free
+              only until a client cap — and cloud note AI usually runs $20–40+/mo.
+            </p>
+            <p>
+              Our note AI runs on your computer and never goes online. Slower
+              than cloud tools, but included.
+            </p>
+            <p>
+              SoloPractice&apos;s only cost is{" "}
+              <span className="font-medium text-foreground">1% on payments</span>{" "}
+              you collect, plus normal card processing fees. No monthly
+              subscription.
             </p>
           </CardContent>
         </Card>

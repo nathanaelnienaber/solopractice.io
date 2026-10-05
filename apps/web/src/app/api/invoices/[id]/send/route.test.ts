@@ -108,7 +108,8 @@ describe("POST /api/invoices/[id]/send", () => {
       "Ada Therapist",
       150,
       expect.any(String),
-      expect.stringContaining(`/client/pay/${DRAFT_INVOICE.id}`)
+      expect.stringContaining(`/client/pay/${DRAFT_INVOICE.id}`),
+      { replyTo: THERAPIST.email }
     );
     expect(updateSetWhereMock).toHaveBeenCalledWith(
       expect.objectContaining({ status: "sent" }),

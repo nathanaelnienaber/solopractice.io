@@ -67,7 +67,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       `${therapist.firstName} ${therapist.lastName}`,
       invoice.amountCents / 100,
       new Date(invoice.dueDate).toLocaleDateString(),
-      paymentUrl
+      paymentUrl,
+      { replyTo: therapist.email }
     );
     emailId = result.id;
   } catch (error) {

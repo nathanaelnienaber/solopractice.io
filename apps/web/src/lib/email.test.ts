@@ -142,7 +142,7 @@ describe("sendInvoiceNotification", () => {
     }
   });
 
-  it("uses consent-like subject without dollar amounts and includes text/plain", async () => {
+  it("uses soft subject, plain CTA, From display name, reply-to, and text/plain", async () => {
     const { sendInvoiceNotification } = await import("./email");
 
     await sendInvoiceNotification(
@@ -151,15 +151,29 @@ describe("sendInvoiceNotification", () => {
       "Ada Therapist",
       150,
       "11/1/2026",
-      "https://www.solopractice.io/client/pay/inv_1"
+      "https://www.solopractice.io/client/pay/inv_1",
+      { replyTo: "ada@practice.example" }
     );
 
     const payload = sendMock.mock.calls[0][0];
     expect(payload.subject).toBe("Ada Therapist - Your invoice is ready");
     expect(payload.subject).not.toMatch(/\$/);
-    expect(payload.html).toMatch(/View invoice/);
+    expect(payload.from).toBe("Ada Therapist <noreply@solopractice.io>");
+    expect(payload.replyTo).toBe("ada@practice.example");
+    expect(payload.html).toMatch(/View your invoice/);
     expect(payload.html).not.toMatch(/Pay Now/);
-    expect(payload.text).toMatch(/View invoice:/);
+    expect(payload.html).not.toMatch(/background:\s*#2563eb/);
+    expect(payload.text).toMatch(/View your invoice:/);
     expect(payload.text).toMatch(/150\.00 USD/);
+    expect(payload.text).toMatch(/SoloPractice on behalf of your therapist/);
+  });
+
+  it("formatFromHeader strips angled addresses from EMAIL_FROM", async () => {
+    process.env.EMAIL_FROM = "SoloPractice <billing@solopractice.io>";
+    vi.resetModules();
+    const { formatFromHeader } = await import("./email");
+    expect(formatFromHeader("Ada Therapist")).toBe(
+      "Ada Therapist <billing@solopractice.io>"
+    );
   });
 });

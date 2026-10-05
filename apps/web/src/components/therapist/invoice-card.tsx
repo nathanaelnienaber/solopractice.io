@@ -9,6 +9,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -40,12 +41,18 @@ function dueDateInputValue(dueDate: string): string {
 function statusBadge(
   status: string,
   t: (key: string) => string
-): { variant: "outline" | "success" | "warning" | "destructive"; label: string } {
+): {
+  variant: "default" | "outline" | "success" | "warning" | "destructive";
+  label: string;
+} {
   const map: Record<
     string,
-    { variant: "outline" | "success" | "warning" | "destructive"; label: string }
+    {
+      variant: "default" | "outline" | "success" | "warning" | "destructive";
+      label: string;
+    }
   > = {
-    draft: { variant: "outline", label: t("invoices.statusDraft") },
+    draft: { variant: "default", label: t("invoices.statusDraft") },
     sent: { variant: "warning", label: t("invoices.sent") },
     viewed: { variant: "warning", label: t("invoices.statusViewed") },
     paid: { variant: "success", label: t("invoices.paid") },
@@ -55,6 +62,10 @@ function statusBadge(
     refunded: { variant: "outline", label: t("invoices.statusRefunded") },
   };
   return map[status] || { variant: "outline", label: status };
+}
+
+function canDeleteInvoiceStatus(status: string): boolean {
+  return status !== "paid" && status !== "refunded";
 }
 
 export function InvoiceCard({
@@ -67,14 +78,18 @@ export function InvoiceCard({
   const { t, language } = useI18n();
   const locale = language === "en" ? "en-US" : language;
   const [sending, setSending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [sendError, setSendError] = useState("");
   const [sendInfo, setSendInfo] = useState("");
+  const [actionError, setActionError] = useState("");
   const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   async function sendInvoice() {
     setSending(true);
     setSendError("");
     setSendInfo("");
+    setActionError("");
     try {
       const res = await fetch(`/api/invoices/${invoice.id}/send`, {
         method: "POST",
@@ -103,54 +118,96 @@ export function InvoiceCard({
     }
   }
 
+  async function deleteInvoice() {
+    setDeleting(true);
+    setActionError("");
+    try {
+      const res = await fetch(`/api/invoices/${invoice.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          typeof data.error === "string"
+            ? data.error
+            : t("invoices.deleteFailed")
+        );
+      }
+      setConfirmDelete(false);
+      onUpdate();
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : t("invoices.deleteFailed")
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const shownStatus = displayInvoiceStatus(invoice.status, invoice.dueDate);
   const badge = statusBadge(shownStatus, t);
   const isDraft = invoice.status === "draft";
   const canEmail =
     canEmailInvoiceStatus(invoice.status) ||
     canEmailInvoiceStatus(shownStatus);
+  const canDelete = canDeleteInvoiceStatus(invoice.status);
+  const hasActions = isDraft || canEmail || canDelete;
 
   return (
     <>
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 space-y-1">
-              <h3 className="font-medium">{invoice.clientName}</h3>
-              <p className="text-sm text-muted-foreground">{invoice.description}</p>
-              <p className="text-sm text-muted-foreground">
-                {t("invoices.due")}:{" "}
-                {new Date(invoice.dueDate).toLocaleDateString(locale)}
+          <div className="flex flex-col gap-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 space-y-1">
+                <h3 className="truncate text-base font-semibold leading-tight">
+                  {invoice.clientName}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {invoice.description}
+                </p>
+              </div>
+              <Badge
+                variant={badge.variant}
+                className="shrink-0 px-3 py-1 text-sm"
+                aria-label={`${t("invoices.status")}: ${badge.label}`}
+              >
+                {badge.label}
+              </Badge>
+            </div>
+
+            <div className="flex items-end justify-between gap-3">
+              <p className="text-2xl font-semibold tabular-nums">
+                ${(invoice.amountCents / 100).toFixed(2)}
+              </p>
+              <p className="text-right text-sm text-muted-foreground">
                 {invoice.paidAt
-                  ? ` · ${t("invoices.paidAt")} ${new Date(
+                  ? `${t("invoices.paidAt")} ${new Date(
                       invoice.paidAt
                     ).toLocaleDateString(locale)}`
-                  : ""}
+                  : `${t("invoices.due")} ${new Date(
+                      invoice.dueDate
+                    ).toLocaleDateString(locale)}`}
               </p>
             </div>
-            <div className="flex flex-row items-center justify-between gap-3 sm:flex-col sm:items-end">
-              <div className="flex flex-col items-start gap-1 sm:items-end">
-                <p className="text-xl font-semibold">
-                  ${(invoice.amountCents / 100).toFixed(2)}
-                </p>
-                <Badge variant={badge.variant}>{badge.label}</Badge>
-              </div>
-              {canEmail && (
-                <div className="flex flex-col gap-2 sm:w-full sm:min-w-[8.5rem]">
-                  {isDraft && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => setEditing(true)}
-                    >
-                      {t("common.edit")}
-                    </Button>
-                  )}
+
+            {hasActions && (
+              <div className="flex flex-col gap-2">
+                {isDraft && (
                   <Button
-                    size="sm"
-                    className="w-full"
-                    variant={isDraft ? "primary" : "outline"}
+                    size="md"
+                    variant="outline"
+                    className="min-h-11 w-full"
+                    onClick={() => setEditing(true)}
+                  >
+                    {t("common.edit")}
+                  </Button>
+                )}
+                {canEmail && (
+                  <Button
+                    size="md"
+                    className="min-h-11 w-full"
+                    variant={isDraft ? "primary" : "secondary"}
                     onClick={sendInvoice}
                     loading={sending}
                   >
@@ -158,13 +215,31 @@ export function InvoiceCard({
                       ? t("invoices.sendInvoice")
                       : t("invoices.resendInvoice")}
                   </Button>
-                </div>
-              )}
-            </div>
+                )}
+                {canDelete && (
+                  <Button
+                    size="md"
+                    variant="ghost"
+                    className="min-h-11 w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => {
+                      setActionError("");
+                      setConfirmDelete(true);
+                    }}
+                  >
+                    {t("common.delete")}
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
           {sendError && (
             <p className="mt-3 text-sm text-destructive" role="alert">
               {sendError}
+            </p>
+          )}
+          {actionError && !confirmDelete && (
+            <p className="mt-3 text-sm text-destructive" role="alert">
+              {actionError}
             </p>
           )}
           {sendInfo && !sendError && (
@@ -195,6 +270,50 @@ export function InvoiceCard({
           </DialogContent>
         </Dialog>
       )}
+
+      <Dialog
+        open={confirmDelete}
+        onOpenChange={(open) => {
+          setConfirmDelete(open);
+          if (!open) setActionError("");
+        }}
+      >
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:rounded-lg">
+          <DialogHeader className="text-left">
+            <DialogTitle>{t("invoices.deleteConfirmTitle")}</DialogTitle>
+            <DialogDescription>
+              {isDraft
+                ? t("invoices.deleteConfirmDraft")
+                : t("invoices.deleteConfirmSent")}
+            </DialogDescription>
+          </DialogHeader>
+          {actionError && (
+            <p className="text-sm text-destructive" role="alert">
+              {actionError}
+            </p>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 w-full sm:w-auto"
+              onClick={() => setConfirmDelete(false)}
+              disabled={deleting}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="min-h-11 w-full sm:w-auto"
+              loading={deleting}
+              onClick={deleteInvoice}
+            >
+              {t("invoices.deleteConfirmAction")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -279,12 +398,16 @@ function EditInvoiceForm({
         <Button
           type="button"
           variant="outline"
-          className="w-full sm:w-auto"
+          className="min-h-11 w-full sm:w-auto"
           onClick={onCancel}
         >
           {t("common.cancel")}
         </Button>
-        <Button type="submit" loading={loading} className="w-full sm:w-auto">
+        <Button
+          type="submit"
+          loading={loading}
+          className="min-h-11 w-full sm:w-auto"
+        >
           {t("invoices.saveChanges")}
         </Button>
       </div>

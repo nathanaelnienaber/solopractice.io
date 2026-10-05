@@ -171,6 +171,13 @@ const translations: Record<Language, Record<string, string>> = {
     "invoices.saveChanges": "Save changes",
     "invoices.amountDollars": "Amount ($)",
     "invoices.dueDate": "Due date",
+    "invoices.deleteConfirmTitle": "Delete this invoice?",
+    "invoices.deleteConfirmDraft":
+      "This draft will be removed. You can create a new invoice anytime.",
+    "invoices.deleteConfirmSent":
+      "The client will no longer be able to pay this invoice link. This cannot be undone.",
+    "invoices.deleteConfirmAction": "Delete invoice",
+    "invoices.deleteFailed": "Failed to delete invoice",
 
     // Calendar / appointments
     "calendar.title": "Calendar",
@@ -409,6 +416,13 @@ const translations: Record<Language, Record<string, string>> = {
     "invoices.saveChanges": "Guardar cambios",
     "invoices.amountDollars": "Monto ($)",
     "invoices.dueDate": "Fecha de vencimiento",
+    "invoices.deleteConfirmTitle": "¿Eliminar esta factura?",
+    "invoices.deleteConfirmDraft":
+      "Se eliminará este borrador. Puedes crear una factura nueva cuando quieras.",
+    "invoices.deleteConfirmSent":
+      "El cliente ya no podrá pagar este enlace. Esta acción no se puede deshacer.",
+    "invoices.deleteConfirmAction": "Eliminar factura",
+    "invoices.deleteFailed": "No se pudo eliminar la factura",
 
     // Calendar / appointments
     "calendar.title": "Calendario",
@@ -647,6 +661,13 @@ const translations: Record<Language, Record<string, string>> = {
     "invoices.saveChanges": "Änderungen speichern",
     "invoices.amountDollars": "Betrag ($)",
     "invoices.dueDate": "Fälligkeitsdatum",
+    "invoices.deleteConfirmTitle": "Diese Rechnung löschen?",
+    "invoices.deleteConfirmDraft":
+      "Dieser Entwurf wird entfernt. Sie können jederzeit eine neue Rechnung erstellen.",
+    "invoices.deleteConfirmSent":
+      "Der Klient kann diesen Zahlungslink nicht mehr nutzen. Das lässt sich nicht rückgängig machen.",
+    "invoices.deleteConfirmAction": "Rechnung löschen",
+    "invoices.deleteFailed": "Rechnung konnte nicht gelöscht werden",
 
     // Calendar / appointments
     "calendar.title": "Kalender",
@@ -885,6 +906,13 @@ const translations: Record<Language, Record<string, string>> = {
     "invoices.saveChanges": "Spara ändringar",
     "invoices.amountDollars": "Belopp ($)",
     "invoices.dueDate": "Förfallodatum",
+    "invoices.deleteConfirmTitle": "Ta bort den här fakturan?",
+    "invoices.deleteConfirmDraft":
+      "Utkastet tas bort. Du kan skapa en ny faktura när som helst.",
+    "invoices.deleteConfirmSent":
+      "Klienten kan inte längre betala via den här länken. Det går inte att ångra.",
+    "invoices.deleteConfirmAction": "Ta bort faktura",
+    "invoices.deleteFailed": "Kunde inte ta bort fakturan",
 
     // Calendar / appointments
     "calendar.title": "Kalender",

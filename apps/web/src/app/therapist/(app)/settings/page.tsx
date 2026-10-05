@@ -164,7 +164,7 @@ export default async function SettingsPage({
               <code className="text-xs">TWILIO_AUTH_TOKEN</code>,{" "}
               <code className="text-xs">TWILIO_PHONE_NUMBER</code>) and a{" "}
               <code className="text-xs">CRON_SECRET</code> on the Vercel project
-              so the hourly cron can run. Without Twilio, nothing is auto-sent
+              so the daily cron can run. Without Twilio, nothing is auto-sent
               (manual Send Reminder still stubs locally).
             </p>
           </CardContent>

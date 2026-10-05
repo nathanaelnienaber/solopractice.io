@@ -2,7 +2,8 @@
  * Appointment SMS reminders (manual + automatic).
  *
  * Auto schedule: send when the appointment is within REMINDER_LEAD_HOURS of
- * start (default 24). Change REMINDER_LEAD_HOURS to retune; cron runs hourly.
+ * start (default 24). Change REMINDER_LEAD_HOURS to retune.
+ * Cron runs daily (14:00 UTC) on Hobby; upgrade to Pro for hourly.
  */
 
 import { and, eq, gt, isNull, lte, inArray, isNotNull } from "drizzle-orm";

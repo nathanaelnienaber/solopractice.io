@@ -12,7 +12,8 @@ import { isTwilioConfigured } from "@/lib/sms";
  * Auth: Authorization: Bearer $CRON_SECRET (Vercel sets this when CRON_SECRET
  * is configured on the project).
  *
- * Schedule: hourly via apps/web/vercel.json crons.
+ * Schedule: daily 14:00 UTC via apps/web/vercel.json crons
+ * (Hobby plan allows at most one run/day; Pro can use hourly).
  */
 
 function authorizeCron(request: NextRequest): boolean {

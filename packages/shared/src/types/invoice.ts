@@ -53,6 +53,13 @@ export interface CreateInvoiceInput {
   dueDate: Date;
 }
 
+/** Draft-only fields therapists may change before send. */
+export interface UpdateInvoiceInput {
+  amountCents?: number;
+  description?: string;
+  dueDate?: Date;
+}
+
 export interface InvoiceWithClient extends Invoice {
   clientFirstName: string;
   clientLastName: string;

@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Invoice {
   id: string;
@@ -122,8 +129,18 @@ function InvoicesView() {
   );
 }
 
+function dueDateInputValue(dueDate: string): string {
+  const d = new Date(dueDate);
+  if (Number.isNaN(d.getTime())) return "";
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function InvoiceCard({ invoice, onUpdate }: { invoice: Invoice; onUpdate: () => void }) {
   const [sending, setSending] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   async function sendInvoice() {
     setSending(true);
@@ -143,31 +160,168 @@ function InvoiceCard({ invoice, onUpdate }: { invoice: Invoice; onUpdate: () => 
     cancelled: { variant: "outline" as const, label: "Cancelled" },
   }[invoice.status] || { variant: "outline" as const, label: invoice.status };
 
+  const isDraft = invoice.status === "draft";
+
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <h3 className="font-medium">{invoice.clientName}</h3>
-            <p className="text-sm text-muted-foreground">{invoice.description}</p>
-            <p className="text-sm text-muted-foreground">
-              Due: {new Date(invoice.dueDate).toLocaleDateString()}
-            </p>
+    <>
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 space-y-1">
+              <h3 className="font-medium">{invoice.clientName}</h3>
+              <p className="text-sm text-muted-foreground">{invoice.description}</p>
+              <p className="text-sm text-muted-foreground">
+                Due: {new Date(invoice.dueDate).toLocaleDateString()}
+              </p>
+            </div>
+            <div className="flex flex-row items-center justify-between gap-3 sm:flex-col sm:items-end">
+              <div className="flex flex-col items-start gap-1 sm:items-end">
+                <p className="text-xl font-semibold">
+                  ${(invoice.amountCents / 100).toFixed(2)}
+                </p>
+                <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
+              </div>
+              {isDraft && (
+                <div className="flex flex-col gap-2 sm:w-full sm:min-w-[8.5rem]">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setEditing(true)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={sendInvoice}
+                    loading={sending}
+                  >
+                    Send invoice
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <p className="text-xl font-semibold">
-              ${(invoice.amountCents / 100).toFixed(2)}
-            </p>
-            <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
-            {invoice.status === "draft" && (
-              <Button size="sm" onClick={sendInvoice} loading={sending}>
-                Send invoice
-              </Button>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {isDraft && (
+        <Dialog open={editing} onOpenChange={setEditing}>
+          <DialogContent className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden p-0 sm:rounded-lg">
+            <DialogHeader className="shrink-0 space-y-1 border-b border-border px-6 py-4 pr-12 text-left">
+              <DialogTitle>Edit draft invoice</DialogTitle>
+              <DialogDescription>
+                Update amount, due date, or description before sending. Client
+                stays fixed.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="overflow-y-auto px-6 py-4">
+              <EditInvoiceForm
+                invoice={invoice}
+                onCancel={() => setEditing(false)}
+                onSuccess={() => {
+                  setEditing(false);
+                  onUpdate();
+                }}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
+  );
+}
+
+function EditInvoiceForm({
+  invoice,
+  onCancel,
+  onSuccess,
+}: {
+  invoice: Invoice;
+  onCancel: () => void;
+  onSuccess: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    const formData = new FormData(e.currentTarget);
+    const amountDollars = parseFloat(formData.get("amount") as string);
+
+    try {
+      const res = await fetch(`/api/invoices/${invoice.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amountCents: Math.round(amountDollars * 100),
+          description: formData.get("description"),
+          dueDate: formData.get("dueDate"),
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to update invoice");
+      }
+
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <p className="text-sm text-muted-foreground">Client</p>
+        <p className="font-medium">{invoice.clientName}</p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Input
+          name="amount"
+          type="number"
+          step="0.01"
+          min="1"
+          label="Amount ($)"
+          defaultValue={(invoice.amountCents / 100).toFixed(2)}
+          required
+        />
+        <Input
+          name="dueDate"
+          type="date"
+          label="Due date"
+          defaultValue={dueDateInputValue(invoice.dueDate)}
+          required
+        />
+      </div>
+      <Input
+        name="description"
+        label="Description"
+        defaultValue={invoice.description}
+        required
+      />
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full sm:w-auto"
+          onClick={onCancel}
+        >
+          Cancel
+        </Button>
+        <Button type="submit" loading={loading} className="w-full sm:w-auto">
+          Save changes
+        </Button>
+      </div>
+    </form>
   );
 }
 

@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { InvoiceCard, type InvoiceCardData } from "@/components/therapist/invoice-card";
 import { useI18n } from "@/lib/i18n";
 import {
   desktopClientDeepLink,
@@ -31,31 +32,7 @@ interface Appointment {
   status: string;
 }
 
-interface Invoice {
-  id: string;
-  amountCents: number;
-  description: string;
-  status: string;
-  dueDate: string;
-  paidAt?: string | null;
-}
-
-function invoiceStatusBadge(status: string, t: (key: string) => string) {
-  const map: Record<
-    string,
-    { variant: "outline" | "success" | "warning" | "destructive"; label: string }
-  > = {
-    draft: { variant: "outline", label: t("invoices.statusDraft") },
-    sent: { variant: "warning", label: t("invoices.sent") },
-    viewed: { variant: "warning", label: t("invoices.statusViewed") },
-    paid: { variant: "success", label: t("invoices.paid") },
-    partial: { variant: "warning", label: t("invoices.statusPartial") },
-    overdue: { variant: "destructive", label: t("invoices.statusOverdue") },
-    cancelled: { variant: "outline", label: t("invoices.statusCancelled") },
-    refunded: { variant: "outline", label: t("invoices.statusRefunded") },
-  };
-  return map[status] || { variant: "outline" as const, label: status };
-}
+type Invoice = InvoiceCardData;
 
 function appointmentStatusLabel(status: string, t: (key: string) => string) {
   const map: Record<string, string> = {
@@ -320,48 +297,30 @@ export default function ClientDetailPage() {
             {t("clients.createInvoice")}
           </Button>
         </Link>
-        <Card>
-          <CardContent className="p-0">
-            {invoices.length === 0 ? (
+        {invoices.length === 0 ? (
+          <Card>
+            <CardContent className="p-0">
               <p className="px-4 py-6 text-sm text-muted-foreground text-center">
                 {t("clients.noInvoices")}
               </p>
-            ) : (
-              <div className="divide-y divide-border">
-                {invoices.map((invoice) => {
-                  const badge = invoiceStatusBadge(invoice.status, t);
-                  return (
-                    <div
-                      key={invoice.id}
-                      className="px-4 py-3 flex items-start justify-between gap-3"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {invoice.description}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {t("invoices.due")}:{" "}
-                          {new Date(invoice.dueDate).toLocaleDateString(locale)}
-                          {invoice.paidAt
-                            ? ` · ${t("invoices.paidAt")} ${new Date(
-                                invoice.paidAt
-                              ).toLocaleDateString(locale)}`
-                            : ""}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                        <p className="text-sm font-semibold">
-                          ${(invoice.amountCents / 100).toFixed(2)}
-                        </p>
-                        <Badge variant={badge.variant}>{badge.label}</Badge>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4">
+            {invoices.map((invoice) => (
+              <InvoiceCard
+                key={invoice.id}
+                invoice={{
+                  ...invoice,
+                  clientName:
+                    invoice.clientName ||
+                    `${client.firstName} ${client.lastName}`,
+                }}
+                onUpdate={load}
+              />
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="space-y-3">

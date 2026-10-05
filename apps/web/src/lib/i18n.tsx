@@ -157,6 +157,13 @@ const translations: Record<Language, Record<string, string>> = {
     "invoices.statusRefunded": "Refunded",
     "invoices.description": "Description",
     "invoices.descriptionPlaceholder": "Session on...",
+    "invoices.sendInvoice": "Send invoice",
+    "invoices.editDraft": "Edit draft invoice",
+    "invoices.editDraftDesc":
+      "Update amount, due date, or description before sending. Client stays fixed.",
+    "invoices.saveChanges": "Save changes",
+    "invoices.amountDollars": "Amount ($)",
+    "invoices.dueDate": "Due date",
 
     // Calendar / appointments
     "calendar.title": "Calendar",
@@ -381,6 +388,13 @@ const translations: Record<Language, Record<string, string>> = {
     "invoices.statusRefunded": "Reembolsada",
     "invoices.description": "Descripción",
     "invoices.descriptionPlaceholder": "Sesión del...",
+    "invoices.sendInvoice": "Enviar factura",
+    "invoices.editDraft": "Editar borrador de factura",
+    "invoices.editDraftDesc":
+      "Actualiza el monto, la fecha de vencimiento o la descripción antes de enviar. El cliente no cambia.",
+    "invoices.saveChanges": "Guardar cambios",
+    "invoices.amountDollars": "Monto ($)",
+    "invoices.dueDate": "Fecha de vencimiento",
 
     // Calendar / appointments
     "calendar.title": "Calendario",
@@ -605,6 +619,13 @@ const translations: Record<Language, Record<string, string>> = {
     "invoices.statusRefunded": "Erstattet",
     "invoices.description": "Beschreibung",
     "invoices.descriptionPlaceholder": "Sitzung am...",
+    "invoices.sendInvoice": "Rechnung senden",
+    "invoices.editDraft": "Entwurf bearbeiten",
+    "invoices.editDraftDesc":
+      "Betrag, Fälligkeitsdatum oder Beschreibung vor dem Senden aktualisieren. Der Klient bleibt unverändert.",
+    "invoices.saveChanges": "Änderungen speichern",
+    "invoices.amountDollars": "Betrag ($)",
+    "invoices.dueDate": "Fälligkeitsdatum",
 
     // Calendar / appointments
     "calendar.title": "Kalender",
@@ -829,6 +850,13 @@ const translations: Record<Language, Record<string, string>> = {
     "invoices.statusRefunded": "Återbetald",
     "invoices.description": "Beskrivning",
     "invoices.descriptionPlaceholder": "Session den...",
+    "invoices.sendInvoice": "Skicka faktura",
+    "invoices.editDraft": "Redigera fakturautkast",
+    "invoices.editDraftDesc":
+      "Uppdatera belopp, förfallodatum eller beskrivning innan du skickar. Klienten ändras inte.",
+    "invoices.saveChanges": "Spara ändringar",
+    "invoices.amountDollars": "Belopp ($)",
+    "invoices.dueDate": "Förfallodatum",
 
     // Calendar / appointments
     "calendar.title": "Kalender",

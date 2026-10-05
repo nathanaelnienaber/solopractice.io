@@ -8,6 +8,9 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+/** Draft = first send; sent/viewed = resend the same email without a new invoice. */
+const RESENDABLE_STATUSES = new Set(["draft", "sent", "viewed"]);
+
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const therapist = await getSessionTherapist();
   if (!therapist) {
@@ -30,9 +33,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
   }
 
-  if (invoice.status !== "draft") {
+  if (!RESENDABLE_STATUSES.has(invoice.status)) {
     return NextResponse.json(
-      { error: "Only draft invoices can be sent" },
+      {
+        error: `Cannot email an invoice with status "${invoice.status}"`,
+      },
       { status: 400 }
     );
   }
@@ -46,16 +51,19 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
   const paymentUrl = `${baseUrl}/client/pay/${invoice.id}`;
+  const to = invoice.client.email;
 
+  let emailId: string;
   try {
-    await sendInvoiceNotification(
-      invoice.client.email,
+    const result = await sendInvoiceNotification(
+      to,
       invoice.client.firstName,
       `${therapist.firstName} ${therapist.lastName}`,
       invoice.amountCents / 100,
       new Date(invoice.dueDate).toLocaleDateString(),
       paymentUrl
     );
+    emailId = result.id;
   } catch (error) {
     console.error("[invoices/send] Resend failed:", error);
     return NextResponse.json(
@@ -69,11 +77,25 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  // Mark sent only after Resend accepted the message.
+  // Mark sent only after Resend accepted the message (with a real id).
+  // Resends keep status sent/viewed but refresh sentAt.
   await db
     .update(invoices)
-    .set({ status: "sent", sentAt: new Date(), updatedAt: new Date() })
+    .set({
+      status: invoice.status === "draft" ? "sent" : invoice.status,
+      sentAt: new Date(),
+      updatedAt: new Date(),
+    })
     .where(eq(invoices.id, id));
 
-  return NextResponse.json({ success: true, paymentUrl });
+  console.info(
+    `[invoices/send] Resend accepted id=${emailId} to=${to} invoice=${id}`
+  );
+
+  return NextResponse.json({
+    success: true,
+    paymentUrl,
+    to,
+    emailId,
+  });
 }

@@ -2,8 +2,9 @@
  * Route-level tests for POST /api/invoices/[id]/send.
  *
  * Contract: status flips to "sent" only after Resend accepts the message.
- * Failures (missing key, Resend error, non-draft) must return a clear error
- * and leave the invoice untouched — the therapist UI surfaces that error.
+ * Failures (missing key, Resend error, terminal statuses) must return a clear
+ * error and leave the invoice untouched — the therapist UI surfaces that error.
+ * Sent/viewed invoices may be resent without creating a new draft.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -92,12 +93,14 @@ describe("POST /api/invoices/[id]/send", () => {
     sendInvoiceNotificationMock.mockResolvedValue({ id: "email_ok" });
   });
 
-  it("marks sent only after Resend succeeds", async () => {
+  it("marks sent only after Resend succeeds and returns to + emailId", async () => {
     const response = await sendInvoice(DRAFT_INVOICE.id);
     const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
+    expect(body.to).toBe(CLIENT.email);
+    expect(body.emailId).toBe("email_ok");
     expect(sendInvoiceNotificationMock).toHaveBeenCalledTimes(1);
     expect(sendInvoiceNotificationMock).toHaveBeenCalledWith(
       CLIENT.email,
@@ -107,6 +110,26 @@ describe("POST /api/invoices/[id]/send", () => {
       expect.any(String),
       expect.stringContaining(`/client/pay/${DRAFT_INVOICE.id}`)
     );
+    expect(updateSetWhereMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "sent" }),
+      expect.anything()
+    );
+  });
+
+  it("resends for already-sent invoices without changing status away from sent", async () => {
+    invoiceRow = {
+      ...DRAFT_INVOICE,
+      status: "sent",
+      client: { ...CLIENT },
+    };
+
+    const response = await sendInvoice(DRAFT_INVOICE.id);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.to).toBe(CLIENT.email);
+    expect(sendInvoiceNotificationMock).toHaveBeenCalledTimes(1);
     expect(updateSetWhereMock).toHaveBeenCalledWith(
       expect.objectContaining({ status: "sent" }),
       expect.anything()
@@ -126,10 +149,10 @@ describe("POST /api/invoices/[id]/send", () => {
     expect(updateSetWhereMock).not.toHaveBeenCalled();
   });
 
-  it("refuses non-draft invoices without emailing", async () => {
+  it("refuses paid invoices without emailing", async () => {
     invoiceRow = {
       ...DRAFT_INVOICE,
-      status: "sent",
+      status: "paid",
       client: { ...CLIENT },
     };
 
@@ -137,7 +160,7 @@ describe("POST /api/invoices/[id]/send", () => {
     const body = await response.json();
 
     expect(response.status).toBe(400);
-    expect(body.error).toMatch(/draft/i);
+    expect(body.error).toMatch(/paid/i);
     expect(sendInvoiceNotificationMock).not.toHaveBeenCalled();
     expect(updateSetWhereMock).not.toHaveBeenCalled();
   });

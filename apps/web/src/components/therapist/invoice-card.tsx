@@ -64,21 +64,31 @@ export function InvoiceCard({
   const locale = language === "en" ? "en-US" : language;
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
+  const [sendInfo, setSendInfo] = useState("");
   const [editing, setEditing] = useState(false);
 
   async function sendInvoice() {
     setSending(true);
     setSendError("");
+    setSendInfo("");
     try {
       const res = await fetch(`/api/invoices/${invoice.id}/send`, {
         method: "POST",
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(
           typeof data.error === "string" ? data.error : t("invoices.sendFailed")
         );
       }
+      const to = typeof data.to === "string" ? data.to : "";
+      const emailId = typeof data.emailId === "string" ? data.emailId : "";
+      setSendInfo(
+        to
+          ? t("invoices.emailedTo").replace("{email}", to) +
+              (emailId ? ` (${emailId})` : "")
+          : t("invoices.sendSucceeded")
+      );
       onUpdate();
     } catch (err) {
       setSendError(
@@ -91,6 +101,10 @@ export function InvoiceCard({
 
   const badge = statusBadge(invoice.status, t);
   const isDraft = invoice.status === "draft";
+  const canEmail =
+    invoice.status === "draft" ||
+    invoice.status === "sent" ||
+    invoice.status === "viewed";
 
   return (
     <>
@@ -117,23 +131,28 @@ export function InvoiceCard({
                 </p>
                 <Badge variant={badge.variant}>{badge.label}</Badge>
               </div>
-              {isDraft && (
+              {canEmail && (
                 <div className="flex flex-col gap-2 sm:w-full sm:min-w-[8.5rem]">
+                  {isDraft && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setEditing(true)}
+                    >
+                      {t("common.edit")}
+                    </Button>
+                  )}
                   <Button
                     size="sm"
-                    variant="outline"
                     className="w-full"
-                    onClick={() => setEditing(true)}
-                  >
-                    {t("common.edit")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="w-full"
+                    variant={isDraft ? "default" : "outline"}
                     onClick={sendInvoice}
                     loading={sending}
                   >
-                    {t("invoices.sendInvoice")}
+                    {isDraft
+                      ? t("invoices.sendInvoice")
+                      : t("invoices.resendInvoice")}
                   </Button>
                 </div>
               )}
@@ -142,6 +161,11 @@ export function InvoiceCard({
           {sendError && (
             <p className="mt-3 text-sm text-destructive" role="alert">
               {sendError}
+            </p>
+          )}
+          {sendInfo && !sendError && (
+            <p className="mt-3 text-sm text-muted-foreground" role="status">
+              {sendInfo}
             </p>
           )}
         </CardContent>

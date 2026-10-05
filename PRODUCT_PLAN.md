@@ -96,6 +96,7 @@ Monorepo: `apps/desktop` (Tauri 2 + React + Rust), `apps/web` (Next.js + Drizzle
 | Web “flags only” | Web stores consent **template text**, signatures, IP, UA, version hash — not just flags. |
 | Appointment `notes` | Free text in Postgres; **not** on the clinical field blocklist. Easy place to put session content by mistake. |
 | Pay-page receipt | Webhook marks invoice paid; pay page no longer claims a receipt email was sent (Gate A). Real receipt email still later. |
+| Invoice email | Same Resend `from`/`to` path as consent. Subject is therapist-name + “Your invoice is ready” (no `$` in subject); CTA “View invoice”; plain-text part included. Send marks `sent` only after Resend returns a message id; Sent/Viewed can **Resend email**. UI shows recipient + Resend id after send. |
 | Job retry | Failed jobs stay `failed`; processor only picks `pending`. |
 | Desktop API key | Stored plaintext on therapist row (desktop must send raw value). |
 | Consent legal status | Boilerplate drafts. Informed Consent for Treatment expanded to a US + territories + cross-border “one-stop” draft scaffold (`1.1.0-draft`); still **fake clients only** until Gate B attorney review. |

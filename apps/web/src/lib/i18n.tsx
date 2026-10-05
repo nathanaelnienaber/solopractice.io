@@ -161,7 +161,10 @@ const translations: Record<Language, Record<string, string>> = {
     "invoices.description": "Description",
     "invoices.descriptionPlaceholder": "Session on...",
     "invoices.sendInvoice": "Send invoice",
+    "invoices.resendInvoice": "Resend email",
     "invoices.sendFailed": "Failed to send invoice email",
+    "invoices.sendSucceeded": "Invoice email sent",
+    "invoices.emailedTo": "Emailed to {email}",
     "invoices.editDraft": "Edit draft invoice",
     "invoices.editDraftDesc":
       "Update amount, due date, or description before sending. Client stays fixed.",
@@ -396,7 +399,10 @@ const translations: Record<Language, Record<string, string>> = {
     "invoices.description": "Descripción",
     "invoices.descriptionPlaceholder": "Sesión del...",
     "invoices.sendInvoice": "Enviar factura",
+    "invoices.resendInvoice": "Reenviar correo",
     "invoices.sendFailed": "No se pudo enviar el correo de la factura",
+    "invoices.sendSucceeded": "Correo de factura enviado",
+    "invoices.emailedTo": "Enviado a {email}",
     "invoices.editDraft": "Editar borrador de factura",
     "invoices.editDraftDesc":
       "Actualiza el monto, la fecha de vencimiento o la descripción antes de enviar. El cliente no cambia.",
@@ -631,7 +637,10 @@ const translations: Record<Language, Record<string, string>> = {
     "invoices.description": "Beschreibung",
     "invoices.descriptionPlaceholder": "Sitzung am...",
     "invoices.sendInvoice": "Rechnung senden",
+    "invoices.resendInvoice": "E-Mail erneut senden",
     "invoices.sendFailed": "Rechnungs-E-Mail konnte nicht gesendet werden",
+    "invoices.sendSucceeded": "Rechnungs-E-Mail gesendet",
+    "invoices.emailedTo": "E-Mail an {email} gesendet",
     "invoices.editDraft": "Entwurf bearbeiten",
     "invoices.editDraftDesc":
       "Betrag, Fälligkeitsdatum oder Beschreibung vor dem Senden aktualisieren. Der Klient bleibt unverändert.",
@@ -866,7 +875,10 @@ const translations: Record<Language, Record<string, string>> = {
     "invoices.description": "Beskrivning",
     "invoices.descriptionPlaceholder": "Session den...",
     "invoices.sendInvoice": "Skicka faktura",
+    "invoices.resendInvoice": "Skicka mejl igen",
     "invoices.sendFailed": "Kunde inte skicka fakturamejl",
+    "invoices.sendSucceeded": "Fakturamejl skickat",
+    "invoices.emailedTo": "Skickat till {email}",
     "invoices.editDraft": "Redigera fakturautkast",
     "invoices.editDraftDesc":
       "Uppdatera belopp, förfallodatum eller beskrivning innan du skickar. Klienten ändras inte.",

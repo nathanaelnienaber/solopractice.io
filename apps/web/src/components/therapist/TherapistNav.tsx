@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useId, useState } from "react";
+import { Menu, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
@@ -15,12 +17,43 @@ const links = [
   { href: "/therapist/settings", key: "nav.settings" },
 ] as const;
 
+function linkClassName(pathname: string, href: string, mobile = false) {
+  const active =
+    pathname === href || pathname.startsWith(`${href}/`)
+      ? "text-primary font-medium"
+      : "text-muted-foreground";
+
+  return cn(
+    "text-sm hover:text-primary",
+    mobile && "block rounded-lg px-3 py-2 hover:bg-accent",
+    active
+  );
+}
+
 export function TherapistNav({ subtitle }: { subtitle?: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useI18n();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const mobileNavId = useId();
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
 
   async function handleSignOut() {
+    setMenuOpen(false);
     await fetch("/api/auth/logout", {
       method: "POST",
       headers: { Accept: "application/json" },
@@ -32,7 +65,7 @@ export function TherapistNav({ subtitle }: { subtitle?: string }) {
   return (
     <header className="border-b border-border">
       <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <Link
             href="/therapist/dashboard"
             className="text-xl font-semibold hover:text-primary"
@@ -40,21 +73,19 @@ export function TherapistNav({ subtitle }: { subtitle?: string }) {
             SoloPractice
           </Link>
           {subtitle ? (
-            <p className="text-sm text-muted-foreground">{subtitle}</p>
+            <p className="text-sm text-muted-foreground truncate">{subtitle}</p>
           ) : null}
         </div>
-        <div className="flex items-center gap-4 flex-wrap justify-end">
-          <nav className="flex items-center gap-4 flex-wrap" aria-label="Therapist">
+        <div className="flex items-center gap-2 sm:gap-4 justify-end shrink-0">
+          <nav
+            className="hidden md:flex items-center gap-4"
+            aria-label={t("nav.menu")}
+          >
             {links.map(({ href, key }) => (
               <Link
                 key={href}
                 href={href}
-                className={cn(
-                  "text-sm hover:text-primary",
-                  pathname === href || pathname.startsWith(`${href}/`)
-                    ? "text-primary font-medium"
-                    : "text-muted-foreground"
-                )}
+                className={linkClassName(pathname, href)}
               >
                 {t(key)}
               </Link>
@@ -65,12 +96,58 @@ export function TherapistNav({ subtitle }: { subtitle?: string }) {
             type="button"
             variant="ghost"
             size="sm"
+            className="hidden md:inline-flex"
             onClick={handleSignOut}
           >
             {t("nav.signOut")}
           </Button>
+          <button
+            type="button"
+            className="md:hidden p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            aria-expanded={menuOpen}
+            aria-controls={mobileNavId}
+            aria-label={menuOpen ? t("nav.closeMenu") : t("nav.openMenu")}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            {menuOpen ? (
+              <X className="w-4 h-4" aria-hidden />
+            ) : (
+              <Menu className="w-4 h-4" aria-hidden />
+            )}
+          </button>
         </div>
       </div>
+      {menuOpen ? (
+        <div
+          id={mobileNavId}
+          className="md:hidden border-t border-border bg-background"
+        >
+          <nav
+            className="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-1"
+            aria-label={t("nav.menu")}
+          >
+            {links.map(({ href, key }) => (
+              <Link
+                key={href}
+                href={href}
+                className={linkClassName(pathname, href, true)}
+                onClick={() => setMenuOpen(false)}
+              >
+                {t(key)}
+              </Link>
+            ))}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="justify-start px-3"
+              onClick={handleSignOut}
+            >
+              {t("nav.signOut")}
+            </Button>
+          </nav>
+        </div>
+      ) : null}
     </header>
   );
 }

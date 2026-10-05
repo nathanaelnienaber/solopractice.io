@@ -104,10 +104,11 @@ export default async function SettingsPage({
 
         <Card id="stripe">
           <CardHeader>
-            <CardTitle>Payment Setup (Stripe Connect)</CardTitle>
+            <CardTitle>Payment Setup</CardTitle>
             <CardDescription>
-              Connect your Stripe account to receive payments from clients.
-              SoloPractice charges a 1% platform fee on all payments.
+              Get set up to receive payments from clients. Card payments are
+              processed by Stripe. SoloPractice charges a 1% platform fee on all
+              payments.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -117,8 +118,8 @@ export default async function SettingsPage({
               </p>
             ) : !stripeReachable ? (
               <p className="text-sm text-destructive">
-                Could not reach Stripe to check your payment status. Reload the
-                page to try again.
+                Could not check your payment status right now. Reload the page
+                to try again.
               </p>
             ) : (
               <StripeConnectPanel

@@ -100,14 +100,14 @@ export default async function TherapistDashboard() {
         {!therapist.stripeOnboardingComplete && (
           <Card className="border-warning">
             <CardHeader>
-              <CardTitle className="text-warning">Complete Stripe Setup</CardTitle>
+              <CardTitle className="text-warning">Complete payment setup</CardTitle>
               <CardDescription>
-                Connect your Stripe account to start accepting payments.
+                Set up payments to start receiving money from clients.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Link href="/therapist/settings#stripe">
-                <Button>Set up Stripe &rarr;</Button>
+                <Button>Set up payments &rarr;</Button>
               </Link>
             </CardContent>
           </Card>

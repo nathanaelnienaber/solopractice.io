@@ -127,39 +127,39 @@ const STATUS_COPY: Record<
   { label: string; detail: string; tone: "neutral" | "warning" | "success" }
 > = {
   not_connected: {
-    label: "Not connected",
+    label: "Not set up",
     detail:
-      "Connect a Stripe account to start accepting card payments from clients.",
+      "Set up payments to start receiving card payments from clients.",
     tone: "neutral",
   },
   onboarding_incomplete: {
-    label: "Onboarding incomplete",
+    label: "Setup incomplete",
     detail:
-      "Stripe still needs your details. Continue where you left off — nothing is charged until setup is finished.",
+      "Finish entering your details so you can get paid. Nothing is charged until setup is finished.",
     tone: "warning",
   },
   pending_verification: {
-    label: "Pending verification",
+    label: "Verifying",
     detail:
-      "Stripe is reviewing your information. This usually finishes within a few minutes, and no action is needed from you.",
+      "Your information is being reviewed. This usually finishes within a few minutes — no action needed from you.",
     tone: "warning",
   },
   restricted: {
     label: "Action required",
     detail:
-      "Stripe needs more information before you can accept payments. Reopen onboarding to provide it.",
+      "More information is needed before you can accept payments. Continue setup to provide it.",
     tone: "warning",
   },
   ready_payouts_pending: {
-    label: "Accepting payments — payouts pending",
+    label: "Accepting payments — bank deposit pending",
     detail:
-      "You can take payments now. Stripe is still enabling transfers to your bank account.",
+      "You can take payments now. Deposits to your bank account are still being enabled.",
     tone: "warning",
   },
   ready: {
-    label: "Ready to accept payments",
+    label: "Ready to receive payments",
     detail:
-      "Your Stripe account is fully set up. Payments will be deposited to your bank account.",
+      "You're all set. Client payments will be deposited to your bank account.",
     tone: "success",
   },
 };

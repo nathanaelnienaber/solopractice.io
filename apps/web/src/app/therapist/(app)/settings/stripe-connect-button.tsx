@@ -10,7 +10,7 @@ interface StripeConnectButtonProps {
 
 export function StripeConnectButton({
   accountId,
-  label = "Connect with Stripe",
+  label = "Set up payments",
 }: StripeConnectButtonProps) {
   const [loading, setLoading] = useState(false);
 
@@ -24,14 +24,14 @@ export function StripeConnectButton({
       });
 
       if (!res.ok) {
-        throw new Error("Failed to create Stripe link");
+        throw new Error("Failed to create payment setup link");
       }
 
       const { url } = await res.json();
       window.location.href = url;
     } catch (error) {
       console.error(error);
-      alert("Failed to connect with Stripe. Please try again.");
+      alert("Could not start payment setup. Please try again.");
     } finally {
       setLoading(false);
     }

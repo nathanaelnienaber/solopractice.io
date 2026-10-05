@@ -100,15 +100,17 @@ export function StripeConnectPanel({
       if (!res.ok || !payload.url) {
         setError(
           payload.code === "live_mode_blocked"
-            ? "Payment onboarding is disabled on this environment pending owner approval."
-            : payload.error || "Could not start Stripe onboarding.",
+            ? "Payment setup is disabled on this environment pending owner approval."
+            : payload.error || "Could not start payment setup.",
         );
         return;
       }
 
       window.location.href = payload.url;
     } catch {
-      setError("Could not reach Stripe. Check your connection and try again.");
+      setError(
+        "Could not start payment setup. Check your connection and try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -119,20 +121,23 @@ export function StripeConnectPanel({
 
   const ctaLabel =
     status.status === "not_connected"
-      ? "Connect with Stripe"
+      ? "Set up payments"
       : status.status === "onboarding_incomplete"
-        ? "Continue Stripe onboarding"
+        ? "Continue setup"
         : status.status === "restricted"
           ? "Provide required information"
-          : "Manage Stripe details";
+          : "Manage payment details";
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={TONE_VARIANT[copy.tone]}>{copy.label}</Badge>
         {isTestMode && (
-          <Badge variant="outline" title="No real money moves in test mode">
-            Stripe test mode
+          <Badge
+            variant="outline"
+            title="No real money moves in test mode"
+          >
+            Test mode
           </Badge>
         )}
       </div>
@@ -141,7 +146,7 @@ export function StripeConnectPanel({
 
       {status.outstanding.length > 0 && (
         <div className="rounded-md border border-border p-3">
-          <p className="text-sm font-medium">Stripe still needs:</p>
+          <p className="text-sm font-medium">Still needed:</p>
           <ul className="mt-1 list-disc pl-5 text-sm text-muted-foreground">
             {status.outstanding.map((item) => (
               <li key={item}>{item}</li>

@@ -63,7 +63,7 @@ describe("GET /api/stripe/connect/status", () => {
     const body = await res.json();
     expect(body.status).toBe("not_connected");
     expect(body.canAcceptPayments).toBe(false);
-    expect(body.copy.label).toBe("Not connected");
+    expect(body.copy.label).toBe("Not set up");
     // No pointless Stripe round-trip for an account that does not exist.
     expect(retrieveAccountOrNullMock).not.toHaveBeenCalled();
   });

@@ -38,7 +38,7 @@ export default function HomePage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckIcon />
-                  1% platform fee, no monthly costs
+                  1% on payments only — clients, notes, and local AI stay free
                 </li>
               </ul>
               <Link href="/therapist/login">

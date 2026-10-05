@@ -106,9 +106,10 @@ export default async function SettingsPage({
           <CardHeader>
             <CardTitle>Payment Setup</CardTitle>
             <CardDescription>
-              Get set up to receive payments from clients. Card payments are
-              processed by Stripe. SoloPractice charges a 1% platform fee on all
-              payments.
+              Get set up to receive payments from clients. SoloPractice&apos;s
+              only cost is 1% on payments you collect, plus normal card
+              processing fees — no monthly subscription, and no fees for
+              clients, notes, or local note AI.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

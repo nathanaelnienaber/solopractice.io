@@ -1,6 +1,11 @@
 @import "tailwindcss";
 
+/* Drive dark: utilities from .dark on <html>, not prefers-color-scheme.
+   ThemeProvider / ThemeToggle toggle that class for light | dark | system. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
+  color-scheme: light;
   --background: #fafafa;
   --foreground: #0f172a;
   --primary: #2563eb;
@@ -30,20 +35,19 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f172a;
-    --foreground: #f8fafc;
-    --primary: #3b82f6;
-    --primary-foreground: #ffffff;
-    --muted: #1e293b;
-    --muted-foreground: #94a3b8;
-    --border: #334155;
-    --accent: #1e293b;
-    --destructive: #f87171;
-    --success: #4ade80;
-    --warning: #fbbf24;
-  }
+.dark {
+  color-scheme: dark;
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --border: #334155;
+  --accent: #1e293b;
+  --destructive: #f87171;
+  --success: #4ade80;
+  --warning: #fbbf24;
 }
 
 body {

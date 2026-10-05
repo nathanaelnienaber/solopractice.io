@@ -28,7 +28,7 @@ pnpm tauri:dev
 For production build:
 ```powershell
 pnpm tauri:build
-# Installer: src-tauri/target/release/bundle/msi/SoloPractice_0.1.0_x64.msi
+# Installer: src-tauri/target/release/bundle/msi/SoloPractice_0.1.1_x64.msi
 ```
 
 ---

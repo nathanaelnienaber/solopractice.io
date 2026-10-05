@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { LanguageToggle } from "@/components/LanguageToggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -61,7 +60,6 @@ export function TherapistNav({ subtitle }: { subtitle?: string }) {
               </Link>
             ))}
           </nav>
-          <LanguageToggle />
           <ThemeToggle />
           <Button
             type="button"

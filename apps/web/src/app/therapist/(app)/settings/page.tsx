@@ -18,6 +18,7 @@ import {
 } from "./stripe-connect-panel";
 import { DesktopApiKeyPanel } from "./desktop-api-key-panel";
 import { ConsentFormsPanel } from "./consent-forms-panel";
+import { LanguagePanel } from "./language-panel";
 
 export default async function SettingsPage({
   searchParams,
@@ -89,6 +90,19 @@ export default async function SettingsPage({
                 <p className="font-medium">{therapist.email}</p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card id="language">
+          <CardHeader>
+            <CardTitle>Language</CardTitle>
+            <CardDescription>
+              Choose the display language for the therapist app. This is saved
+              on this device.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <LanguagePanel />
           </CardContent>
         </Card>
 

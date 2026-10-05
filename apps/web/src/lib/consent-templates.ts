@@ -130,7 +130,7 @@ export const TELEHEALTH_CONSENT: ConsentTemplate = {
   type: "telehealth_consent",
   title: "Telehealth Informed Consent",
   version: "1.0.0-draft",
-  isRequired: false,
+  isRequired: true,
   content: `
 # Telehealth Informed Consent
 

@@ -11,12 +11,13 @@ import {
   describeOutstandingRequirements,
 } from "@/lib/stripe-connect-status";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { ALL_CONSENT_TEMPLATES } from "@/lib/consent-templates";
 import {
   StripeConnectPanel,
   type ConnectStatusPayload,
 } from "./stripe-connect-panel";
 import { DesktopApiKeyPanel } from "./desktop-api-key-panel";
+import { ConsentFormsPanel } from "./consent-forms-panel";
 
 export default async function SettingsPage({
   searchParams,
@@ -122,36 +123,18 @@ export default async function SettingsPage({
           <CardHeader>
             <CardTitle>Consent Forms</CardTitle>
             <CardDescription>
-              View and customize the consent forms sent to clients
+              Review the consent forms sent to clients. All forms are required.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between py-2 border-b">
-                <span>Informed Consent for Treatment</span>
-                <Badge>Required</Badge>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b">
-                <span>Notice of Privacy Practices</span>
-                <Badge>Required</Badge>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b">
-                <span>Telehealth Consent</span>
-                <Badge variant="outline">Optional</Badge>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b">
-                <span>Session Recording Consent</span>
-                <Badge>Required</Badge>
-              </div>
-              <div className="flex items-center justify-between py-2">
-                <span>Limits of Confidentiality</span>
-                <Badge>Required</Badge>
-              </div>
-            </div>
-            <p className="mt-4 text-sm text-muted-foreground">
-              <strong>Note:</strong> Current forms are draft templates for testing.
-              Have an attorney review before using with real clients.
-            </p>
+            <ConsentFormsPanel
+              forms={ALL_CONSENT_TEMPLATES.map((t) => ({
+                type: t.type,
+                title: t.title,
+                version: t.version,
+                content: t.content,
+              }))}
+            />
           </CardContent>
         </Card>
 

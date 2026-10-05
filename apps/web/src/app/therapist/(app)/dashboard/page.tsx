@@ -6,6 +6,7 @@ import { eq, and, desc, gte, count } from "drizzle-orm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { REQUIRED_CONSENT_TEMPLATES } from "@/lib/consent-templates";
 
 export default async function TherapistDashboard() {
   const therapist = await getSessionTherapist();
@@ -133,7 +134,7 @@ export default async function TherapistDashboard() {
                   const signedCount = client.consents.filter(
                     (c) => c.status === "signed"
                   ).length;
-                  const totalRequired = 4;
+                  const totalRequired = REQUIRED_CONSENT_TEMPLATES.length;
                   const allSigned = signedCount >= totalRequired;
 
                   return (

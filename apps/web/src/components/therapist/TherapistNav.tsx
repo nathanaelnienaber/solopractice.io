@@ -92,15 +92,17 @@ export function TherapistNav({ subtitle }: { subtitle?: string }) {
             ))}
           </nav>
           <ThemeToggle />
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="hidden md:inline-flex"
-            onClick={handleSignOut}
-          >
-            {t("nav.signOut")}
-          </Button>
+          {/* Button bakes in inline-flex, so hide via wrapper — not className */}
+          <div className="hidden md:block">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+            >
+              {t("nav.signOut")}
+            </Button>
+          </div>
           <button
             type="button"
             className="md:hidden p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground transition-colors"

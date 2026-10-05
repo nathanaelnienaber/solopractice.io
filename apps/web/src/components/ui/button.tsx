@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, type ButtonHTMLAttributes } from "react";
+import { cn } from "@/lib/utils";
 
 type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "destructive";
 type ButtonSize = "sm" | "md" | "lg";
@@ -33,7 +34,7 @@ const sizeClasses: Record<ButtonSize, string> = {
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {
-      className = "",
+      className,
       variant = "primary",
       size = "md",
       loading = false,
@@ -46,15 +47,15 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <button
         ref={ref}
-        className={`
-          inline-flex items-center justify-center rounded-lg font-medium
-          transition-colors focus-visible:outline-none focus-visible:ring-2
-          focus-visible:ring-primary focus-visible:ring-offset-2
-          disabled:pointer-events-none disabled:opacity-50
-          ${variantClasses[variant]}
-          ${sizeClasses[size]}
-          ${className}
-        `}
+        className={cn(
+          "inline-flex items-center justify-center rounded-lg font-medium",
+          "transition-colors focus-visible:outline-none focus-visible:ring-2",
+          "focus-visible:ring-primary focus-visible:ring-offset-2",
+          "disabled:pointer-events-none disabled:opacity-50",
+          variantClasses[variant],
+          sizeClasses[size],
+          className
+        )}
         disabled={disabled || loading}
         {...props}
       >

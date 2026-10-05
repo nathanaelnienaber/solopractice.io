@@ -1,11 +1,15 @@
 import { type HTMLAttributes } from "react";
+import { cn } from "@/lib/utils";
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {}
 
-export function Card({ className = "", children, ...props }: CardProps) {
+export function Card({ className, children, ...props }: CardProps) {
   return (
     <div
-      className={`rounded-xl border border-border bg-background p-6 shadow-sm ${className}`}
+      className={cn(
+        "rounded-xl border border-border bg-background p-6 shadow-sm",
+        className
+      )}
       {...props}
     >
       {children}
@@ -14,43 +18,43 @@ export function Card({ className = "", children, ...props }: CardProps) {
 }
 
 export function CardHeader({
-  className = "",
+  className,
   children,
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={`mb-4 ${className}`} {...props}>
+    <div className={cn("mb-4", className)} {...props}>
       {children}
     </div>
   );
 }
 
 export function CardTitle({
-  className = "",
+  className,
   children,
   ...props
 }: HTMLAttributes<HTMLHeadingElement>) {
   return (
-    <h3 className={`text-xl font-semibold ${className}`} {...props}>
+    <h3 className={cn("text-xl font-semibold", className)} {...props}>
       {children}
     </h3>
   );
 }
 
 export function CardDescription({
-  className = "",
+  className,
   children,
   ...props
 }: HTMLAttributes<HTMLParagraphElement>) {
   return (
-    <p className={`text-sm text-muted-foreground ${className}`} {...props}>
+    <p className={cn("text-sm text-muted-foreground", className)} {...props}>
       {children}
     </p>
   );
 }
 
 export function CardContent({
-  className = "",
+  className,
   children,
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
@@ -62,12 +66,12 @@ export function CardContent({
 }
 
 export function CardFooter({
-  className = "",
+  className,
   children,
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={`mt-4 flex items-center gap-2 ${className}`} {...props}>
+    <div className={cn("mt-4 flex items-center gap-2", className)} {...props}>
       {children}
     </div>
   );

@@ -6,6 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  ActionStack,
+  touchActionClassName,
+  touchStackActionClassName,
+} from "@/components/ui/page";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -18,6 +23,7 @@ import {
   canEmailInvoiceStatus,
   displayInvoiceStatus,
 } from "@/lib/invoice-status";
+import { cn } from "@/lib/utils";
 
 export interface InvoiceCardData {
   id: string;
@@ -155,8 +161,8 @@ export function InvoiceCard({
 
   return (
     <>
-      <Card>
-        <CardContent className="p-4">
+      <Card className="p-4">
+        <CardContent>
           <div className="flex flex-col gap-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 space-y-1">
@@ -192,12 +198,12 @@ export function InvoiceCard({
             </div>
 
             {hasActions && (
-              <div className="flex flex-col gap-2">
+              <ActionStack>
                 {isDraft && (
                   <Button
                     size="md"
                     variant="outline"
-                    className="min-h-11 w-full"
+                    className={touchStackActionClassName}
                     onClick={() => setEditing(true)}
                   >
                     {t("common.edit")}
@@ -206,7 +212,7 @@ export function InvoiceCard({
                 {canEmail && (
                   <Button
                     size="md"
-                    className="min-h-11 w-full"
+                    className={touchStackActionClassName}
                     variant={isDraft ? "primary" : "secondary"}
                     onClick={sendInvoice}
                     loading={sending}
@@ -219,8 +225,11 @@ export function InvoiceCard({
                 {canDelete && (
                   <Button
                     size="md"
-                    variant="ghost"
-                    className="min-h-11 w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    variant="outline"
+                    className={cn(
+                      touchStackActionClassName,
+                      "border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    )}
                     onClick={() => {
                       setActionError("");
                       setConfirmDelete(true);
@@ -229,7 +238,7 @@ export function InvoiceCard({
                     {t("common.delete")}
                   </Button>
                 )}
-              </div>
+              </ActionStack>
             )}
           </div>
           {sendError && (
@@ -296,7 +305,7 @@ export function InvoiceCard({
             <Button
               type="button"
               variant="outline"
-              className="min-h-11 w-full sm:w-auto"
+              className={touchActionClassName}
               onClick={() => setConfirmDelete(false)}
               disabled={deleting}
             >
@@ -305,7 +314,7 @@ export function InvoiceCard({
             <Button
               type="button"
               variant="destructive"
-              className="min-h-11 w-full sm:w-auto"
+              className={touchActionClassName}
               loading={deleting}
               onClick={deleteInvoice}
             >
@@ -394,11 +403,11 @@ function EditInvoiceForm({
         required
       />
       {error && <p className="text-sm text-destructive">{error}</p>}
-      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+      <ActionStack className="flex-col-reverse sm:flex-row sm:justify-end">
         <Button
           type="button"
           variant="outline"
-          className="min-h-11 w-full sm:w-auto"
+          className={touchActionClassName}
           onClick={onCancel}
         >
           {t("common.cancel")}
@@ -406,11 +415,11 @@ function EditInvoiceForm({
         <Button
           type="submit"
           loading={loading}
-          className="min-h-11 w-full sm:w-auto"
+          className={touchActionClassName}
         >
           {t("invoices.saveChanges")}
         </Button>
-      </div>
+      </ActionStack>
     </form>
   );
 }

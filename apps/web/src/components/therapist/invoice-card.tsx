@@ -150,7 +150,7 @@ export function InvoiceCard({
                   <Button
                     size="sm"
                     className="w-full"
-                    variant={isDraft ? "default" : "outline"}
+                    variant={isDraft ? "primary" : "outline"}
                     onClick={sendInvoice}
                     loading={sending}
                   >

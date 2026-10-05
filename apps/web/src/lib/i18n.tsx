@@ -29,6 +29,9 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.calendar": "Calendar",
     "nav.settings": "Settings",
     "nav.signOut": "Sign Out",
+    "nav.menu": "Menu",
+    "nav.openMenu": "Open menu",
+    "nav.closeMenu": "Close menu",
 
     // Home page
     "home.title": "Your Practice, Simplified",
@@ -260,6 +263,9 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.calendar": "Calendario",
     "nav.settings": "Ajustes",
     "nav.signOut": "Cerrar Sesión",
+    "nav.menu": "Menú",
+    "nav.openMenu": "Abrir menú",
+    "nav.closeMenu": "Cerrar menú",
 
     // Home page
     "home.title": "Tu Consulta, Simplificada",
@@ -491,6 +497,9 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.calendar": "Kalender",
     "nav.settings": "Einstellungen",
     "nav.signOut": "Abmelden",
+    "nav.menu": "Menü",
+    "nav.openMenu": "Menü öffnen",
+    "nav.closeMenu": "Menü schließen",
 
     // Home page
     "home.title": "Ihre Praxis, Vereinfacht",
@@ -722,6 +731,9 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.calendar": "Kalender",
     "nav.settings": "Inställningar",
     "nav.signOut": "Logga Ut",
+    "nav.menu": "Meny",
+    "nav.openMenu": "Öppna meny",
+    "nav.closeMenu": "Stäng meny",
 
     // Home page
     "home.title": "Din Praktik, Förenklad",

@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "installCommand": "corepack enable && corepack prepare pnpm@9.12.0 --activate && if [ ! -f ../../pnpm-lock.yaml ] && [ ! -f pnpm-workspace.yaml ]; then echo 'ERROR: monorepo root not visible. In Vercel project settings enable Include source files outside of the Root Directory, OR clear Root Directory so repo-root vercel.json is used.' >&2; ls -la . .. ../.. 2>&1 || true; exit 1; fi && pnpm install --frozen-lockfile && pnpm --filter @solopractice/shared build",
+  "installCommand": "corepack enable && corepack prepare pnpm@9.12.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @solopractice/shared build",
   "buildCommand": "pnpm build"
 }

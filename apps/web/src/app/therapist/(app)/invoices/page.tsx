@@ -4,8 +4,26 @@ import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { InvoiceCard, type InvoiceCardData } from "@/components/therapist/invoice-card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  ActionStack,
+  PageHeader,
+  PageShell,
+  touchActionClassName,
+  touchStackActionClassName,
+} from "@/components/ui/page";
+import {
+  InvoiceCard,
+  type InvoiceCardData,
+} from "@/components/therapist/invoice-card";
+import { useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 interface Invoice extends InvoiceCardData {
   clientId: string;
@@ -25,7 +43,7 @@ export default function InvoicesPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex min-h-screen items-center justify-center bg-background">
           <p className="text-muted-foreground">Loading invoices...</p>
         </div>
       }
@@ -36,6 +54,7 @@ export default function InvoicesPage() {
 }
 
 function InvoicesView() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const preselectedClientId = searchParams.get("clientId");
 
@@ -45,7 +64,9 @@ function InvoicesView() {
   const [showCreateForm, setShowCreateForm] = useState(!!preselectedClientId);
 
   useEffect(() => {
-    Promise.all([fetchInvoices(), fetchClients()]).finally(() => setLoading(false));
+    Promise.all([fetchInvoices(), fetchClients()]).finally(() =>
+      setLoading(false)
+    );
   }, []);
 
   async function fetchInvoices() {
@@ -65,64 +86,82 @@ function InvoicesView() {
   }
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Invoices</h1>
-        <Button onClick={() => setShowCreateForm(true)}>Create Invoice</Button>
-      </div>
+    <PageShell>
+      <PageHeader
+        title={t("invoices.title")}
+        actions={
+          <Button
+            className={touchActionClassName}
+            onClick={() => setShowCreateForm(true)}
+          >
+            {t("invoices.create")}
+          </Button>
+        }
+      />
 
-        {showCreateForm && (
-          <CreateInvoiceForm
-            clients={clients}
-            preselectedClientId={preselectedClientId}
-            onClose={() => setShowCreateForm(false)}
-            onSuccess={() => {
-              setShowCreateForm(false);
-              fetchInvoices();
-            }}
-          />
-        )}
+      {showCreateForm && (
+        <CreateInvoiceForm
+          clients={clients}
+          preselectedClientId={preselectedClientId}
+          onClose={() => setShowCreateForm(false)}
+          onSuccess={() => {
+            setShowCreateForm(false);
+            fetchInvoices();
+          }}
+        />
+      )}
 
-        {loading ? (
-          <div className="text-center py-12 text-muted-foreground">Loading...</div>
-        ) : invoices.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-12">
-              <p className="text-muted-foreground mb-4">No invoices yet</p>
-              <Button onClick={() => setShowCreateForm(true)}>Create your first invoice</Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4">
-            {invoices.map((invoice) => (
-              <InvoiceCard key={invoice.id} invoice={invoice} onUpdate={fetchInvoices} />
-            ))}
-          </div>
-        )}
-
-        <Card className="bg-muted/50">
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Platform Fee</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>
-              No charge for clients, for storing notes, or for the local AI that
-              drafts session notes from transcripts. Other tools are often free
-              only until a client cap — and cloud note AI usually runs $20–40+/mo.
-            </p>
-            <p>
-              Our note AI runs on your computer and never goes online. Slower
-              than cloud tools, but included.
-            </p>
-            <p>
-              SoloPractice&apos;s only cost is{" "}
-              <span className="font-medium text-foreground">1% on payments</span>{" "}
-              you collect, plus normal card processing fees. No monthly
-              subscription.
-            </p>
+      {loading ? (
+        <div className="py-12 text-center text-muted-foreground">
+          {t("common.loading")}
+        </div>
+      ) : invoices.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="mb-4 text-muted-foreground">No invoices yet</p>
+            <Button
+              className={touchStackActionClassName}
+              onClick={() => setShowCreateForm(true)}
+            >
+              Create your first invoice
+            </Button>
           </CardContent>
         </Card>
-    </main>
+      ) : (
+        <div className="grid gap-4">
+          {invoices.map((invoice) => (
+            <InvoiceCard
+              key={invoice.id}
+              invoice={invoice}
+              onUpdate={fetchInvoices}
+            />
+          ))}
+        </div>
+      )}
+
+      <Card className="bg-muted/50">
+        <CardHeader className="mb-3">
+          <CardTitle className="text-base font-medium">Platform Fee</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <p>
+            No charge for clients, for storing notes, or for the local AI that
+            drafts session notes from transcripts. Other tools are often free
+            only until a client cap — and cloud note AI usually runs $20–40+/mo.
+          </p>
+          <p>
+            Our note AI runs on your computer and never goes online. Slower than
+            cloud tools, but included.
+          </p>
+          <p>
+            SoloPractice&apos;s only cost is{" "}
+            <span className="font-medium text-foreground">1% on payments</span>{" "}
+            you collect, plus normal card processing fees. No monthly
+            subscription.
+          </p>
+        </CardContent>
+      </Card>
+    </PageShell>
   );
 }
 
@@ -187,7 +226,7 @@ function CreateInvoiceForm({
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1.5">Client</label>
+            <label className="mb-1.5 block text-sm font-medium">Client</label>
             <select
               name="clientId"
               defaultValue={preselectedClientId || ""}
@@ -225,14 +264,23 @@ function CreateInvoiceForm({
             required
           />
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <div className="flex gap-2">
-            <Button type="submit" loading={loading}>
+          <ActionStack className="sm:flex-row">
+            <Button
+              type="submit"
+              loading={loading}
+              className={cn(touchStackActionClassName, "sm:w-auto")}
+            >
               Create invoice
             </Button>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button
+              type="button"
+              variant="outline"
+              className={cn(touchStackActionClassName, "sm:w-auto")}
+              onClick={onClose}
+            >
               Cancel
             </Button>
-          </div>
+          </ActionStack>
         </form>
       </CardContent>
     </Card>

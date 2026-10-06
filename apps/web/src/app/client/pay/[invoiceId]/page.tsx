@@ -1,8 +1,9 @@
-import { notFound, redirect } from "next/navigation";
-import { db, invoices, clients, therapists } from "@/db";
+import { notFound } from "next/navigation";
+import { db, invoices } from "@/db";
 import { eq } from "drizzle-orm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CenteredShell } from "@/components/ui/page";
 import { PayButton } from "./pay-button";
 
 interface PageProps {
@@ -31,8 +32,8 @@ export default async function PaymentPage({ params, searchParams }: PageProps) {
   const showCancelled = cancelled === "true";
 
   return (
-    <main className="min-h-screen bg-background flex items-center justify-center p-8">
-      <Card className="max-w-md w-full">
+    <CenteredShell>
+      <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>
             {isPaid || showSuccess ? "Payment Complete" : "Pay Invoice"}
@@ -44,10 +45,10 @@ export default async function PaymentPage({ params, searchParams }: PageProps) {
         </CardHeader>
         <CardContent className="space-y-6">
           {showSuccess || isPaid ? (
-            <div className="text-center py-4">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-success/10 flex items-center justify-center">
+            <div className="py-4 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success/10">
                 <svg
-                  className="w-8 h-8 text-success"
+                  className="h-8 w-8 text-success"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -61,14 +62,14 @@ export default async function PaymentPage({ params, searchParams }: PageProps) {
                 </svg>
               </div>
               <p className="text-lg font-medium">Thank you for your payment!</p>
-              <p className="text-sm text-muted-foreground mt-2">
+              <p className="mt-2 text-sm text-muted-foreground">
                 Your payment was received. Contact your therapist if you need a
                 receipt.
               </p>
             </div>
           ) : showCancelled ? (
-            <div className="text-center py-4">
-              <p className="text-muted-foreground mb-4">
+            <div className="py-4 text-center">
+              <p className="mb-4 text-muted-foreground">
                 Payment was cancelled. You can try again below.
               </p>
             </div>
@@ -77,22 +78,26 @@ export default async function PaymentPage({ params, searchParams }: PageProps) {
           {!isPaid && !showSuccess && (
             <>
               <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Client</span>
-                  <span>
+                <div className="flex justify-between gap-4">
+                  <span className="shrink-0 text-muted-foreground">Client</span>
+                  <span className="min-w-0 text-right">
                     {invoice.client.firstName} {invoice.client.lastName}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Description</span>
-                  <span>{invoice.description}</span>
+                <div className="flex justify-between gap-4">
+                  <span className="shrink-0 text-muted-foreground">Description</span>
+                  <span className="min-w-0 break-words text-right">
+                    {invoice.description}
+                  </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Due</span>
-                  <span>{new Date(invoice.dueDate).toLocaleDateString()}</span>
+                <div className="flex justify-between gap-4">
+                  <span className="shrink-0 text-muted-foreground">Due</span>
+                  <span className="min-w-0 text-right">
+                    {new Date(invoice.dueDate).toLocaleDateString()}
+                  </span>
                 </div>
-                <div className="flex justify-between items-center pt-3 border-t">
-                  <span className="font-medium">Amount Due</span>
+                <div className="flex items-center justify-between gap-4 border-t pt-3">
+                  <span className="shrink-0 font-medium">Amount Due</span>
                   <span className="text-2xl font-bold">
                     ${(invoice.amountCents / 100).toFixed(2)}
                   </span>
@@ -101,20 +106,20 @@ export default async function PaymentPage({ params, searchParams }: PageProps) {
 
               <PayButton invoiceId={invoice.id} />
 
-              <p className="text-xs text-muted-foreground text-center">
-                Secure payment powered by Stripe. A 1% platform fee applies.
+              <p className="text-center text-xs text-muted-foreground">
+                Secure payment. A 1% platform fee applies.
               </p>
             </>
           )}
 
           {isPaid && (
-            <div className="pt-4 border-t">
-              <div className="flex justify-between items-center">
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between gap-4">
                 <span>Status</span>
                 <Badge variant="success">Paid</Badge>
               </div>
               {invoice.paidAt && (
-                <div className="flex justify-between mt-2 text-sm text-muted-foreground">
+                <div className="mt-2 flex justify-between gap-4 text-sm text-muted-foreground">
                   <span>Paid on</span>
                   <span>{new Date(invoice.paidAt).toLocaleDateString()}</span>
                 </div>
@@ -123,6 +128,6 @@ export default async function PaymentPage({ params, searchParams }: PageProps) {
           )}
         </CardContent>
       </Card>
-    </main>
+    </CenteredShell>
   );
 }

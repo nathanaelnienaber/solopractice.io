@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  ActionStack,
+  PageHeader,
+  PageShell,
+  touchActionClassName,
+  touchStackActionClassName,
+} from "@/components/ui/page";
 import { useI18n } from "@/lib/i18n";
 
 interface Client {
@@ -25,9 +32,9 @@ export default function ClientsPage() {
   return (
     <Suspense
       fallback={
-        <main className="max-w-6xl mx-auto px-4 py-8">
+        <PageShell>
           <p className="text-muted-foreground">Loading...</p>
-        </main>
+        </PageShell>
       }
     >
       <ClientsView />
@@ -69,18 +76,25 @@ function ClientsView() {
 
   if (legacyId) {
     return (
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <PageShell>
         <p className="text-muted-foreground">{t("common.loading")}</p>
-      </main>
+      </PageShell>
     );
   }
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">{t("clients.title")}</h1>
-        <Button onClick={() => setShowAddForm(true)}>{t("clients.addNew")}</Button>
-      </div>
+    <PageShell>
+      <PageHeader
+        title={t("clients.title")}
+        actions={
+          <Button
+            className={touchActionClassName}
+            onClick={() => setShowAddForm(true)}
+          >
+            {t("clients.addNew")}
+          </Button>
+        }
+      />
 
       {showAddForm && (
         <AddClientForm
@@ -93,26 +107,29 @@ function ClientsView() {
       )}
 
       {loading ? (
-        <div className="text-center py-12 text-muted-foreground">
+        <div className="py-12 text-center text-muted-foreground">
           {t("common.loading")}
         </div>
       ) : clients.length === 0 ? (
         <Card>
-          <CardContent className="text-center py-12">
-            <p className="text-muted-foreground mb-4">{t("clients.noClients")}</p>
-            <Button onClick={() => setShowAddForm(true)}>
+          <CardContent className="py-12 text-center">
+            <p className="mb-4 text-muted-foreground">{t("clients.noClients")}</p>
+            <Button
+              className={touchActionClassName}
+              onClick={() => setShowAddForm(true)}
+            >
               {t("clients.addFirst")}
             </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="divide-y divide-border rounded-lg border border-border">
+        <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
           {clients.map((client) => (
             <ClientRow key={client.id} client={client} />
           ))}
         </div>
       )}
-    </main>
+    </PageShell>
   );
 }
 
@@ -122,15 +139,15 @@ function ClientRow({ client }: { client: Client }) {
   return (
     <Link
       href={`/therapist/clients/${client.id}`}
-      className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
+      className="flex min-h-14 flex-col gap-2 px-4 py-3 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
     >
       <div className="min-w-0">
-        <p className="font-medium truncate">
+        <p className="truncate font-medium">
           {client.firstName} {client.lastName}
         </p>
-        <p className="text-sm text-muted-foreground truncate">{client.email}</p>
+        <p className="truncate text-sm text-muted-foreground">{client.email}</p>
       </div>
-      <div className="flex flex-shrink-0 items-center gap-1.5 flex-wrap justify-end">
+      <div className="flex flex-shrink-0 flex-wrap items-center gap-1.5 sm:justify-end">
         <Badge variant={client.allConsentsSigned ? "success" : "warning"}>
           {client.consentsSigned}/{client.consentsRequired}
         </Badge>
@@ -195,7 +212,7 @@ function AddClientForm({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Input name="firstName" label={t("clients.firstName")} required />
             <Input name="lastName" label={t("clients.lastName")} required />
           </div>
@@ -207,14 +224,19 @@ function AddClientForm({
             placeholder="+1 (555) 123-4567"
           />
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <div className="flex gap-2">
-            <Button type="submit" loading={loading}>
+          <ActionStack className="sm:flex-row">
+            <Button type="submit" loading={loading} className={touchStackActionClassName}>
               {t("clients.addNew")}
             </Button>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button
+              type="button"
+              variant="outline"
+              className={touchStackActionClassName}
+              onClick={onClose}
+            >
               {t("common.cancel")}
             </Button>
-          </div>
+          </ActionStack>
         </form>
       </CardContent>
     </Card>

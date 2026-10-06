@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { touchStackActionClassName } from "@/components/ui/page";
 
 interface PayButtonProps {
   invoiceId: string;
@@ -31,7 +32,12 @@ export function PayButton({ invoiceId }: PayButtonProps) {
   }
 
   return (
-    <Button className="w-full" size="lg" onClick={handlePay} loading={loading}>
+    <Button
+      className={touchStackActionClassName}
+      size="lg"
+      onClick={handlePay}
+      loading={loading}
+    >
       Pay Now
     </Button>
   );

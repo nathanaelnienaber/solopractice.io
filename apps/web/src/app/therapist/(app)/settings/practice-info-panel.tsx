@@ -4,6 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  ActionStack,
+  touchStackActionClassName,
+} from "@/components/ui/page";
 
 export interface PracticeInfo {
   firstName: string;
@@ -125,7 +129,12 @@ export function PracticeInfoPanel({ initial }: PracticeInfoPanelProps) {
             </p>
           </div>
         </div>
-        <Button type="button" variant="outline" onClick={startEditing}>
+        <Button
+          type="button"
+          variant="outline"
+          className={touchStackActionClassName}
+          onClick={startEditing}
+        >
           Edit
         </Button>
       </div>
@@ -198,8 +207,12 @@ export function PracticeInfoPanel({ initial }: PracticeInfoPanelProps) {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <div className="flex flex-col-reverse gap-2 sm:flex-row">
-        <Button type="submit" loading={saving} className="w-full sm:w-auto">
+      <ActionStack className="flex-col-reverse sm:flex-row">
+        <Button
+          type="submit"
+          loading={saving}
+          className={touchStackActionClassName}
+        >
           Save
         </Button>
         <Button
@@ -207,11 +220,11 @@ export function PracticeInfoPanel({ initial }: PracticeInfoPanelProps) {
           variant="outline"
           onClick={cancelEditing}
           disabled={saving}
-          className="w-full sm:w-auto"
+          className={touchStackActionClassName}
         >
           Cancel
         </Button>
-      </div>
+      </ActionStack>
     </form>
   );
 }

@@ -5,6 +5,10 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  CenteredShell,
+  touchStackActionClassName,
+} from "@/components/ui/page";
 
 export default function TherapistLoginPage() {
   const [email, setEmail] = useState("");
@@ -39,8 +43,8 @@ export default function TherapistLoginPage() {
 
   if (sent) {
     return (
-      <main className="flex min-h-screen items-center justify-center p-8">
-        <Card className="max-w-md w-full">
+      <CenteredShell>
+        <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Check your email</CardTitle>
             <CardDescription>
@@ -53,20 +57,20 @@ export default function TherapistLoginPage() {
             </p>
             <Button
               variant="outline"
-              className="w-full"
+              className={touchStackActionClassName}
               onClick={() => setSent(false)}
             >
               Use a different email
             </Button>
           </CardContent>
         </Card>
-      </main>
+      </CenteredShell>
     );
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-8">
-      <Card className="max-w-md w-full">
+    <CenteredShell>
+      <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Therapist Sign In</CardTitle>
           <CardDescription>
@@ -85,20 +89,24 @@ export default function TherapistLoginPage() {
               autoComplete="email"
               error={error}
             />
-            <Button type="submit" className="w-full" loading={loading}>
+            <Button
+              type="submit"
+              className={touchStackActionClassName}
+              loading={loading}
+            >
               Send sign-in link
             </Button>
           </form>
           <div className="mt-6 text-center">
             <Link
               href="/"
-              className="text-sm text-muted-foreground hover:text-foreground"
+              className="inline-flex min-h-11 items-center text-sm text-muted-foreground hover:text-foreground"
             >
               &larr; Back to home
             </Link>
           </div>
         </CardContent>
       </Card>
-    </main>
+    </CenteredShell>
   );
 }

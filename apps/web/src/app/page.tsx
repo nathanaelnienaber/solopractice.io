@@ -42,9 +42,9 @@ export default function HomePage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckIcon />
-                  No monthly fee — clients, notes storage, and local offline
-                  note AI stay free; only 1% when you get paid (plus card
-                  processing)
+                  No monthly fee — unlike most practice apps. Clients, notes
+                  storage, and local offline note AI stay free; 1% when you get
+                  paid (plus card processing)
                 </li>
               </ul>
               <Link href="/therapist/login" className="block">

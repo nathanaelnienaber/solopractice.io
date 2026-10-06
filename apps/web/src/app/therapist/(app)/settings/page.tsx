@@ -105,10 +105,9 @@ export default async function SettingsPage({
         <CardHeader>
           <CardTitle>Payment Setup</CardTitle>
           <CardDescription>
-            Get set up to receive payments from clients. SoloPractice&apos;s
-            only cost is 1% on payments you collect, plus normal card
-            processing — no monthly fee, and no charge for clients, notes
-            storage, or local offline note AI.
+            Get set up to receive payments from clients. No monthly fee —
+            clients, notes storage, and local offline note AI stay free. You
+            only pay 1% when you get paid, plus normal card processing.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

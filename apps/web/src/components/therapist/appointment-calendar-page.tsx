@@ -30,6 +30,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  ActionStack,
+  PageHeader,
+  PageShell,
+  touchActionClassName,
+  touchStackActionClassName,
+} from "@/components/ui/page";
 import { useI18n } from "@/lib/i18n";
 import {
   CALENDAR_HOURS,
@@ -211,66 +218,27 @@ export function AppointmentCalendarPage() {
 
   return (
     <>
-      <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold">{t("calendar.title")}</h1>
-          {filterClientId ? (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Badge variant="outline">
-                {filterClientName
-                  ? t("calendar.filteredTo").replace("{name}", filterClientName)
-                  : t("calendar.filteredClient")}
-              </Badge>
-              <Link
-                href="/therapist/calendar"
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                {t("calendar.clearFilter")}
-              </Link>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setAnchorDate(shiftAnchor(view, anchorDate, -1))}
-            >
-              {t("calendar.previous")}
-            </Button>
-            <Button variant="outline" onClick={() => setAnchorDate(new Date())}>
-              {t("calendar.today")}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setAnchorDate(shiftAnchor(view, anchorDate, 1))}
-            >
-              {t("calendar.next")}
-            </Button>
-            <span className="text-lg font-medium min-w-[12rem]">
-              {visibleRange.label}
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex rounded-md border border-border p-0.5">
-              <Button
-                type="button"
-                size="sm"
-                variant={view === "week" ? "primary" : "ghost"}
-                onClick={() => setView("week")}
-              >
-                {t("calendar.weekView")}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={view === "month" ? "primary" : "ghost"}
-                onClick={() => setView("month")}
-              >
-                {t("calendar.monthView")}
-              </Button>
-            </div>
+      <PageShell>
+        <PageHeader
+          title={t("calendar.title")}
+          description={
+            filterClientId ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline">
+                  {filterClientName
+                    ? t("calendar.filteredTo").replace("{name}", filterClientName)
+                    : t("calendar.filteredClient")}
+                </Badge>
+                <Link
+                  href="/therapist/calendar"
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                >
+                  {t("calendar.clearFilter")}
+                </Link>
+              </div>
+            ) : undefined
+          }
+          actions={
             <Dialog
               open={showNewModal}
               onOpenChange={(open) => {
@@ -282,7 +250,10 @@ export function AppointmentCalendarPage() {
               }}
             >
               <DialogTrigger asChild>
-                <Button onClick={() => openNewAppointment()}>
+                <Button
+                  className={touchActionClassName}
+                  onClick={() => openNewAppointment()}
+                >
                   {t("calendar.newAppointment")}
                 </Button>
               </DialogTrigger>
@@ -311,6 +282,55 @@ export function AppointmentCalendarPage() {
                 />
               </DialogContent>
             </Dialog>
+          }
+        />
+
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              className="min-h-11"
+              onClick={() => setAnchorDate(shiftAnchor(view, anchorDate, -1))}
+            >
+              {t("calendar.previous")}
+            </Button>
+            <Button
+              variant="outline"
+              className="min-h-11"
+              onClick={() => setAnchorDate(new Date())}
+            >
+              {t("calendar.today")}
+            </Button>
+            <Button
+              variant="outline"
+              className="min-h-11"
+              onClick={() => setAnchorDate(shiftAnchor(view, anchorDate, 1))}
+            >
+              {t("calendar.next")}
+            </Button>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span className="min-w-0 text-lg font-medium">
+              {visibleRange.label}
+            </span>
+            <div className="inline-flex w-full rounded-md border border-border p-0.5 sm:w-auto">
+              <Button
+                type="button"
+                className="min-h-11 flex-1 sm:flex-none"
+                variant={view === "week" ? "primary" : "ghost"}
+                onClick={() => setView("week")}
+              >
+                {t("calendar.weekView")}
+              </Button>
+              <Button
+                type="button"
+                className="min-h-11 flex-1 sm:flex-none"
+                variant={view === "month" ? "primary" : "ghost"}
+                onClick={() => setView("month")}
+              >
+                {t("calendar.monthView")}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -489,9 +509,9 @@ export function AppointmentCalendarPage() {
                 {upcomingScheduled.map((apt) => (
                   <div
                     key={apt.id}
-                    className="flex items-center justify-between p-3 border rounded-lg gap-4"
+                    className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                   >
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-medium">{apt.clientName}</p>
                       <p className="text-sm text-muted-foreground">
                         {new Date(apt.scheduledAt).toLocaleDateString(locale, {
@@ -503,35 +523,35 @@ export function AppointmentCalendarPage() {
                         {formatTime(new Date(apt.scheduledAt), locale)}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <ActionStack className="sm:w-auto sm:flex-row sm:items-center">
                       <Button
-                        variant="ghost"
-                        size="sm"
+                        variant="outline"
+                        className={touchStackActionClassName}
                         onClick={() => setEditingAppointment(apt)}
                       >
                         {t("common.edit")}
                       </Button>
                       {apt.reminderSentAt ? (
-                        <Badge variant="outline">
+                        <Badge variant="outline" className="justify-center py-2.5">
                           {t("calendar.reminderSentBadge")}
                         </Badge>
                       ) : (
                         <Button
                           variant="outline"
-                          size="sm"
+                          className={touchStackActionClassName}
                           onClick={() => sendReminder(apt.id)}
                         >
                           {t("calendar.sendReminder")}
                         </Button>
                       )}
-                    </div>
+                    </ActionStack>
                   </div>
                 ))}
               </div>
             )}
           </CardContent>
         </Card>
-      </main>
+      </PageShell>
 
       <Dialog
         open={!!editingAppointment}
@@ -801,28 +821,38 @@ function AppointmentForm({
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <div className="flex gap-2 justify-end">
+      <ActionStack className="flex-col-reverse sm:flex-row sm:justify-end">
         {onDelete && (
           <Button
             type="button"
             variant="destructive"
+            className={touchStackActionClassName}
             onClick={onDelete}
             disabled={saving}
           >
             {t("common.delete")}
           </Button>
         )}
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button
+          type="button"
+          variant="outline"
+          className={touchStackActionClassName}
+          onClick={onCancel}
+        >
           {t("common.cancel")}
         </Button>
-        <Button type="submit" disabled={saving || (!appointment && !clientId)}>
+        <Button
+          type="submit"
+          className={touchStackActionClassName}
+          disabled={saving || (!appointment && !clientId)}
+        >
           {saving
             ? t("calendar.saving")
             : appointment
               ? t("common.save")
               : t("calendar.create")}
         </Button>
-      </div>
+      </ActionStack>
     </form>
   );
 }

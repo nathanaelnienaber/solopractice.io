@@ -105,16 +105,16 @@ export function TherapistNav({ subtitle }: { subtitle?: string }) {
           </div>
           <button
             type="button"
-            className="md:hidden p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            className="md:hidden flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-muted p-2 text-muted-foreground transition-colors hover:text-foreground"
             aria-expanded={menuOpen}
             aria-controls={mobileNavId}
             aria-label={menuOpen ? t("nav.closeMenu") : t("nav.openMenu")}
             onClick={() => setMenuOpen((open) => !open)}
           >
             {menuOpen ? (
-              <X className="w-4 h-4" aria-hidden />
+              <X className="w-5 h-5" aria-hidden />
             ) : (
-              <Menu className="w-4 h-4" aria-hidden />
+              <Menu className="w-5 h-5" aria-hidden />
             )}
           </button>
         </div>
@@ -132,7 +132,7 @@ export function TherapistNav({ subtitle }: { subtitle?: string }) {
               <Link
                 key={href}
                 href={href}
-                className={linkClassName(pathname, href, true)}
+                className={cn(linkClassName(pathname, href, true), "min-h-11")}
                 onClick={() => setMenuOpen(false)}
               >
                 {t(key)}
@@ -141,8 +141,7 @@ export function TherapistNav({ subtitle }: { subtitle?: string }) {
             <Button
               type="button"
               variant="ghost"
-              size="sm"
-              className="justify-start px-3"
+              className="min-h-11 justify-start px-3"
               onClick={handleSignOut}
             >
               {t("nav.signOut")}

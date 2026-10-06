@@ -18,7 +18,7 @@ export function LanguagePanel() {
               type="button"
               onClick={() => setLanguage(lang.code as Language)}
               className={cn(
-                "flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-muted",
+                "flex min-h-11 w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-muted",
                 selected && "bg-muted/60 text-primary"
               )}
               aria-pressed={selected}

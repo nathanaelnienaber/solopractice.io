@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
-import { db, clients, consents, consentFormTemplates } from "@/db";
-import { eq, and } from "drizzle-orm";
+import { db, clients } from "@/db";
+import { eq } from "drizzle-orm";
 import { ConsentForm } from "./consent-form";
 import { REQUIRED_CONSENT_TEMPLATES, getTemplateHash } from "@/lib/consent-templates";
+import { CenteredShell, PageShell } from "@/components/ui/page";
 
 interface PageProps {
   params: Promise<{ token: string }>;
@@ -25,14 +26,14 @@ export default async function ConsentPage({ params }: PageProps) {
 
   if (client.magicLinkExpiresAt && new Date() > client.magicLinkExpiresAt) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-8">
+      <CenteredShell>
         <div className="max-w-md text-center">
-          <h1 className="text-2xl font-bold mb-4">Link Expired</h1>
+          <h1 className="mb-4 text-2xl font-bold">Link Expired</h1>
           <p className="text-muted-foreground">
             This consent link has expired. Please contact your therapist for a new link.
           </p>
         </div>
-      </main>
+      </CenteredShell>
     );
   }
 
@@ -52,7 +53,7 @@ export default async function ConsentPage({ params }: PageProps) {
   return (
     <main className="min-h-screen bg-background">
       <header className="border-b border-border">
-        <div className="max-w-3xl mx-auto px-4 py-6">
+        <div className="mx-auto max-w-3xl px-4 py-6">
           <h1 className="text-2xl font-bold">Intake Forms</h1>
           <p className="text-muted-foreground">
             {client.therapist.practiceName ||
@@ -61,12 +62,12 @@ export default async function ConsentPage({ params }: PageProps) {
         </div>
       </header>
 
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <PageShell className="max-w-3xl">
         {allSigned ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-success/10 flex items-center justify-center">
+          <div className="py-12 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success/10">
               <svg
-                className="w-8 h-8 text-success"
+                className="h-8 w-8 text-success"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -79,18 +80,18 @@ export default async function ConsentPage({ params }: PageProps) {
                 />
               </svg>
             </div>
-            <h2 className="text-xl font-semibold mb-2">All forms completed!</h2>
+            <h2 className="mb-2 text-xl font-semibold">All forms completed!</h2>
             <p className="text-muted-foreground">
               Thank you for completing your intake forms. Your therapist has been notified.
             </p>
           </div>
         ) : (
           <div className="space-y-8">
-            <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
-              <p className="text-sm text-warning font-medium">
-                ⚠️ DRAFT FORMS - NOT LEGAL ADVICE
+            <div className="rounded-lg border border-warning/20 bg-warning/10 p-4">
+              <p className="text-sm font-medium text-warning">
+                DRAFT FORMS - NOT LEGAL ADVICE
               </p>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="mt-1 text-sm text-muted-foreground">
                 These are placeholder forms for testing. Do not use with real clients
                 until reviewed by an attorney.
               </p>
@@ -111,7 +112,7 @@ export default async function ConsentPage({ params }: PageProps) {
             />
           </div>
         )}
-      </div>
+      </PageShell>
     </main>
   );
 }

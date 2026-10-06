@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  ActionStack,
+  touchStackActionClassName,
+} from "@/components/ui/page";
 
 interface KeyStatus {
   hasApiKey: boolean;
@@ -95,27 +99,37 @@ export function DesktopApiKeyPanel() {
           <p className="text-sm font-medium text-warning">
             Copy this code now -- you will not be able to see it again.
           </p>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 overflow-x-auto rounded bg-muted px-3 py-2 text-sm font-mono select-all">
+          <ActionStack className="sm:flex-row sm:items-stretch">
+            <code className="min-w-0 flex-1 overflow-x-auto rounded bg-muted px-3 py-2.5 font-mono text-sm select-all">
               {revealedKey}
             </code>
-            <Button type="button" variant="outline" onClick={copyKey}>
+            <Button
+              type="button"
+              variant="outline"
+              className={touchStackActionClassName}
+              onClick={copyKey}
+            >
               {copied ? "Copied!" : "Copy"}
             </Button>
-          </div>
+          </ActionStack>
           <p className="text-xs text-muted-foreground">
             Paste this into the SoloPractice desktop app -- either during setup, or later under
             Settings &rarr; Advanced settings &rarr; Web Portal Connection &rarr; Connection
             code -- then click &ldquo;Sync Now&rdquo;.
           </p>
-          <Button type="button" variant="ghost" size="sm" onClick={() => setRevealedKey(null)}>
-            Done, I've saved it
+          <Button
+            type="button"
+            variant="ghost"
+            className={touchStackActionClassName}
+            onClick={() => setRevealedKey(null)}
+          >
+            Done, I&apos;ve saved it
           </Button>
         </div>
       ) : status?.hasApiKey ? (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between py-2 border-b">
-            <div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3 border-b py-2">
+            <div className="min-w-0">
               <p className="text-sm font-medium">
                 <code className="font-mono">{status.keyPreview}</code>
               </p>
@@ -126,7 +140,13 @@ export function DesktopApiKeyPanel() {
             </div>
             <Badge>Active</Badge>
           </div>
-          <Button type="button" variant="outline" onClick={generateKey} disabled={generating}>
+          <Button
+            type="button"
+            variant="outline"
+            className={touchStackActionClassName}
+            onClick={generateKey}
+            disabled={generating}
+          >
             {generating ? "Generating..." : "Generate New Code"}
           </Button>
         </div>
@@ -136,7 +156,12 @@ export function DesktopApiKeyPanel() {
             No connection code yet. Generate one to connect the SoloPractice desktop app to
             your account, so your client contact info and consent status stay in sync.
           </p>
-          <Button type="button" onClick={generateKey} disabled={generating}>
+          <Button
+            type="button"
+            className={touchStackActionClassName}
+            onClick={generateKey}
+            disabled={generating}
+          >
             {generating ? "Generating..." : "Generate Connection Code"}
           </Button>
         </div>

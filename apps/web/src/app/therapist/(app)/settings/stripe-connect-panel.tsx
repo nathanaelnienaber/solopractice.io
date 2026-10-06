@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  ActionStack,
+  touchStackActionClassName,
+} from "@/components/ui/page";
 import type {
   ConnectStatus,
   ConnectStatusSnapshot,
@@ -174,15 +178,20 @@ export function StripeConnectPanel({
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <div className="flex items-center gap-3">
+      <ActionStack className="sm:flex-row sm:items-center">
         {status.status !== "ready" && (
-          <Button onClick={startOnboarding} loading={loading}>
+          <Button
+            className={touchStackActionClassName}
+            onClick={startOnboarding}
+            loading={loading}
+          >
             {ctaLabel}
           </Button>
         )}
         {status.detailsSubmitted && (
           <Button
             variant="secondary"
+            className={touchStackActionClassName}
             onClick={() => {
               pollsRef.current = 0;
               void refresh();
@@ -191,7 +200,7 @@ export function StripeConnectPanel({
             Refresh status
           </Button>
         )}
-      </div>
+      </ActionStack>
     </div>
   );
 }

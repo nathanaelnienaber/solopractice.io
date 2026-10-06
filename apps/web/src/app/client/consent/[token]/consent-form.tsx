@@ -4,6 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ActionStack,
+  touchStackActionClassName,
+} from "@/components/ui/page";
 import type { ConsentType } from "@solopractice/shared";
 
 interface FormTemplate {
@@ -71,25 +75,23 @@ export function ConsentForm({ clientId, token, forms }: ConsentFormProps) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>{currentForm.title}</CardTitle>
-          <span className="text-sm text-muted-foreground">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle className="min-w-0">{currentForm.title}</CardTitle>
+          <span className="shrink-0 text-sm text-muted-foreground">
             {currentIndex + 1} of {forms.length}
           </span>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="prose prose-sm max-w-none dark:prose-invert">
-          <div
-            className="whitespace-pre-wrap text-sm leading-relaxed max-h-96 overflow-y-auto p-4 bg-muted/50 rounded-lg"
-          >
+          <div className="max-h-96 overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted/50 p-4 text-sm leading-relaxed">
             {currentForm.content}
           </div>
         </div>
 
-        <div className="space-y-4 pt-4 border-t">
+        <div className="space-y-4 border-t pt-4">
           <div>
-            <label className="block text-sm font-medium mb-2">
+            <label className="mb-2 block text-sm font-medium">
               Type your full legal name to sign
             </label>
             <input
@@ -97,18 +99,23 @@ export function ConsentForm({ clientId, token, forms }: ConsentFormProps) {
               value={signature}
               onChange={(e) => setSignature(e.target.value)}
               placeholder="Your full name"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
-          <div className="flex items-center justify-between">
+          <ActionStack>
             <p className="text-xs text-muted-foreground">
               By signing, I acknowledge that I have read and agree to the terms above.
             </p>
-            <Button onClick={handleSign} loading={signing} disabled={!signature.trim()}>
+            <Button
+              className={touchStackActionClassName}
+              onClick={handleSign}
+              loading={signing}
+              disabled={!signature.trim()}
+            >
               {isLastForm ? "Sign & Complete" : "Sign & Continue"}
             </Button>
-          </div>
+          </ActionStack>
         </div>
       </CardContent>
     </Card>

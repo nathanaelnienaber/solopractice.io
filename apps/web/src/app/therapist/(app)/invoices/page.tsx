@@ -43,9 +43,9 @@ export default function InvoicesPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-background">
+        <PageShell>
           <p className="text-muted-foreground">Loading invoices...</p>
-        </div>
+        </PageShell>
       }
     >
       <InvoicesView />

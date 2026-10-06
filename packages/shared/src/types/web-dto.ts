@@ -19,7 +19,7 @@ import type {
 } from "./common.js";
 import type { AppointmentStatus } from "./appointment.js";
 import type { ConsentStatus, ConsentType } from "./consent.js";
-import type { InvoiceStatus } from "./invoice.js";
+import type { InvoiceStatus, SuperbillRequestStatus } from "./invoice.js";
 
 export interface WebSafeClient {
   id: ClientId;
@@ -59,6 +59,10 @@ export interface WebInvoiceDTO {
   dueDate: Timestamp;
   paymentLink?: string;
   paidAt?: Timestamp;
+  /** Ops-only; never includes Dx/CPT/DOB/PDF. */
+  superbillRequestStatus?: SuperbillRequestStatus;
+  superbillRequestedAt?: Timestamp;
+  superbillSentAt?: Timestamp;
 }
 
 export interface WebConsentDTO {

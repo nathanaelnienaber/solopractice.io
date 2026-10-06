@@ -233,3 +233,47 @@ export async function sendInvoiceNotification(
     replyTo: options?.replyTo,
   });
 }
+
+/**
+ * Ops notify when a client requests a superbill after paying.
+ * Body must stay non-clinical: names, amount, date, invoice description only.
+ * Never include Dx, CPT, DOB, or PDF.
+ */
+export async function sendSuperbillRequestNotify(
+  therapistEmail: string,
+  therapistDisplayName: string,
+  clientName: string,
+  amountDollars: string,
+  paidDateLabel: string,
+  sessionLabel: string
+) {
+  const subject = `Superbill requested — ${clientName}`;
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #111;">
+      <p>Hi ${therapistDisplayName},</p>
+      <p><strong>${clientName}</strong> requested a superbill after paying.</p>
+      <p>Amount: ${amountDollars} USD<br>Paid: ${paidDateLabel}<br>Session: ${sessionLabel}</p>
+      <p>Prepare the superbill on your computer (Desktop → Superbill → Pending requests). Clinical codes and the PDF stay on your computer — SoloPractice does not store them.</p>
+      <p style="color: #666; font-size: 13px; margin-top: 32px;">This is an operations notice only.</p>
+    </div>
+  `;
+  const text = [
+    `Hi ${therapistDisplayName},`,
+    "",
+    `${clientName} requested a superbill after paying.`,
+    "",
+    `Amount: ${amountDollars} USD`,
+    `Paid: ${paidDateLabel}`,
+    `Session: ${sessionLabel}`,
+    "",
+    "Prepare the superbill on your computer (Desktop → Superbill → Pending requests).",
+    "Clinical codes and the PDF stay on your computer — SoloPractice does not store them.",
+  ].join("\n");
+
+  return sendEmail({
+    to: therapistEmail,
+    subject,
+    html,
+    text,
+  });
+}

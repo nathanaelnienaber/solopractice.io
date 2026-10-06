@@ -36,6 +36,14 @@ export const CLINICAL_FIELD_BLOCKLIST = [
   "mse",
   "superbill",
   "superbillId",
+  "superbillPdf",
+  "superbillPdfBytes",
+  "pdfBytes",
+  "pdfPath",
+  "dateOfBirth",
+  "date_of_birth",
+  "dob",
+  "clientDob",
 ] as const;
 
 export type ClinicalField = (typeof CLINICAL_FIELD_BLOCKLIST)[number];

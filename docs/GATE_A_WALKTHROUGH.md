@@ -31,6 +31,8 @@ Record results in the table at the bottom. When every row passes (or a blocker i
 | 3c | Superbill History lists the new row; Open works | | |
 | 4a | Web: create invoice → Stripe Checkout (test card) | | |
 | 4b | Webhook marks paid; pay page does **not** claim an emailed receipt | | |
+| 4c | *(Optional)* Pay page → **Request superbill** → status requested; invoice badge shows Superbill requested | | |
+| 4d | *(Optional)* Desktop → Superbill → Pending → Prepare → generate PDF (DOB + Dx/CPT + letterhead required) → Open mail client / Open PDF → **Mark sent**; pay page shows Superbill sent | | |
 | 5 | Web: send SMS reminder for a test appointment (client has a phone) | | |
 | 6 | Docs/UI: no claim that the local SQLite DB is encrypted | | |
 

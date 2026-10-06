@@ -33,6 +33,7 @@ export interface InvoiceCardData {
   status: string;
   dueDate: string;
   paidAt?: string | null;
+  superbillRequestStatus?: "none" | "requested" | "sent" | null;
 }
 
 function dueDateInputValue(dueDate: string): string {
@@ -171,13 +172,33 @@ export function InvoiceCard({
                   {invoice.description}
                 </p>
               </div>
-              <Badge
-                variant={badge.variant}
-                className="shrink-0 px-3 py-1 text-sm"
-                aria-label={`${t("invoices.status")}: ${badge.label}`}
-              >
-                {badge.label}
-              </Badge>
+              <div className="flex shrink-0 flex-col items-end gap-1.5">
+                <Badge
+                  variant={badge.variant}
+                  className="px-3 py-1 text-sm"
+                  aria-label={`${t("invoices.status")}: ${badge.label}`}
+                >
+                  {badge.label}
+                </Badge>
+                {invoice.superbillRequestStatus === "requested" && (
+                  <Badge
+                    variant="warning"
+                    className="px-2 py-0.5 text-xs"
+                    aria-label={t("invoices.superbillRequested")}
+                  >
+                    {t("invoices.superbillRequested")}
+                  </Badge>
+                )}
+                {invoice.superbillRequestStatus === "sent" && (
+                  <Badge
+                    variant="outline"
+                    className="px-2 py-0.5 text-xs"
+                    aria-label={t("invoices.superbillSent")}
+                  >
+                    {t("invoices.superbillSent")}
+                  </Badge>
+                )}
+              </div>
             </div>
 
             <div className="flex items-end justify-between gap-3">

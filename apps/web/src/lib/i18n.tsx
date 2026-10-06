@@ -187,6 +187,8 @@ const translations: Record<Language, Record<string, string>> = {
       "The client will no longer be able to pay with this link. This cannot be undone.",
     "invoices.deleteConfirmAction": "Delete invoice",
     "invoices.deleteFailed": "Couldn't delete invoice",
+    "invoices.superbillRequested": "Superbill requested",
+    "invoices.superbillSent": "Superbill sent",
 
     // Calendar / appointments
     "calendar.title": "Calendar",
@@ -433,6 +435,8 @@ const translations: Record<Language, Record<string, string>> = {
       "El cliente ya no podrá pagar este enlace. Esta acción no se puede deshacer.",
     "invoices.deleteConfirmAction": "Eliminar factura",
     "invoices.deleteFailed": "No se pudo eliminar la factura",
+    "invoices.superbillRequested": "Superbill solicitado",
+    "invoices.superbillSent": "Superbill enviado",
 
     // Calendar / appointments
     "calendar.title": "Calendario",
@@ -678,6 +682,8 @@ const translations: Record<Language, Record<string, string>> = {
       "Der Klient kann diesen Zahlungslink nicht mehr nutzen. Das lässt sich nicht rückgängig machen.",
     "invoices.deleteConfirmAction": "Rechnung löschen",
     "invoices.deleteFailed": "Rechnung konnte nicht gelöscht werden",
+    "invoices.superbillRequested": "Superbill angefordert",
+    "invoices.superbillSent": "Superbill gesendet",
 
     // Calendar / appointments
     "calendar.title": "Kalender",
@@ -923,6 +929,8 @@ const translations: Record<Language, Record<string, string>> = {
       "Klienten kan inte längre betala via den här länken. Det går inte att ångra.",
     "invoices.deleteConfirmAction": "Ta bort faktura",
     "invoices.deleteFailed": "Kunde inte ta bort fakturan",
+    "invoices.superbillRequested": "Superbill begärd",
+    "invoices.superbillSent": "Superbill skickad",
 
     // Calendar / appointments
     "calendar.title": "Kalender",

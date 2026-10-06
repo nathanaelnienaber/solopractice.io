@@ -141,13 +141,13 @@ function InvoicesView() {
 
       <Card className="bg-muted/50">
         <CardHeader className="mb-3">
-          <CardTitle className="text-base font-medium">Platform Fee</CardTitle>
+          <CardTitle className="text-base font-medium">What it costs</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <p>
-            No charge for clients, for storing notes, or for the local AI that
-            drafts session notes from transcripts. Other tools are often free
-            only until a client cap — and cloud note AI usually runs $20–40+/mo.
+            Clients, notes, and the local AI that drafts session notes from
+            transcripts are free. Other tools often meter clients — and cloud
+            note AI usually runs $20–40+/mo.
           </p>
           <p>
             Our note AI runs on your computer and never goes online. Slower than
@@ -220,7 +220,7 @@ function CreateInvoiceForm({
       <CardHeader>
         <CardTitle>Create Invoice</CardTitle>
         <CardDescription>
-          Send an invoice to your client for payment via Stripe
+          Create an invoice and email your client a link to pay
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -253,7 +253,7 @@ function CreateInvoiceForm({
           <Input
             name="description"
             label="Description"
-            placeholder="Therapy session - 50 minutes"
+            placeholder="Therapy session — 50 minutes"
             required
           />
           <Input

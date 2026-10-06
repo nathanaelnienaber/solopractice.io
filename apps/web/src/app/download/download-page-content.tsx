@@ -54,7 +54,7 @@ export function DownloadPageContent() {
     <PageShell className="max-w-3xl space-y-10 py-12">
       <PageHeader
         title="Download the SoloPractice app"
-        description="This is the app you’ll use every day for clinical work — clients, session recording, notes, and superbills. Scheduling and invoices stay on the web portal. Clinical notes never leave this computer."
+        description="This is the app you’ll use every day for clinical work — session recording, notes, and superbills. Scheduling and invoices stay on the web. Clinical notes never leave this computer."
         eyebrow={<Badge variant="default">Free during trial</Badge>}
       />
 

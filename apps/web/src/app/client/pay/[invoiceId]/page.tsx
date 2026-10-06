@@ -36,7 +36,7 @@ export default async function PaymentPage({ params, searchParams }: PageProps) {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>
-            {isPaid || showSuccess ? "Payment Complete" : "Pay Invoice"}
+            {isPaid || showSuccess ? "Payment received" : "Pay invoice"}
           </CardTitle>
           <CardDescription>
             {invoice.therapist.practiceName ||
@@ -61,7 +61,7 @@ export default async function PaymentPage({ params, searchParams }: PageProps) {
                   />
                 </svg>
               </div>
-              <p className="text-lg font-medium">Thank you for your payment!</p>
+              <p className="text-lg font-medium">Thank you — you&apos;re all set.</p>
               <p className="mt-2 text-sm text-muted-foreground">
                 Your payment was received. Contact your therapist if you need a
                 receipt.
@@ -107,7 +107,8 @@ export default async function PaymentPage({ params, searchParams }: PageProps) {
               <PayButton invoiceId={invoice.id} />
 
               <p className="text-center text-xs text-muted-foreground">
-                Secure payment. A 1% platform fee applies.
+                Secure payment. Includes a 1% SoloPractice fee (plus normal card
+                processing).
               </p>
             </>
           )}

@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Magic link error:", error);
     return NextResponse.json(
-      { error: "Failed to send magic link" },
+      { error: "Failed to send sign-in link" },
       { status: 500 }
     );
   }

@@ -80,14 +80,14 @@ export function InstallPrompt() {
           </svg>
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-sm">Add to Home Screen</h3>
+          <h3 className="font-medium text-sm">Add SoloPractice to your home screen</h3>
           {isIOS ? (
             <p className="text-xs text-muted-foreground mt-1">
-              Tap <span className="inline-flex items-center"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" /></svg></span> then "Add to Home Screen" for quick access.
+              Tap <span className="inline-flex items-center"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" /></svg></span> then &ldquo;Add to Home Screen&rdquo; for faster access on your phone.
             </p>
           ) : (
             <p className="text-xs text-muted-foreground mt-1">
-              Install SoloPractice for quick access from your device.
+              Install for faster access from your phone.
             </p>
           )}
         </div>
@@ -95,7 +95,7 @@ export function InstallPrompt() {
       
       <div className="flex gap-2 mt-3 justify-end">
         <Button variant="ghost" size="sm" onClick={handleDismiss}>
-          Maybe Later
+          Not now
         </Button>
         {!isIOS && (
           <Button size="sm" onClick={handleInstall}>

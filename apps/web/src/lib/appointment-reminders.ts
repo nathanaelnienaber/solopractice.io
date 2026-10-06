@@ -46,9 +46,9 @@ export function buildAppointmentReminderMessage(opts: {
 }): string {
   const { dateStr, timeStr } = formatReminderDateTime(opts.scheduledAt);
   return (
-    `Hi ${opts.clientFirstName}, this is a reminder of your appointment with ` +
-    `${opts.therapistFirstName} ${opts.therapistLastName} on ${dateStr} at ${timeStr}. ` +
-    `Please reply CONFIRM to confirm or call if you need to reschedule.`
+    `Hi ${opts.clientFirstName}, reminder: your appointment with ` +
+    `${opts.therapistFirstName} ${opts.therapistLastName} is on ${dateStr} at ${timeStr}. ` +
+    `Reply CONFIRM to confirm, or call if you need to reschedule.`
   );
 }
 

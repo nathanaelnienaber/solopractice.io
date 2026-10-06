@@ -107,11 +107,9 @@ export function InvoiceCard({
         );
       }
       const to = typeof data.to === "string" ? data.to : "";
-      const emailId = typeof data.emailId === "string" ? data.emailId : "";
       setSendInfo(
         to
-          ? t("invoices.emailedTo").replace("{email}", to) +
-              (emailId ? ` (${emailId})` : "")
+          ? t("invoices.emailedTo").replace("{email}", to)
           : t("invoices.sendSucceeded")
       );
       onUpdate();

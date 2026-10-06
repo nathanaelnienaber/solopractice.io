@@ -19,13 +19,13 @@ export function PayButton({ invoiceId }: PayButtonProps) {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to create checkout session");
+        throw new Error("Could not start payment");
       }
 
       const { url } = await res.json();
       window.location.href = url;
     } catch (error) {
-      alert("Failed to start payment. Please try again.");
+      alert("Could not start payment. Please try again.");
     } finally {
       setLoading(false);
     }

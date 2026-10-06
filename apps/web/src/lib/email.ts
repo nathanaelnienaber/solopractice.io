@@ -115,6 +115,8 @@ export async function sendMagicLink(
       : "This link expires in 7 days.";
 
   const actionLabel = type === "therapist" ? "Sign In" : "Open Link";
+  const heading =
+    type === "therapist" ? "Sign in to SoloPractice" : "Your SoloPractice link";
   const intro =
     type === "therapist"
       ? "sign in to your practice dashboard"
@@ -122,7 +124,7 @@ export async function sendMagicLink(
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2>Welcome to SoloPractice</h2>
+      <h2>${heading}</h2>
       <p>Click the link below to ${intro}:</p>
       <p style="margin: 24px 0;">
         <a href="${magicLinkUrl}" style="background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none;">
@@ -135,7 +137,7 @@ export async function sendMagicLink(
   `;
 
   const text = [
-    "Welcome to SoloPractice",
+    heading,
     "",
     `Open this link to ${intro}:`,
     magicLinkUrl,
@@ -157,11 +159,11 @@ export async function sendConsentInvite(
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2>Hello ${clientName},</h2>
-      <p>${therapistName} has invited you to complete your intake forms before your first appointment.</p>
+      <h2>Hi ${clientName},</h2>
+      <p>${therapistName} asked you to complete a few intake forms before your first appointment.</p>
       <p style="margin: 24px 0;">
         <a href="${consentUrl}" style="background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none;">
-          Complete Intake Forms
+          Complete intake forms
         </a>
       </p>
       <p style="color: #666; font-size: 14px;">This link expires in 7 days.</p>
@@ -169,9 +171,9 @@ export async function sendConsentInvite(
   `;
 
   const text = [
-    `Hello ${clientName},`,
+    `Hi ${clientName},`,
     "",
-    `${therapistName} has invited you to complete your intake forms before your first appointment.`,
+    `${therapistName} asked you to complete a few intake forms before your first appointment.`,
     "",
     `Complete intake forms: ${consentUrl}`,
     "",
@@ -200,7 +202,7 @@ export async function sendInvoiceNotification(
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #111;">
-      <p>Hello ${clientName},</p>
+      <p>Hi ${clientName},</p>
       <p>${therapistName} sent you an invoice for your recent session.</p>
       <p>Amount due: ${amountLabel} USD<br>Due date: ${dueDate}</p>
       <p><a href="${paymentUrl}" style="color: #1d4ed8;">View your invoice</a></p>
@@ -210,7 +212,7 @@ export async function sendInvoiceNotification(
   `;
 
   const text = [
-    `Hello ${clientName},`,
+    `Hi ${clientName},`,
     "",
     `${therapistName} sent you an invoice for your recent session.`,
     "",

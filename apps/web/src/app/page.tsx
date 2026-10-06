@@ -13,15 +13,15 @@ export default function HomePage() {
         <div className="space-y-4 text-center">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">SoloPractice</h1>
           <p className="mx-auto max-w-2xl text-lg text-muted-foreground sm:text-xl">
-            Run intake, schedule, and get paid from your phone.
-            Session notes stay on your computer — always.
+            Run your practice from your phone — intake, schedule, and get paid.
+            Session notes stay on your computer.
           </p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>For Therapists</CardTitle>
+              <CardTitle>For therapists</CardTitle>
               <CardDescription>
                 Clients, forms, calendar, and invoices — built for your phone
               </CardDescription>
@@ -42,18 +42,20 @@ export default function HomePage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckIcon />
-                  1% on payments only — clients, notes, and local AI stay free
+                  No monthly fee — clients, notes storage, and local offline
+                  note AI stay free; only 1% when you get paid (plus card
+                  processing)
                 </li>
               </ul>
               <Link href="/therapist/login" className="block">
-                <Button className={touchStackActionClassName}>Therapist Sign In</Button>
+                <Button className={touchStackActionClassName}>Therapist sign in</Button>
               </Link>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>For Clients</CardTitle>
+              <CardTitle>For clients</CardTitle>
               <CardDescription>
                 Sign forms and pay invoices — no account needed
               </CardDescription>
@@ -62,7 +64,7 @@ export default function HomePage() {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <CheckIcon />
-                  Sign consent forms online
+                  Sign intake forms online
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckIcon />
@@ -74,7 +76,7 @@ export default function HomePage() {
                 </li>
               </ul>
               <p className="text-sm text-muted-foreground">
-                Check your email for a forms or payment link from your therapist.
+                Check your email for an intake or payment link from your therapist.
               </p>
             </CardContent>
           </Card>
@@ -102,11 +104,11 @@ export default function HomePage() {
             </div>
             <div className="flex items-center gap-2">
               <ShieldIcon />
-              Recordings never leave your desktop
+              Recordings stay on your desktop
             </div>
             <div className="flex items-center gap-2">
               <ShieldIcon />
-              Clinical notes never sync to the web
+              Clinical work never syncs to the web
             </div>
           </div>
         </div>

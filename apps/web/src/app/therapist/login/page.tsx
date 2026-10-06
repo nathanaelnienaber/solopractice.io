@@ -30,7 +30,7 @@ export default function TherapistLoginPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to send sign-in link");
+        throw new Error(data.error || "Couldn't send sign-in link");
       }
 
       setSent(true);
@@ -72,7 +72,7 @@ export default function TherapistLoginPage() {
     <CenteredShell>
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Therapist Sign In</CardTitle>
+          <CardTitle>Therapist sign in</CardTitle>
           <CardDescription>
             Enter your email and we&apos;ll send you a link to sign in.
           </CardDescription>

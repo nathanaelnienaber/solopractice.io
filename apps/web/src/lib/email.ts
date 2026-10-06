@@ -114,13 +114,13 @@ export async function sendMagicLink(
       ? "This link expires in 15 minutes."
       : "This link expires in 7 days.";
 
-  const actionLabel = type === "therapist" ? "Sign In" : "Open Link";
+  const actionLabel = type === "therapist" ? "Sign in" : "Open link";
   const heading =
     type === "therapist" ? "Sign in to SoloPractice" : "Your SoloPractice link";
   const intro =
     type === "therapist"
-      ? "sign in to your practice dashboard"
-      : "open the secure link from your therapist";
+      ? "sign in to your practice"
+      : "open the link from your therapist";
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">

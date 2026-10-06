@@ -45,8 +45,8 @@ export function ConsentFormsPanel({ forms }: ConsentFormsPanelProps) {
       </div>
 
       <p className="mt-4 text-sm text-muted-foreground">
-        <strong>Note:</strong> Current forms are draft templates for testing.
-        Have an attorney review before using with real clients.
+        <strong>Note:</strong> These are draft templates for testing.
+        Have a healthcare attorney review them before using with real clients.
       </p>
 
       <Dialog

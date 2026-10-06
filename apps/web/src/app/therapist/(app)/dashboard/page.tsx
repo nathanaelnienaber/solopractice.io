@@ -66,7 +66,7 @@ export default async function TherapistDashboard() {
       <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Total Clients</CardDescription>
+            <CardDescription>Total clients</CardDescription>
             <CardTitle className="text-3xl">{clientCount?.count ?? 0}</CardTitle>
           </CardHeader>
           <CardContent>
@@ -80,7 +80,7 @@ export default async function TherapistDashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Unpaid Invoices</CardDescription>
+            <CardDescription>Unpaid invoices</CardDescription>
             <CardTitle className="text-3xl">{pendingInvoiceCount?.count ?? 0}</CardTitle>
           </CardHeader>
           <CardContent>
@@ -94,7 +94,7 @@ export default async function TherapistDashboard() {
 
         <Card className="sm:col-span-2 md:col-span-1">
           <CardHeader className="pb-2">
-            <CardDescription>Upcoming Appointments</CardDescription>
+            <CardDescription>Upcoming appointments</CardDescription>
             <CardTitle className="text-3xl">{upcomingAppointmentCount?.count ?? 0}</CardTitle>
           </CardHeader>
           <CardContent>
@@ -110,14 +110,14 @@ export default async function TherapistDashboard() {
       {!therapist.stripeOnboardingComplete && (
         <Card className="border-warning">
           <CardHeader>
-            <CardTitle className="text-warning">Complete payment setup</CardTitle>
+            <CardTitle className="text-warning">Finish Payment Setup</CardTitle>
             <CardDescription>
-              Set up payments to start receiving money from clients.
+              Set up payments so you can get paid when you send invoices.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Link href="/therapist/settings#stripe">
-              <Button className={touchActionClassName}>Set up payments &rarr;</Button>
+              <Button className={touchActionClassName}>Go to Payment Setup &rarr;</Button>
             </Link>
           </CardContent>
         </Card>
@@ -125,9 +125,9 @@ export default async function TherapistDashboard() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent Clients</CardTitle>
+          <CardTitle>Recent clients</CardTitle>
           <CardDescription>
-            Your newest clients and whether their intake forms are done
+            Newest clients and whether their intake forms are done
           </CardDescription>
         </CardHeader>
         <CardContent>

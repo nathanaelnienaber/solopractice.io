@@ -108,11 +108,11 @@ export function PracticeInfoPanel({ initial }: PracticeInfoPanelProps) {
             <p className="font-medium">{info.credentials}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">License State</p>
+            <p className="text-sm text-muted-foreground">License state</p>
             <p className="font-medium">{info.licenseState}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Practice Name</p>
+            <p className="text-sm text-muted-foreground">Practice name</p>
             <p className="font-medium">
               {info.practiceName?.trim() || (
                 <span className="text-muted-foreground font-normal">

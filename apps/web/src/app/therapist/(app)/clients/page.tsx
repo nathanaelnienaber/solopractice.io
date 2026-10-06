@@ -193,7 +193,7 @@ function AddClientForm({
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to create client");
+        throw new Error(data.error || "Couldn't add client");
       }
 
       onSuccess();

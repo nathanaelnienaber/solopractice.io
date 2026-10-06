@@ -41,7 +41,7 @@ export default function OfflinePage() {
           className={touchStackActionClassName}
           onClick={() => window.location.reload()}
         >
-          Try Again
+          Try again
         </Button>
       </div>
     </CenteredShell>

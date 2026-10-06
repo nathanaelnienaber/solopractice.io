@@ -6,7 +6,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "SoloPractice",
   description:
-    "Run intake, schedule, and get paid from your phone. Session notes stay on your computer.",
+    "Run your practice from your phone — intake, schedule, and get paid. Session notes stay on your computer.",
 };
 
 export default function RootLayout({

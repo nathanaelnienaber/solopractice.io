@@ -54,7 +54,7 @@ export default async function ConsentPage({ params }: PageProps) {
     <main className="min-h-screen bg-background">
       <header className="border-b border-border">
         <div className="mx-auto max-w-3xl px-4 py-6">
-          <h1 className="text-2xl font-bold">Intake Forms</h1>
+          <h1 className="text-2xl font-bold">Intake forms</h1>
           <p className="text-muted-foreground">
             {client.therapist.practiceName ||
               `${client.therapist.firstName} ${client.therapist.lastName}, ${client.therapist.credentials}`}
@@ -92,8 +92,8 @@ export default async function ConsentPage({ params }: PageProps) {
                 DRAFT — NOT LEGAL ADVICE
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                These are sample forms for testing. Do not use with real clients
-                until a healthcare attorney reviews them for your practice.
+                These are sample forms for testing only — not final legal
+                documents. Ask your therapist if you have questions.
               </p>
             </div>
 

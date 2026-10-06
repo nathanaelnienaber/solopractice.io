@@ -35,7 +35,7 @@ export function ConsentForm({ clientId, token, forms }: ConsentFormProps) {
 
   async function handleSign() {
     if (!signature.trim()) {
-      alert("Please type your name to sign");
+      alert("Please type your full name to sign");
       return;
     }
 
@@ -54,7 +54,7 @@ export function ConsentForm({ clientId, token, forms }: ConsentFormProps) {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to sign consent");
+        throw new Error("Couldn't sign this form");
       }
 
       if (isLastForm) {
@@ -64,7 +64,7 @@ export function ConsentForm({ clientId, token, forms }: ConsentFormProps) {
         setCurrentIndex((i) => i + 1);
       }
     } catch (error) {
-      alert("Failed to sign. Please try again.");
+      alert("Couldn't sign. Please try again.");
     } finally {
       setSigning(false);
     }
@@ -113,7 +113,7 @@ export function ConsentForm({ clientId, token, forms }: ConsentFormProps) {
               loading={signing}
               disabled={!signature.trim()}
             >
-              {isLastForm ? "Sign & Complete" : "Sign & Continue"}
+              {isLastForm ? "Sign and finish" : "Sign and continue"}
             </Button>
           </ActionStack>
         </div>

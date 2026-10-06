@@ -69,9 +69,9 @@ export default async function SettingsPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Practice Information</CardTitle>
+          <CardTitle>Practice information</CardTitle>
           <CardDescription>
-            Update how your name and practice appear to clients.
+            How your name and practice appear to clients on forms and invoices.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -107,8 +107,8 @@ export default async function SettingsPage({
           <CardDescription>
             Get set up to receive payments from clients. SoloPractice&apos;s
             only cost is 1% on payments you collect, plus normal card
-            processing fees — no monthly fee, and no charge for clients,
-            notes, or local note AI.
+            processing — no monthly fee, and no charge for clients, notes
+            storage, or local offline note AI.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -132,10 +132,11 @@ export default async function SettingsPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Consent Forms</CardTitle>
+          <CardTitle>Intake forms</CardTitle>
           <CardDescription>
             Review the forms clients sign before starting. All five are
-            required. Templates are drafts until an attorney reviews them.
+            required. Templates are drafts until an attorney reviews them for
+            your practice.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -156,14 +157,14 @@ export default async function SettingsPage({
           <CardDescription>
             Automatic texts go out about 24 hours before an appointment when
             the client has a phone number and no reminder has been sent yet.
-            You can also send one from the calendar anytime.
+            You can also send one anytime from the calendar with Send Reminder.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            If automatic reminders aren&apos;t arriving, SMS may not be enabled
-            for this account yet. Manual &ldquo;Send Reminder&rdquo; from the
-            calendar still works when SMS is configured.
+            If automatic reminders aren&apos;t arriving, texting may not be
+            enabled for this account yet. Contact support if you need it turned
+            on.
           </p>
         </CardContent>
       </Card>

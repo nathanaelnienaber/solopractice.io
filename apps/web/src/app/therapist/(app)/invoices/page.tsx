@@ -118,12 +118,12 @@ function InvoicesView() {
       ) : invoices.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="mb-4 text-muted-foreground">No invoices yet</p>
+            <p className="mb-4 text-muted-foreground">{t("invoices.noInvoices")}</p>
             <Button
               className={touchStackActionClassName}
               onClick={() => setShowCreateForm(true)}
             >
-              Create your first invoice
+              {t("invoices.createFirst")}
             </Button>
           </CardContent>
         </Card>
@@ -145,9 +145,9 @@ function InvoicesView() {
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <p>
-            Clients, notes, and the local AI that drafts session notes from
-            transcripts are free. Other tools often meter clients — and cloud
-            note AI usually runs $20–40+/mo.
+            No charge for clients, for storing notes, or for the local offline
+            note AI that drafts session notes from transcripts. Other tools
+            often meter clients — and cloud note AI usually runs $20–40+/mo.
           </p>
           <p>
             Our note AI runs on your computer and never goes online. Slower than
@@ -156,8 +156,7 @@ function InvoicesView() {
           <p>
             SoloPractice&apos;s only cost is{" "}
             <span className="font-medium text-foreground">1% on payments</span>{" "}
-            you collect, plus normal card processing fees. No monthly
-            subscription.
+            you collect, plus normal card processing. No monthly fee.
           </p>
         </CardContent>
       </Card>
@@ -201,7 +200,7 @@ function CreateInvoiceForm({
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to create invoice");
+        throw new Error(data.error || "Couldn't create invoice");
       }
 
       onSuccess();
@@ -218,9 +217,9 @@ function CreateInvoiceForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Create Invoice</CardTitle>
+        <CardTitle>Create invoice</CardTitle>
         <CardDescription>
-          Create an invoice and email your client a link to pay
+          Create an invoice, then send your client an email with a link to pay
         </CardDescription>
       </CardHeader>
       <CardContent>

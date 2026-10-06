@@ -97,7 +97,7 @@ export default async function PaymentPage({ params, searchParams }: PageProps) {
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4 border-t pt-3">
-                  <span className="shrink-0 font-medium">Amount Due</span>
+                  <span className="shrink-0 font-medium">Amount due</span>
                   <span className="text-2xl font-bold">
                     ${(invoice.amountCents / 100).toFixed(2)}
                   </span>
@@ -107,8 +107,7 @@ export default async function PaymentPage({ params, searchParams }: PageProps) {
               <PayButton invoiceId={invoice.id} />
 
               <p className="text-center text-xs text-muted-foreground">
-                Secure payment. Includes a 1% SoloPractice fee (plus normal card
-                processing).
+                Secure card payment.
               </p>
             </>
           )}

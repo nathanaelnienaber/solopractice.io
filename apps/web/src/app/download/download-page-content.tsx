@@ -53,8 +53,8 @@ export function DownloadPageContent() {
   return (
     <PageShell className="max-w-3xl space-y-10 py-12">
       <PageHeader
-        title="Download the SoloPractice app"
-        description="This is the app you’ll use every day for clinical work — session recording, notes, and superbills. Scheduling and invoices stay on the web. Clinical notes never leave this computer."
+        title="Download the SoloPractice desktop app"
+        description="Clinical work lives here — session recording, notes, and superbills on your computer. Scheduling and invoices stay on the web. Notes never leave this machine."
         eyebrow={<Badge variant="default">Free during trial</Badge>}
       />
 

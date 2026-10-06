@@ -155,7 +155,8 @@ export function Settings({ onReopenWizard }: SettingsProps) {
           <h2 className="text-lg font-medium">Superbill</h2>
           <p className="text-sm text-muted-foreground">
             Use the Superbill item in the left sidebar to create a PDF with diagnosis and
-            procedure codes. Superbills stay on this computer and are never synced to the web.
+            procedure codes, or fulfill client requests under Pending. Superbills stay on
+            this computer and are never synced to the web.
           </p>
         </section>
 

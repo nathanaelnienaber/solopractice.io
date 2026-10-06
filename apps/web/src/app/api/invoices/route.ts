@@ -35,6 +35,9 @@ export async function GET(request: NextRequest) {
       status: invoice.status,
       dueDate: invoice.dueDate,
       paidAt: invoice.paidAt,
+      superbillRequestStatus: invoice.superbillRequestStatus,
+      superbillRequestedAt: invoice.superbillRequestedAt,
+      superbillSentAt: invoice.superbillSentAt,
     })),
   });
 }

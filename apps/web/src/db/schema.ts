@@ -58,6 +58,13 @@ export const invoiceStatusEnum = pgEnum("invoice_status", [
   "refunded",
 ]);
 
+/** Ops-only: client asked for a superbill; clinical PDF stays on desktop. */
+export const superbillRequestStatusEnum = pgEnum("superbill_request_status", [
+  "none",
+  "requested",
+  "sent",
+]);
+
 export const therapists = pgTable("therapists", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
@@ -145,6 +152,12 @@ export const invoices = pgTable("invoices", {
   stripePaymentIntentId: text("stripe_payment_intent_id"),
   paidAt: timestamp("paid_at"),
   sentAt: timestamp("sent_at"),
+  // Superbill request status only — never Dx/CPT/DOB/PDF on this row.
+  superbillRequestStatus: superbillRequestStatusEnum("superbill_request_status")
+    .notNull()
+    .default("none"),
+  superbillRequestedAt: timestamp("superbill_requested_at"),
+  superbillSentAt: timestamp("superbill_sent_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

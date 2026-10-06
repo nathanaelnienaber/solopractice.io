@@ -172,6 +172,27 @@ describe("Real-world attack scenarios", () => {
     expect(isWebSafePayload(attackPayload)).toBe(false);
   });
 
+  it("should block DOB and superbill PDF fields on web payloads", () => {
+    expect(
+      isWebSafePayload({ invoiceId: "inv-1", dateOfBirth: "1990-01-01" })
+    ).toBe(false);
+    expect(
+      isWebSafePayload({ invoiceId: "inv-1", clientDob: "1990-01-01" })
+    ).toBe(false);
+    expect(
+      isWebSafePayload({ invoiceId: "inv-1", superbillPdf: "base64..." })
+    ).toBe(false);
+  });
+
+  it("should allow superbill request status fields (ops only)", () => {
+    const safePayload = {
+      invoiceId: "inv-123",
+      superbillRequestStatus: "requested",
+      action: "mark_sent",
+    };
+    expect(isWebSafePayload(safePayload)).toBe(true);
+  });
+
   it("should allow legitimate web ops data", () => {
     const safePayload = {
       clientId: "client-123",

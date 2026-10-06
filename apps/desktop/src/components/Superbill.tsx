@@ -42,6 +42,19 @@ interface SuperbillRecord {
   createdAt: string;
 }
 
+interface PendingRequest {
+  invoiceId: string;
+  clientId: string;
+  clientFirstName: string;
+  clientLastName: string;
+  clientEmail: string;
+  amountCents: number;
+  description: string;
+  paidAt: string | null;
+  superbillRequestStatus: string;
+  superbillRequestedAt: string | null;
+}
+
 const COMMON_DIAGNOSIS_CODES: DiagnosisCode[] = [
   { code: "F41.1", description: "Generalized Anxiety Disorder" },
   { code: "F41.0", description: "Panic Disorder" },
@@ -75,11 +88,19 @@ const COMMON_CPT_CODES = [
 ];
 
 export function Superbill() {
-  const [view, setView] = useState<"form" | "history">("form");
+  const [view, setView] = useState<"form" | "pending" | "history">("form");
   const [clients, setClients] = useState<Client[]>([]);
   const [superbills, setSuperbills] = useState<SuperbillRecord[]>([]);
+  const [pending, setPending] = useState<PendingRequest[]>([]);
+  const [pendingError, setPendingError] = useState("");
+  const [pendingLoading, setPendingLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generatedPath, setGeneratedPath] = useState<string | null>(null);
+  const [fulfillingInvoiceId, setFulfillingInvoiceId] = useState<string | null>(
+    null
+  );
+  const [clientEmailForShare, setClientEmailForShare] = useState("");
+  const [markingSent, setMarkingSent] = useState(false);
 
   // Form state
   const [selectedClient, setSelectedClient] = useState<string>("");
@@ -102,6 +123,7 @@ export function Superbill() {
   useEffect(() => {
     loadClients();
     loadSuperbills();
+    loadPending();
   }, []);
 
   async function loadClients() {
@@ -120,6 +142,46 @@ export function Superbill() {
     } catch (error) {
       console.error("Failed to load superbills:", error);
     }
+  }
+
+  async function loadPending() {
+    setPendingLoading(true);
+    setPendingError("");
+    try {
+      const result = await invoke<PendingRequest[]>("get_pending_superbill_requests");
+      setPending(result);
+    } catch (error) {
+      console.error("Failed to load pending requests:", error);
+      setPendingError(
+        error instanceof Error ? error.message : String(error)
+      );
+      setPending([]);
+    } finally {
+      setPendingLoading(false);
+    }
+  }
+
+  function fulfillRequest(req: PendingRequest) {
+    setSelectedClient(req.clientId);
+    setClientEmailForShare(req.clientEmail);
+    setFulfillingInvoiceId(req.invoiceId);
+    if (req.paidAt) {
+      const d = new Date(req.paidAt);
+      if (!Number.isNaN(d.getTime())) {
+        setServiceDate(d.toISOString().split("T")[0]!);
+      }
+    }
+    const cpt = COMMON_CPT_CODES[2]!; // 90837 suggestion; therapist can change
+    setSelectedServices([
+      {
+        cptCode: cpt.code,
+        description: cpt.description,
+        units: 1,
+        chargeCents: req.amountCents,
+        diagnosisPointer: "A",
+      },
+    ]);
+    setView("form");
   }
 
   function addDiagnosis(dx: DiagnosisCode) {
@@ -164,6 +226,10 @@ export function Superbill() {
       alert("Please select a client");
       return;
     }
+    if (!clientDob.trim()) {
+      alert("Client date of birth is required");
+      return;
+    }
     if (selectedDiagnoses.length === 0) {
       alert("Please add at least one diagnosis code");
       return;
@@ -176,6 +242,19 @@ export function Superbill() {
       alert("Please fill in therapist information");
       return;
     }
+    if (!therapistInfo.credentials.trim()) {
+      alert("Credentials are required");
+      return;
+    }
+    if (
+      !therapistInfo.addressStreet.trim() ||
+      !therapistInfo.addressCity.trim() ||
+      !therapistInfo.addressState.trim() ||
+      !therapistInfo.addressZip.trim()
+    ) {
+      alert("Provider street, city, state, and ZIP are required");
+      return;
+    }
 
     setGenerating(true);
     setGeneratedPath(null);
@@ -184,9 +263,10 @@ export function Superbill() {
       const path = await invoke<string>("generate_superbill", {
         input: {
           sessionId: null,
+          webInvoiceId: fulfillingInvoiceId,
           clientId: selectedClient,
           clientName: `${client.firstName} ${client.lastName}`,
-          clientDob: clientDob || null,
+          clientDob: clientDob,
           clientAddress: clientAddress || null,
           clientPhone: clientPhone || null,
           serviceDate: new Date(serviceDate ?? new Date().toISOString().split("T")[0]!).toLocaleDateString("en-US"),
@@ -215,6 +295,36 @@ export function Superbill() {
     }
   }
 
+  function openLocalMailShare() {
+    const client = clients.find((c) => c.id === selectedClient);
+    const to = encodeURIComponent(clientEmailForShare || "");
+    const subject = encodeURIComponent("Your superbill");
+    const body = encodeURIComponent(
+      `Hi${client ? ` ${client.firstName}` : ""},\n\nYour superbill PDF is attached from your therapist's computer (not uploaded to SoloPractice).\n\nPlease attach the PDF file from your Downloads or the app data folder before sending.\n`
+    );
+    window.open(`mailto:${to}?subject=${subject}&body=${body}`, "_blank");
+  }
+
+  async function markRequestSent() {
+    if (!fulfillingInvoiceId) {
+      alert("No pending request linked — open one from Pending requests first.");
+      return;
+    }
+    setMarkingSent(true);
+    try {
+      await invoke("mark_superbill_request_sent", {
+        invoiceId: fulfillingInvoiceId,
+      });
+      setFulfillingInvoiceId(null);
+      loadPending();
+      alert("Marked as sent. The client pay page will show Superbill sent.");
+    } catch (error) {
+      alert("Couldn't mark sent: " + error);
+    } finally {
+      setMarkingSent(false);
+    }
+  }
+
   const totalCents = selectedServices.reduce(
     (sum, s) => sum + s.chargeCents * s.units,
     0
@@ -236,6 +346,19 @@ export function Superbill() {
             Create New
           </button>
           <button
+            onClick={() => {
+              setView("pending");
+              loadPending();
+            }}
+            className={`px-3 py-1 rounded-lg text-sm ${
+              view === "pending"
+                ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
+                : "bg-[var(--muted)] text-[var(--foreground)]"
+            }`}
+          >
+            Pending ({pending.length})
+          </button>
+          <button
             onClick={() => setView("history")}
             className={`px-3 py-1 rounded-lg text-sm ${
               view === "history"
@@ -251,18 +374,46 @@ export function Superbill() {
       <div className="flex-1 overflow-y-auto p-4">
         {view === "form" ? (
           <div className="max-w-3xl mx-auto space-y-6">
-            {/* Success message */}
             {generatedPath && (
-              <div className="p-4 bg-[var(--success)]/10 border border-[var(--success)]/20 rounded-lg">
-                <p className="text-[var(--success)] font-medium mb-2">
-                  Superbill generated successfully!
+              <div className="p-4 bg-[var(--success)]/10 border border-[var(--success)]/20 rounded-lg space-y-3">
+                <p className="text-[var(--success)] font-medium">
+                  Superbill generated successfully — saved on this computer only.
                 </p>
-                <button
-                  onClick={() => openPdf(generatedPath)}
-                  className="px-4 py-2 bg-[var(--success)] text-white rounded-lg text-sm"
-                >
-                  Open PDF
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => openPdf(generatedPath)}
+                    className="px-4 py-2 bg-[var(--success)] text-white rounded-lg text-sm"
+                  >
+                    Open PDF
+                  </button>
+                  <button
+                    onClick={openLocalMailShare}
+                    className="px-4 py-2 bg-[var(--muted)] text-[var(--foreground)] rounded-lg text-sm"
+                  >
+                    Open mail client
+                  </button>
+                  {fulfillingInvoiceId && (
+                    <button
+                      onClick={markRequestSent}
+                      disabled={markingSent}
+                      className="px-4 py-2 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-lg text-sm disabled:opacity-50"
+                    >
+                      {markingSent ? "Marking…" : "Mark sent"}
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  Attach the PDF yourself in your mail app. SoloPractice never
+                  emails or stores the superbill PDF.
+                </p>
+              </div>
+            )}
+
+            {fulfillingInvoiceId && !generatedPath && (
+              <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--muted)]/40 text-sm">
+                Fulfilling request for invoice{" "}
+                <span className="font-mono text-xs">{fulfillingInvoiceId.slice(0, 8)}…</span>
+                . Enter Dx/CPT and DOB, generate PDF, share locally, then Mark sent.
               </div>
             )}
 
@@ -289,12 +440,13 @@ export function Superbill() {
                 </div>
                 <div>
                   <label className="block text-sm text-[var(--muted-foreground)] mb-1">
-                    Date of Birth
+                    Date of Birth (required)
                   </label>
                   <input
                     type="date"
                     value={clientDob}
                     onChange={(e) => setClientDob(e.target.value)}
+                    required
                     className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)]"
                   />
                 </div>
@@ -532,7 +684,7 @@ export function Superbill() {
               </div>
               <div>
                 <label className="block text-sm text-[var(--muted-foreground)] mb-1">
-                  Address
+                  Address (street, city, state, ZIP required)
                 </label>
                 <input
                   type="text"
@@ -610,6 +762,62 @@ export function Superbill() {
                 {generating ? "Generating..." : "Generate Superbill PDF"}
               </button>
             </section>
+          </div>
+        ) : view === "pending" ? (
+          <div className="max-w-3xl mx-auto space-y-4">
+            <p className="text-sm text-[var(--muted-foreground)]">
+              Clients who paid and requested a superbill. Generate the PDF on
+              this computer, share it yourself (mail client / file), then mark
+              sent. Clinical codes never sync to the web.
+            </p>
+            {pendingLoading ? (
+              <p className="text-[var(--muted-foreground)]">Loading…</p>
+            ) : pendingError ? (
+              <p className="text-sm text-[var(--destructive)]" role="alert">
+                {pendingError}
+              </p>
+            ) : pending.length === 0 ? (
+              <div className="text-center py-12 text-[var(--muted-foreground)]">
+                No pending superbill requests
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {pending.map((req) => (
+                  <div
+                    key={req.invoiceId}
+                    className="flex items-center justify-between gap-4 p-4 border border-[var(--border)] rounded-lg"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium">
+                        {req.clientFirstName} {req.clientLastName}
+                      </p>
+                      <p className="text-sm text-[var(--muted-foreground)] truncate">
+                        {req.description} · $
+                        {(req.amountCents / 100).toFixed(2)}
+                        {req.superbillRequestedAt
+                          ? ` · requested ${new Date(
+                              req.superbillRequestedAt
+                            ).toLocaleDateString()}`
+                          : ""}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => fulfillRequest(req)}
+                      className="shrink-0 px-4 py-2 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-lg text-sm"
+                    >
+                      Prepare
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={loadPending}
+              className="text-sm text-[var(--primary)] underline"
+            >
+              Refresh
+            </button>
           </div>
         ) : (
           /* History View */

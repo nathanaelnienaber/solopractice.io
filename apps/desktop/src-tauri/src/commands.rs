@@ -643,6 +643,8 @@ pub async fn test_web_connection(app: AppHandle, url: String) -> Result<bool, St
 #[serde(rename_all = "camelCase")]
 pub struct GenerateSuperbillInput {
     pub session_id: Option<String>,
+    /// When fulfilling a web request, the paid invoice id (ops link only).
+    pub web_invoice_id: Option<String>,
     pub client_id: String,
     pub client_name: String,
     pub client_dob: Option<String>,
@@ -775,6 +777,14 @@ pub async fn generate_superbill(
     if input.client_id.is_empty() {
         return Err("clientId is required".to_string());
     }
+    let dob = input
+        .client_dob
+        .as_ref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty());
+    if dob.is_none() {
+        return Err("Client date of birth is required for a superbill".to_string());
+    }
     if input.diagnosis_codes.is_empty() {
         return Err("At least one diagnosis code is required".to_string());
     }
@@ -785,6 +795,21 @@ pub async fn generate_superbill(
         || input.therapist_info.therapist_name.trim().is_empty()
     {
         return Err("Practice name and therapist name are required".to_string());
+    }
+    if input.therapist_info.credentials.trim().is_empty() {
+        return Err("Credentials are required".to_string());
+    }
+    if input.therapist_info.address_street.trim().is_empty()
+        || input.therapist_info.address_city.trim().is_empty()
+        || input.therapist_info.address_state.trim().is_empty()
+        || input.therapist_info.address_zip.trim().is_empty()
+    {
+        return Err(
+            "Provider street, city, state, and ZIP are required for the letterhead".to_string(),
+        );
+    }
+    if input.service_date.trim().is_empty() {
+        return Err("Service date is required".to_string());
     }
 
     let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
@@ -823,7 +848,10 @@ pub async fn generate_superbill(
         .map(|s| (s.charge_cents as i64) * (s.units as i64))
         .sum();
 
-    let invoice_id = uuid::Uuid::new_v4().to_string();
+    let invoice_id = input
+        .web_invoice_id
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
     let invoice_short = invoice_id.chars().take(8).collect::<String>();
     let invoice_number = format!("SB-{}", invoice_short.to_uppercase());
 
@@ -1217,6 +1245,132 @@ pub async fn open_superbill_pdf(app: AppHandle, path: String) -> Result<(), Stri
     app.shell()
         .open(path, None)
         .map_err(|e| format!("Failed to open PDF: {}", e))
+}
+
+/// Ops-only pending superbill requests from the web portal (status + invoice metadata).
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SuperbillRequestItem {
+    pub invoice_id: String,
+    pub client_id: String,
+    pub client_first_name: String,
+    pub client_last_name: String,
+    pub client_email: String,
+    pub amount_cents: i64,
+    pub description: String,
+    pub paid_at: Option<String>,
+    pub superbill_request_status: String,
+    pub superbill_requested_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SuperbillRequestsResponse {
+    requests: Vec<SuperbillRequestItem>,
+}
+
+async fn fetch_superbill_requests(
+    web_api_url: &str,
+    api_key: &str,
+) -> Result<Vec<SuperbillRequestItem>, String> {
+    let client = sync_http_client()?;
+    let url = format!(
+        "{}/api/desktop/superbill-requests?status=requested",
+        web_api_url.trim_end_matches('/')
+    );
+    let resp = client
+        .get(&url)
+        .header(DESKTOP_API_KEY_HEADER, api_key)
+        .send()
+        .await
+        .map_err(|e| format!("Couldn't reach superbill requests: {}", e))?;
+
+    if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
+        return Err("Desktop API key rejected — check Settings → Desktop connection".to_string());
+    }
+    if !resp.status().is_success() {
+        return Err(format!(
+            "Superbill requests returned HTTP {}",
+            resp.status()
+        ));
+    }
+
+    let body: SuperbillRequestsResponse = resp
+        .json()
+        .await
+        .map_err(|e| format!("Couldn't parse superbill requests: {}", e))?;
+    Ok(body.requests)
+}
+
+#[tauri::command]
+pub async fn get_pending_superbill_requests(
+    app: AppHandle,
+) -> Result<Vec<SuperbillRequestItem>, String> {
+    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
+    let web_api_url = read_setting(&conn, "web_api_url").unwrap_or_default();
+    let api_key = read_setting(&conn, "desktop_api_key").unwrap_or_default();
+    if web_api_url.trim().is_empty() || api_key.trim().is_empty() {
+        return Err(
+            "Connect to the web portal in Settings before loading superbill requests".to_string(),
+        );
+    }
+    fetch_superbill_requests(&web_api_url, &api_key).await
+}
+
+async fn post_mark_superbill_sent(
+    web_api_url: &str,
+    api_key: &str,
+    invoice_id: &str,
+) -> Result<(), String> {
+    let client = sync_http_client()?;
+    let url = format!(
+        "{}/api/desktop/superbill-requests",
+        web_api_url.trim_end_matches('/')
+    );
+    let resp = client
+        .post(&url)
+        .header(DESKTOP_API_KEY_HEADER, api_key)
+        .json(&serde_json::json!({
+            "invoiceId": invoice_id,
+            "action": "mark_sent"
+        }))
+        .send()
+        .await
+        .map_err(|e| format!("Couldn't mark superbill sent: {}", e))?;
+
+    if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
+        return Err("Desktop API key rejected — check Settings → Desktop connection".to_string());
+    }
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!(
+            "Mark sent failed (HTTP {}): {}",
+            status,
+            body.chars().take(200).collect::<String>()
+        ));
+    }
+    Ok(())
+}
+
+/// Mark a web invoice's superbill request as sent after local PDF share.
+/// Never uploads PDF bytes — status timestamp only.
+#[tauri::command]
+pub async fn mark_superbill_request_sent(
+    app: AppHandle,
+    invoice_id: String,
+) -> Result<(), String> {
+    if invoice_id.trim().is_empty() {
+        return Err("invoiceId is required".to_string());
+    }
+    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
+    let web_api_url = read_setting(&conn, "web_api_url").unwrap_or_default();
+    let api_key = read_setting(&conn, "desktop_api_key").unwrap_or_default();
+    if web_api_url.trim().is_empty() || api_key.trim().is_empty() {
+        return Err(
+            "Connect to the web portal in Settings before marking a superbill sent".to_string(),
+        );
+    }
+    post_mark_superbill_sent(&web_api_url, &api_key, &invoice_id).await
 }
 
 // ---------------------------------------------------------------------------

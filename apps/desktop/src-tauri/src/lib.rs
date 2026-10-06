@@ -188,6 +188,8 @@ pub fn run() {
             commands::test_web_connection,
             commands::generate_superbill,
             commands::get_superbills,
+            commands::get_pending_superbill_requests,
+            commands::mark_superbill_request_sent,
             commands::sync_clients,
             commands::get_client_sessions,
             commands::get_full_session,

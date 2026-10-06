@@ -28,6 +28,11 @@ export const INVOICE_STATUS = [
 
 export type InvoiceStatus = (typeof INVOICE_STATUS)[number];
 
+/** Ops-only status for Ivy-like pay → request superbill. No clinical payload. */
+export const SUPERBILL_REQUEST_STATUS = ["none", "requested", "sent"] as const;
+
+export type SuperbillRequestStatus = (typeof SUPERBILL_REQUEST_STATUS)[number];
+
 export interface Invoice {
   id: InvoiceId;
   clientId: ClientId;
@@ -41,6 +46,10 @@ export interface Invoice {
   stripePaymentIntentId?: string;
   paidAt?: Timestamp;
   sentAt?: Timestamp;
+  /** Client requested a superbill for this paid invoice (status only). */
+  superbillRequestStatus: SuperbillRequestStatus;
+  superbillRequestedAt?: Timestamp;
+  superbillSentAt?: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

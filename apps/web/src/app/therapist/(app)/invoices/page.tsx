@@ -145,19 +145,28 @@ function InvoicesView() {
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <p>
-            No charge for clients, for storing notes, or for the local offline
-            note AI that drafts session notes from transcripts. Other tools
-            often meter clients — and cloud note AI usually runs $20–40+/mo.
+            Other practice apps usually charge every month — then add client
+            caps and cloud AI on top.
           </p>
-          <p>
-            Our note AI runs on your computer and never goes online. Slower than
-            cloud tools, but included.
-          </p>
-          <p>
-            SoloPractice&apos;s only cost is{" "}
-            <span className="font-medium text-foreground">1% on payments</span>{" "}
-            you collect, plus normal card processing. No monthly fee.
-          </p>
+          <ul className="list-disc space-y-2 pl-5">
+            <li>
+              <span className="font-medium text-foreground">Free:</span> clients,
+              notes storage, and local offline note AI (drafts from transcripts
+              on your computer)
+            </li>
+            <li>
+              Note AI{" "}
+              <span className="font-medium text-foreground">never goes online</span>
+              — slower than cloud tools, included (cloud note AI often
+              $20–40+/mo)
+            </li>
+            <li>
+              You only pay{" "}
+              <span className="font-medium text-foreground">1% when you get paid</span>
+              , plus normal card processing.{" "}
+              <span className="font-medium text-foreground">No monthly fee.</span>
+            </li>
+          </ul>
         </CardContent>
       </Card>
     </PageShell>

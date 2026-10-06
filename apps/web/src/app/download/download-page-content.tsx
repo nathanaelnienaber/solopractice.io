@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PublicChrome } from "@/components/PublicNav";
 import {
   ActionStack,
   PageHeader,
@@ -51,73 +52,75 @@ export function DownloadPageContent() {
   const secondary = (["mac", "windows", "linux"] as const).filter((os) => os !== featured);
 
   return (
-    <PageShell className="max-w-3xl space-y-10 py-12">
-      <PageHeader
-        title="Download the SoloPractice desktop app"
-        description="Clinical work lives here — session recording, notes, and superbills on your computer. Scheduling and invoices stay on the web. Notes never leave this machine."
-        eyebrow={<Badge variant="default">Free during trial</Badge>}
-      />
+    <PublicChrome>
+      <PageShell className="max-w-3xl space-y-10 py-12">
+        <PageHeader
+          title="Download the SoloPractice desktop app"
+          description="Clinical work lives here — session recording, notes, and superbills on your computer. Scheduling and invoices stay on the web. Notes never leave this machine."
+          eyebrow={<Badge variant="default">Free during trial</Badge>}
+        />
 
-      <Card className="border-primary/30">
-        <CardContent className="space-y-4 pt-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0 space-y-1">
-              <p className="text-sm text-muted-foreground">
-                {detectedOs ? "We think you’re using" : "Choose your computer"}
-              </p>
-              <CardTitle className="text-2xl">{OS_LABEL[featured]}</CardTitle>
-              <CardDescription>{OS_COPY[featured]}</CardDescription>
+        <Card className="border-primary/30">
+          <CardContent className="space-y-4 pt-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 space-y-1">
+                <p className="text-sm text-muted-foreground">
+                  {detectedOs ? "We think you’re using" : "Choose your computer"}
+                </p>
+                <CardTitle className="text-2xl">{OS_LABEL[featured]}</CardTitle>
+                <CardDescription>{OS_COPY[featured]}</CardDescription>
+              </div>
+              <a href={DOWNLOAD_URLS[featured]} download className="w-full sm:w-auto">
+                <Button size="lg" className={touchActionClassName}>
+                  Download for {OS_LABEL[featured]}
+                </Button>
+              </a>
             </div>
-            <a href={DOWNLOAD_URLS[featured]} download className="w-full sm:w-auto">
-              <Button size="lg" className={touchActionClassName}>
-                Download for {OS_LABEL[featured]}
-              </Button>
-            </a>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <div className="space-y-3">
-        <p className="text-center text-sm text-muted-foreground">
-          Using a different computer?
-        </p>
-        <ActionStack className="sm:flex-row sm:justify-center">
-          {secondary.map((os) => (
-            <a key={os} href={DOWNLOAD_URLS[os]} download className="w-full sm:w-auto">
-              <Button variant="outline" className={touchStackActionClassName}>
-                Download for {OS_LABEL[os]}
-              </Button>
-            </a>
-          ))}
-        </ActionStack>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">
-            {GATEKEEPER_NOTE[featured].title}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {GATEKEEPER_NOTE[featured].body}
+        <div className="space-y-3">
+          <p className="text-center text-sm text-muted-foreground">
+            Using a different computer?
           </p>
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            This warning shows up because we haven’t registered the app
-            with Apple/Microsoft yet — it doesn’t mean anything is wrong.
-            Nothing is uploaded anywhere without your say-so; your clinical
-            notes stay on your computer.
-          </p>
-        </CardContent>
-      </Card>
+          <ActionStack className="sm:flex-row sm:justify-center">
+            {secondary.map((os) => (
+              <a key={os} href={DOWNLOAD_URLS[os]} download className="w-full sm:w-auto">
+                <Button variant="outline" className={touchStackActionClassName}>
+                  Download for {OS_LABEL[os]}
+                </Button>
+              </a>
+            ))}
+          </ActionStack>
+        </div>
 
-      {DOWNLOAD_URLS_ARE_PLACEHOLDERS && process.env.NODE_ENV !== "production" && (
-        <p className="text-center text-xs text-warning">
-          Dev-only notice (hidden in production): download hrefs are still
-          placeholders in download-urls.ts — swap in the real release
-          asset URLs before this ships.
-        </p>
-      )}
-    </PageShell>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">
+              {GATEKEEPER_NOTE[featured].title}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {GATEKEEPER_NOTE[featured].body}
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+              This warning shows up because we haven’t registered the app
+              with Apple/Microsoft yet — it doesn’t mean anything is wrong.
+              Nothing is uploaded anywhere without your say-so; your clinical
+              notes stay on your computer.
+            </p>
+          </CardContent>
+        </Card>
+
+        {DOWNLOAD_URLS_ARE_PLACEHOLDERS && process.env.NODE_ENV !== "production" && (
+          <p className="text-center text-xs text-warning">
+            Dev-only notice (hidden in production): download hrefs are still
+            placeholders in download-urls.ts — swap in the real release
+            asset URLs before this ships.
+          </p>
+        )}
+      </PageShell>
+    </PublicChrome>
   );
 }

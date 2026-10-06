@@ -80,7 +80,7 @@ export default async function TherapistDashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Pending Invoices</CardDescription>
+            <CardDescription>Unpaid Invoices</CardDescription>
             <CardTitle className="text-3xl">{pendingInvoiceCount?.count ?? 0}</CardTitle>
           </CardHeader>
           <CardContent>
@@ -127,7 +127,7 @@ export default async function TherapistDashboard() {
         <CardHeader>
           <CardTitle>Recent Clients</CardTitle>
           <CardDescription>
-            Quick view of your newest clients and their consent status
+            Your newest clients and whether their intake forms are done
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -163,7 +163,7 @@ export default async function TherapistDashboard() {
                     <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                       <Badge variant={allSigned ? "success" : "warning"}>
                         {allSigned
-                          ? "Consents complete"
+                          ? "Forms complete"
                           : `${signedCount}/${totalRequired} signed`}
                       </Badge>
                       <Link href={`/therapist/clients/${client.id}`}>

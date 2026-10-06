@@ -26,15 +26,15 @@ export default function OfflinePage() {
           </svg>
         </div>
 
-        <h1 className="mb-2 text-2xl font-semibold">You&apos;re Offline</h1>
+        <h1 className="mb-2 text-2xl font-semibold">You&apos;re offline</h1>
 
         <p className="mb-6 text-muted-foreground">
-          It looks like you&apos;ve lost your internet connection.
-          The web portal requires an internet connection to access client data securely.
+          This page needs an internet connection to load clients, forms, and
+          invoices.
         </p>
 
         <p className="mb-8 text-sm text-muted-foreground">
-          Your clinical data on the Desktop app is always available offline.
+          Session notes on the desktop app still work offline.
         </p>
 
         <Button

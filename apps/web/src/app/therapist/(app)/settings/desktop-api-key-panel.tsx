@@ -15,11 +15,11 @@ interface KeyStatus {
 }
 
 /**
- * Desktop App API key panel.
+ * Desktop connection-code panel.
  *
- * Shows whether a key already exists (preview + created date only -- the
- * full key is never returned by GET, see /api/therapist/desktop-api-key).
- * "Generate New Key" calls POST, which returns the full key exactly once;
+ * Shows whether a code already exists (preview + created date only — the
+ * full code is never returned by GET, see /api/therapist/desktop-api-key).
+ * "Generate New Code" calls POST, which returns the full code exactly once;
  * it is held only in this component's React state for the current render
  * and is never logged or persisted anywhere else in the app.
  */
@@ -36,11 +36,11 @@ export function DesktopApiKeyPanel() {
   const loadStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/therapist/desktop-api-key", { cache: "no-store" });
-      if (!res.ok) throw new Error("Could not load API key status");
+      if (!res.ok) throw new Error("Could not load connection code status");
       const data = (await res.json()) as KeyStatus;
       setStatus(data);
     } catch {
-      setError("Could not load API key status. Reload the page to try again.");
+      setError("Could not load connection code status. Reload the page to try again.");
     } finally {
       setLoading(false);
     }
@@ -53,7 +53,7 @@ export function DesktopApiKeyPanel() {
   async function generateKey() {
     const confirmed = status?.hasApiKey
       ? window.confirm(
-          "Generating a new key will immediately invalidate the old one. Any desktop app using the old key will stop syncing until you update it. Continue?"
+          "Generating a new connection code will stop the old one from working. Any desktop app still using the old code will need the new one before it can update client info. Continue?"
         )
       : true;
     if (!confirmed) return;
@@ -63,12 +63,12 @@ export function DesktopApiKeyPanel() {
     setCopied(false);
     try {
       const res = await fetch("/api/therapist/desktop-api-key", { method: "POST" });
-      if (!res.ok) throw new Error("Could not generate a new key");
+      if (!res.ok) throw new Error("Could not generate a new connection code");
       const data = (await res.json()) as { apiKey: string; createdAt: string };
       setRevealedKey(data.apiKey);
       await loadStatus();
     } catch {
-      setError("Could not generate a new key. Try again.");
+      setError("Could not generate a new connection code. Try again.");
     } finally {
       setGenerating(false);
     }
@@ -97,7 +97,7 @@ export function DesktopApiKeyPanel() {
       {revealedKey ? (
         <div className="space-y-3 rounded-lg border border-warning/50 bg-warning/5 p-4">
           <p className="text-sm font-medium text-warning">
-            Copy this code now -- you will not be able to see it again.
+            Copy this code now — you will not be able to see it again.
           </p>
           <ActionStack className="sm:flex-row sm:items-stretch">
             <code className="min-w-0 flex-1 overflow-x-auto rounded bg-muted px-3 py-2.5 font-mono text-sm select-all">
@@ -113,9 +113,9 @@ export function DesktopApiKeyPanel() {
             </Button>
           </ActionStack>
           <p className="text-xs text-muted-foreground">
-            Paste this into the SoloPractice desktop app -- either during setup, or later under
+            Paste this into the SoloPractice desktop app — either during setup, or later under
             Settings &rarr; Advanced settings &rarr; Web Portal Connection &rarr; Connection
-            code -- then click &ldquo;Sync Now&rdquo;.
+            code — then click &ldquo;Sync Now&rdquo;.
           </p>
           <Button
             type="button"
@@ -153,8 +153,8 @@ export function DesktopApiKeyPanel() {
       ) : (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            No connection code yet. Generate one to connect the SoloPractice desktop app to
-            your account, so your client contact info and consent status stay in sync.
+            No connection code yet. Generate one so the desktop app can update
+            client contact info and form status for your account.
           </p>
           <Button
             type="button"

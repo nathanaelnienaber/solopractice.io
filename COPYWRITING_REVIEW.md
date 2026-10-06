@@ -1,104 +1,43 @@
 # Copywriting Review Needed
 
-**Status:** Awaiting professional copywriter review  
+**Status:** Superseded for web voice by the Project voice guide — see [`docs/voice-and-copy.md`](/cursor/stores/self/docs/voice-and-copy.md) (store) after the B2C web copy pass. Desktop strings and consent legal bodies remain open (Gate B attorney for consents).
+
 **Product claims:** Follow [`PRODUCT_PLAN.md`](./PRODUCT_PLAN.md) §2 (current truth) and §4 (compliance). Do not invent encryption, HIPAA-free, or “flags only” language.
 
 ## Goal
 
-All user-facing text in SoloPractice needs to be reviewed by a professional copywriter to ensure it is:
+All user-facing text in SoloPractice needs to stay:
 
-1. **Simple and clear** — No jargon or technical terms
+1. **Simple and clear** — No jargon or technical terms in UI
 2. **Friendly and warm** — Appropriate tone for therapy practice software
-3. **Reassuring** — Especially around privacy and data security
-4. **Consistent** — Same voice across web and desktop apps
+3. **Honest** — Especially around privacy (desktop clinical; no false encryption claims)
+4. **Consistent** — Same voice across web and desktop apps (desktop pass still pending)
 
 ## Target Audience
 
-The primary users are:
-- **Therapists** (LMHCs, LCSWs, psychologists) — Often not tech-savvy, busy with clients
-- **Clients** — Seeking therapy, may be anxious, need reassurance and simplicity
+- **Therapists** (solo LMHCs) — Busy; phone-first for ops
+- **Clients** — Consent/pay links; calm and simple
 
-## Files to Review
+## Files
 
 ### Web App (`apps/web/`)
 
 | File | What it contains |
 |------|------------------|
-| `src/lib/i18n.tsx` | All translatable strings for web (EN, ES, DE, SV) |
-| `src/lib/consent-templates.ts` | Draft consent form text (CRITICAL: legal review also needed) |
+| `src/lib/i18n.tsx` | Translatable strings (EN, ES, DE, SV) |
+| `src/lib/consent-templates.ts` | Draft consent form text (attorney review still needed) |
 | `src/app/page.tsx` | Marketing homepage |
-| `src/app/therapist/login/page.tsx` | Therapist sign-in page |
+| `src/app/therapist/login/page.tsx` | Therapist sign-in |
 | `src/app/client/consent/[token]/page.tsx` | Client consent signing flow |
+| `src/lib/email.ts` | Magic link, consent invite, invoice emails |
 
 ### Desktop App (`apps/desktop/`)
 
 | File | What it contains |
 |------|------------------|
-| `src/lib/i18n.tsx` | All translatable strings for desktop (EN, ES, DE, SV) |
-| `src/components/*.tsx` | UI component labels and messages |
-
-## Key Principles for Review
-
-### Replace Technical Terms
-
-| Instead of... | Say... |
-|---------------|--------|
-| "API" | "connection" |
-| "Database" | "your data" |
-| "Sync" | "update" |
-| "Authenticate" | "sign in" |
-| "Token" | "link" |
-| "Transcription" | "written version of your recording" |
-| "SOAP note" | "session notes" |
-| "Pipeline" | "process" |
-| "Queue" | "list" |
-
-### Tone Examples
-
-**Too technical, and untrue of the current app:**
-> "Your session data is encrypted at rest and in transit using AES-256-GCM."
-
-The desktop database is not encrypted. Do not claim encryption until that ships.
-
-**Better:**
-> "Your session notes stay on this computer."
-
-**Too technical:**
-> "Configure the Ollama model path in settings."
-
-**Better:**
-> "Tell us where you installed the note-writing tool."
-
-### Privacy Messaging
-
-Users need constant reassurance that their private information is safe. The messaging should:
-- Be specific about what stays local
-- Avoid scary security jargon
-- Feel human, not robotic
-
-## Languages
-
-The app supports 4 languages. After English copy is finalized:
-1. Professional translation for Spanish, German, Swedish
-2. Native speaker review for each language
-3. Ensure cultural appropriateness (not just word-for-word translation)
+| `src/lib/i18n.tsx` | Desktop strings — **not** covered by the web copy pass |
+| `src/components/*.tsx` | UI labels |
 
 ## Consent Forms (Special Note)
 
-The consent form templates in `src/lib/consent-templates.ts` are marked as **DRAFT — NOT LEGAL ADVICE**. These need:
-
-1. **Legal review** by a healthcare attorney (state-specific)
-2. **Copywriting review** for clarity and readability
-3. **Translation** by professional legal translators
-
-Do NOT use these forms with real clients until they have been reviewed by a qualified attorney in your jurisdiction.
-
-## How to Submit Changes
-
-Once a copywriter has reviewed the text:
-1. Edit the translation files directly, or
-2. Provide a document with suggested changes for each string key
-
-## Contact
-
-For questions about this review, contact the development team.
+Templates in `src/lib/consent-templates.ts` are **DRAFT — NOT LEGAL ADVICE**. Do not use with real clients until attorney review (Gate B).

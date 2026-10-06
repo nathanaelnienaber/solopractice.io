@@ -13,8 +13,8 @@ export default function HomePage() {
         <div className="space-y-4 text-center">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">SoloPractice</h1>
           <p className="mx-auto max-w-2xl text-lg text-muted-foreground sm:text-xl">
-            Local-first therapy practice management.
-            Clinical data stays on your desktop — always.
+            Run intake, schedule, and get paid from your phone.
+            Session notes stay on your computer — always.
           </p>
         </div>
 
@@ -23,22 +23,22 @@ export default function HomePage() {
             <CardHeader>
               <CardTitle>For Therapists</CardTitle>
               <CardDescription>
-                Manage your practice, send invoices, and track consents
+                Clients, forms, calendar, and invoices — built for your phone
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <CheckIcon />
-                  Client intake and consent e-signatures
+                  Send intake forms clients sign online
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckIcon />
-                  Appointment scheduling with SMS reminders
+                  Schedule sessions with text reminders
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckIcon />
-                  Invoice clients and get paid
+                  Send invoices and get paid
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckIcon />
@@ -55,7 +55,7 @@ export default function HomePage() {
             <CardHeader>
               <CardTitle>For Clients</CardTitle>
               <CardDescription>
-                Complete intake forms and pay invoices securely
+                Sign forms and pay invoices — no account needed
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -70,11 +70,11 @@ export default function HomePage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckIcon />
-                  No account needed — use the email link from your therapist
+                  Use the email link from your therapist
                 </li>
               </ul>
               <p className="text-sm text-muted-foreground">
-                Check your email for a consent or payment link from your therapist.
+                Check your email for a forms or payment link from your therapist.
               </p>
             </CardContent>
           </Card>
@@ -83,8 +83,8 @@ export default function HomePage() {
         <div className="space-y-3 border-t border-border pt-8 text-center">
           <h2 className="text-lg font-semibold">Already a trial user?</h2>
           <p className="mx-auto max-w-xl text-sm text-muted-foreground">
-            Get the desktop app to manage clients, appointments, and your
-            clinical notes — right from your own computer.
+            Download the desktop app for session recording, notes, and
+            superbills — on your computer, not the cloud.
           </p>
           <Link href="/download" className="inline-block w-full sm:w-auto">
             <Button variant="outline" className={touchStackActionClassName}>
@@ -94,19 +94,19 @@ export default function HomePage() {
         </div>
 
         <div className="space-y-4 border-t border-border pt-8 text-center">
-          <h2 className="text-lg font-semibold">Security First</h2>
+          <h2 className="text-lg font-semibold">Your privacy matters</h2>
           <div className="flex flex-col items-center justify-center gap-3 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:gap-4">
             <div className="flex items-center gap-2">
               <ShieldIcon />
-              Clinical notes stay on desktop
+              Session notes stay on your computer
             </div>
             <div className="flex items-center gap-2">
               <ShieldIcon />
-              Session recordings never uploaded
+              Recordings never leave your desktop
             </div>
             <div className="flex items-center gap-2">
               <ShieldIcon />
-              Clinical chart never syncs to the web
+              Clinical notes never sync to the web
             </div>
           </div>
         </div>

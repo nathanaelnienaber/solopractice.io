@@ -191,8 +191,8 @@ const REQUIREMENT_LABELS: Record<string, string> = {
   "business_profile.url": "Business website",
   "business_profile.mcc": "Business category",
   "business_profile.product_description": "Description of your services",
-  "tos_acceptance.date": "Stripe terms of service acceptance",
-  "tos_acceptance.ip": "Stripe terms of service acceptance",
+  "tos_acceptance.date": "Accept payment terms",
+  "tos_acceptance.ip": "Accept payment terms",
   "company.tax_id": "Business tax ID",
 };
 

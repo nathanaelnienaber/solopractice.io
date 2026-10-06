@@ -30,7 +30,7 @@ export default function TherapistLoginPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to send magic link");
+        throw new Error(data.error || "Failed to send sign-in link");
       }
 
       setSent(true);
@@ -74,7 +74,7 @@ export default function TherapistLoginPage() {
         <CardHeader>
           <CardTitle>Therapist Sign In</CardTitle>
           <CardDescription>
-            Enter your email to receive a sign-in link
+            Enter your email and we&apos;ll send you a link to sign in.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -34,31 +34,37 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.closeMenu": "Close menu",
 
     // Home page
-    "home.title": "Your Practice, Simplified",
-    "home.subtitle": "A simple tool to help you focus on what matters most — your clients.",
+    "home.title": "SoloPractice",
+    "home.subtitle":
+      "Run intake, schedule, and get paid from your phone. Session notes stay on your computer — always.",
     "home.forTherapists": "For Therapists",
     "home.forClients": "For Clients",
     "home.getStarted": "Get Started",
     "home.signIn": "Sign In",
 
     // Features
-    "feature.secureNotes": "Private Notes",
-    "feature.secureNotesDesc": "Your session notes stay on your computer. They're never uploaded anywhere.",
-    "feature.easyConsent": "Easy Consent Forms",
-    "feature.easyConsentDesc": "Clients sign forms online before their first session. No paper needed.",
-    "feature.simpleInvoicing": "Simple Invoicing",
-    "feature.simpleInvoicingDesc": "Create and send invoices with a few clicks. Get paid faster.",
-    "feature.recordings": "Session Recordings",
-    "feature.recordingsDesc": "Record sessions locally. Get automatic transcripts and note drafts.",
+    "feature.secureNotes": "Private notes",
+    "feature.secureNotesDesc":
+      "Session notes stay on your computer. They're never uploaded to our servers.",
+    "feature.easyConsent": "Easy intake forms",
+    "feature.easyConsentDesc":
+      "Clients sign forms online before their first session. No paper needed.",
+    "feature.simpleInvoicing": "Simple invoicing",
+    "feature.simpleInvoicingDesc":
+      "Create and send invoices in a few taps. Get paid faster.",
+    "feature.recordings": "Session recordings",
+    "feature.recordingsDesc":
+      "Record sessions on your computer. Get transcripts and note drafts locally.",
 
     // Auth
     "auth.email": "Email",
-    "auth.emailPlaceholder": "you@example.com",
-    "auth.sendLink": "Send Sign-In Link",
+    "auth.emailPlaceholder": "you@practice.com",
+    "auth.sendLink": "Send sign-in link",
     "auth.checkEmail": "Check your email",
     "auth.linkSent": "We sent you a sign-in link. Click it to continue.",
     "auth.therapistLogin": "Therapist Sign In",
-    "auth.therapistLoginDesc": "Enter your email and we'll send you a link to sign in.",
+    "auth.therapistLoginDesc":
+      "Enter your email and we'll send you a link to sign in.",
 
     // Dashboard
     "dashboard.welcome": "Welcome back",
@@ -68,7 +74,8 @@ const translations: Record<Language, Record<string, string>> = {
     "dashboard.recentActivity": "Recent Activity",
     "dashboard.noActivity": "No recent activity",
     "dashboard.stripeNotConnected": "Payment setup incomplete",
-    "dashboard.stripeNotConnectedDesc": "Connect your payment account to start receiving payments.",
+    "dashboard.stripeNotConnectedDesc":
+      "Set up payments to start receiving money from clients.",
     "dashboard.connectStripe": "Set Up Payments",
 
     // Clients
@@ -76,7 +83,7 @@ const translations: Record<Language, Record<string, string>> = {
     "clients.addNew": "Add Client",
     "clients.addFirst": "Add your first client",
     "clients.addFormTitle": "Add New Client",
-    "clients.addFormDesc": "Add a client to send them consent forms and invoices",
+    "clients.addFormDesc": "Add a client to send them intake forms and invoices",
     "clients.firstName": "First name",
     "clients.lastName": "Last name",
     "clients.phoneOptional": "Phone (optional)",
@@ -92,12 +99,12 @@ const translations: Record<Language, Record<string, string>> = {
     "clients.formsSent": "Forms Sent",
     "clients.formsComplete": "Complete",
     "clients.formsPending": "Pending",
-    "clients.consentsLabel": "consents",
+    "clients.consentsLabel": "forms",
     "clients.recordingOk": "Recording OK",
     "clients.recordingBlocked": "Recording blocked",
-    "clients.sendConsentLink": "Send consent link",
-    "clients.inviteSent": "Consent invite sent!",
-    "clients.inviteFailed": "Failed to send invite",
+    "clients.sendConsentLink": "Send forms link",
+    "clients.inviteSent": "Forms invite sent!",
+    "clients.inviteFailed": "Couldn't send invite",
     "clients.backToList": "Clients",
     "clients.notFound": "Client not found",
     "clients.appointmentsTitle": "Appointments",
@@ -111,14 +118,14 @@ const translations: Record<Language, Record<string, string>> = {
     "clients.createInvoice": "Create invoice",
     "clients.noInvoices": "No invoices yet",
     "clients.desktopTitle": "Desktop",
-    "clients.desktopDesc": "Sessions and SOAP notes stay in the desktop app.",
+    "clients.desktopDesc": "Sessions and notes stay in the desktop app.",
     "clients.desktopHandoffTitle": "Open on desktop",
     "clients.desktopHandoffDesc":
       "Start a session or open notes for this client in SoloPractice desktop. Clinical notes are not available on the web.",
     "clients.openDesktop": "Open SoloPractice desktop",
     "clients.openDesktopSession": "Start or view session",
     "clients.desktopFallback":
-      "If the app did not open, install SoloPractice desktop, sync clients, then search for this client. You can copy the client ID below.",
+      "If the app did not open, install SoloPractice desktop, update clients, then search for this client. You can copy the client ID below.",
     "clients.copyClientId": "Copy client ID",
     "clients.copiedId": "Copied",
     "clients.downloadDesktop": "Download desktop app",
@@ -126,9 +133,10 @@ const translations: Record<Language, Record<string, string>> = {
       "Recording stays blocked on desktop until recording consent is signed.",
 
     // Consents
-    "consent.title": "Consent Forms",
+    "consent.title": "Intake Forms",
     "consent.draftWarning": "DRAFT — NOT LEGAL ADVICE",
-    "consent.draftDesc": "These forms are samples only. Have a healthcare attorney review them before use with real clients.",
+    "consent.draftDesc":
+      "These forms are samples only. Have a healthcare attorney review them before use with real clients.",
     "consent.sign": "Sign",
     "consent.signed": "Signed",
     "consent.signatureLabel": "Type your full legal name to sign",
@@ -162,7 +170,7 @@ const translations: Record<Language, Record<string, string>> = {
     "invoices.descriptionPlaceholder": "Session on...",
     "invoices.sendInvoice": "Send invoice",
     "invoices.resendInvoice": "Resend email",
-    "invoices.sendFailed": "Failed to send invoice email",
+    "invoices.sendFailed": "Couldn't send invoice email",
     "invoices.sendSucceeded": "Invoice email sent",
     "invoices.emailedTo": "Emailed to {email}",
     "invoices.editDraft": "Edit draft invoice",
@@ -177,7 +185,7 @@ const translations: Record<Language, Record<string, string>> = {
     "invoices.deleteConfirmSent":
       "The client will no longer be able to pay this invoice link. This cannot be undone.",
     "invoices.deleteConfirmAction": "Delete invoice",
-    "invoices.deleteFailed": "Failed to delete invoice",
+    "invoices.deleteFailed": "Couldn't delete invoice",
 
     // Calendar / appointments
     "calendar.title": "Calendar",
@@ -188,9 +196,9 @@ const translations: Record<Language, Record<string, string>> = {
     "calendar.monthView": "Month",
     "calendar.newAppointment": "+ New Appointment",
     "calendar.scheduleTitle": "Schedule Appointment",
-    "calendar.scheduleDesc": "Select a client and time for the new appointment.",
+    "calendar.scheduleDesc": "Pick a client and time.",
     "calendar.loading": "Loading appointments...",
-    "calendar.loadError": "Failed to load appointments",
+    "calendar.loadError": "Couldn't load appointments",
     "calendar.time": "Time",
     "calendar.upcomingTitle": "Upcoming Appointments",
     "calendar.upcomingDesc": "Scheduled appointments in this view",
@@ -198,11 +206,11 @@ const translations: Record<Language, Record<string, string>> = {
     "calendar.at": "at",
     "calendar.sendReminder": "Send Reminder",
     "calendar.reminderSentBadge": "Reminder sent",
-    "calendar.reminderSent": "Reminder sent successfully!",
-    "calendar.reminderFailed": "Failed to send reminder",
+    "calendar.reminderSent": "Reminder sent!",
+    "calendar.reminderFailed": "Couldn't send reminder",
     "calendar.editTitle": "Edit Appointment",
     "calendar.editDesc": "Update or cancel this appointment.",
-    "calendar.deleteConfirm": "Are you sure you want to delete this appointment?",
+    "calendar.deleteConfirm": "Delete this appointment?",
     "calendar.client": "Client",
     "calendar.selectClient": "Select a client",
     "calendar.dateTime": "Date & Time",
@@ -218,8 +226,8 @@ const translations: Record<Language, Record<string, string>> = {
     "calendar.statusCancelled": "Cancelled",
     "calendar.statusNoShow": "No Show",
     "calendar.notes": "Notes (optional)",
-    "calendar.notesPlaceholder": "Any notes about this appointment...",
-    "calendar.saveError": "Failed to save appointment",
+    "calendar.notesPlaceholder": "Anything about this appointment...",
+    "calendar.saveError": "Couldn't save appointment",
     "calendar.saving": "Saving...",
     "calendar.create": "Create",
     "calendar.addOnDay": "Add appointment",
@@ -234,9 +242,9 @@ const translations: Record<Language, Record<string, string>> = {
     "settings.practiceName": "Practice Name",
     "settings.practiceNamePlaceholder": "Your Practice Name",
     "settings.payments": "Payments",
-    "settings.paymentsConnected": "Payment account connected",
-    "settings.paymentsNotConnected": "Payment account not connected",
-    "settings.connectPayments": "Connect Payment Account",
+    "settings.paymentsConnected": "Ready to receive payments",
+    "settings.paymentsNotConnected": "Payments not set up yet",
+    "settings.connectPayments": "Set Up Payments",
     "settings.consentForms": "Consent Forms",
     "settings.theme": "Appearance",
     "settings.themeLight": "Light",
@@ -262,7 +270,7 @@ const translations: Record<Language, Record<string, string>> = {
     "security.title": "Your Privacy Matters",
     "security.localData": "Clinical notes and recordings stay on your computer",
     "security.encrypted": "Clinical notes stay on your computer",
-    "security.noCloud": "No sensitive information is uploaded to the cloud",
+    "security.noCloud": "Session notes never sync to the web",
   },
 
   es: {
@@ -279,8 +287,8 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.closeMenu": "Cerrar menú",
 
     // Home page
-    "home.title": "Tu Consulta, Simplificada",
-    "home.subtitle": "Una herramienta simple para ayudarte a enfocarte en lo más importante — tus clientes.",
+    "home.title": "SoloPractice",
+    "home.subtitle": "Gestiona intake, agenda y cobros desde el teléfono. Las notas de sesión se quedan en tu computadora — siempre.",
     "home.forTherapists": "Para Terapeutas",
     "home.forClients": "Para Clientes",
     "home.getStarted": "Comenzar",
@@ -308,12 +316,12 @@ const translations: Record<Language, Record<string, string>> = {
     // Dashboard
     "dashboard.welcome": "Bienvenido de nuevo",
     "dashboard.totalClients": "Total de Clientes",
-    "dashboard.pendingInvoices": "Facturas Pendientes",
+    "dashboard.pendingInvoices": "Facturas sin pagar",
     "dashboard.upcomingAppts": "Próximas Citas",
     "dashboard.recentActivity": "Actividad Reciente",
     "dashboard.noActivity": "Sin actividad reciente",
     "dashboard.stripeNotConnected": "Configuración de pagos incompleta",
-    "dashboard.stripeNotConnectedDesc": "Conecta tu cuenta de pagos para empezar a recibir pagos.",
+    "dashboard.stripeNotConnectedDesc": "Configura los pagos para empezar a recibir dinero de tus clientes.",
     "dashboard.connectStripe": "Configurar Pagos",
 
     // Clients
@@ -337,11 +345,11 @@ const translations: Record<Language, Record<string, string>> = {
     "clients.formsSent": "Formularios Enviados",
     "clients.formsComplete": "Completo",
     "clients.formsPending": "Pendiente",
-    "clients.consentsLabel": "consentimientos",
+    "clients.consentsLabel": "formularios",
     "clients.recordingOk": "Grabación OK",
     "clients.recordingBlocked": "Grabación bloqueada",
-    "clients.sendConsentLink": "Enviar enlace de consentimiento",
-    "clients.inviteSent": "¡Invitación de consentimiento enviada!",
+    "clients.sendConsentLink": "Enviar enlace de formularios",
+    "clients.inviteSent": "¡Invitación de formularios enviada!",
     "clients.inviteFailed": "No se pudo enviar la invitación",
     "clients.backToList": "Clientes",
     "clients.notFound": "Cliente no encontrado",
@@ -356,14 +364,14 @@ const translations: Record<Language, Record<string, string>> = {
     "clients.createInvoice": "Crear factura",
     "clients.noInvoices": "Sin facturas aún",
     "clients.desktopTitle": "Escritorio",
-    "clients.desktopDesc": "Las sesiones y notas SOAP permanecen en la app de escritorio.",
+    "clients.desktopDesc": "Las sesiones y notas se quedan en la app de escritorio.",
     "clients.desktopHandoffTitle": "Abrir en escritorio",
     "clients.desktopHandoffDesc":
       "Inicia una sesión o abre notas de este cliente en SoloPractice escritorio. Las notas clínicas no están en la web.",
     "clients.openDesktop": "Abrir SoloPractice escritorio",
     "clients.openDesktopSession": "Iniciar o ver sesión",
     "clients.desktopFallback":
-      "Si la app no se abrió, instala SoloPractice escritorio, sincroniza clientes y busca este cliente. Puedes copiar el ID abajo.",
+      "Si la app no se abrió, instala SoloPractice escritorio, actualiza clientes y busca este cliente. Puedes copiar el ID abajo.",
     "clients.copyClientId": "Copiar ID del cliente",
     "clients.copiedId": "Copiado",
     "clients.downloadDesktop": "Descargar app de escritorio",
@@ -371,7 +379,7 @@ const translations: Record<Language, Record<string, string>> = {
       "La grabación permanece bloqueada en escritorio hasta firmar el consentimiento de grabación.",
 
     // Consents
-    "consent.title": "Formularios de Consentimiento",
+    "consent.title": "Formularios de intake",
     "consent.draftWarning": "BORRADOR — NO ES ASESORÍA LEGAL",
     "consent.draftDesc": "Estos formularios son solo muestras. Consulta con un abogado de salud antes de usarlos con clientes reales.",
     "consent.sign": "Firmar",
@@ -479,9 +487,9 @@ const translations: Record<Language, Record<string, string>> = {
     "settings.practiceName": "Nombre de la Consulta",
     "settings.practiceNamePlaceholder": "Nombre de Tu Consulta",
     "settings.payments": "Pagos",
-    "settings.paymentsConnected": "Cuenta de pagos conectada",
-    "settings.paymentsNotConnected": "Cuenta de pagos no conectada",
-    "settings.connectPayments": "Conectar Cuenta de Pagos",
+    "settings.paymentsConnected": "Listo para recibir pagos",
+    "settings.paymentsNotConnected": "Pagos aún no configurados",
+    "settings.connectPayments": "Configurar pagos",
     "settings.consentForms": "Formularios de Consentimiento",
     "settings.theme": "Apariencia",
     "settings.themeLight": "Claro",
@@ -507,7 +515,7 @@ const translations: Record<Language, Record<string, string>> = {
     "security.title": "Tu Privacidad Importa",
     "security.localData": "Las notas clínicas y grabaciones permanecen en tu computadora",
     "security.encrypted": "Las notas clínicas permanecen en tu computadora",
-    "security.noCloud": "No se sube información sensible a la nube",
+    "security.noCloud": "Las notas de sesión nunca se sincronizan a la web",
   },
 
   de: {
@@ -524,8 +532,8 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.closeMenu": "Menü schließen",
 
     // Home page
-    "home.title": "Ihre Praxis, Vereinfacht",
-    "home.subtitle": "Ein einfaches Werkzeug, das Ihnen hilft, sich auf das Wichtigste zu konzentrieren — Ihre Klienten.",
+    "home.title": "SoloPractice",
+    "home.subtitle": "Intake, Termine und Zahlungen vom Handy. Sitzungsnotizen bleiben auf Ihrem Computer — immer.",
     "home.forTherapists": "Für Therapeuten",
     "home.forClients": "Für Klienten",
     "home.getStarted": "Loslegen",
@@ -558,7 +566,7 @@ const translations: Record<Language, Record<string, string>> = {
     "dashboard.recentActivity": "Letzte Aktivität",
     "dashboard.noActivity": "Keine aktuelle Aktivität",
     "dashboard.stripeNotConnected": "Zahlungseinrichtung unvollständig",
-    "dashboard.stripeNotConnectedDesc": "Verbinden Sie Ihr Zahlungskonto, um Zahlungen zu empfangen.",
+    "dashboard.stripeNotConnectedDesc": "Richten Sie Zahlungen ein, um Geld von Klienten zu erhalten.",
     "dashboard.connectStripe": "Zahlungen Einrichten",
 
     // Clients
@@ -582,11 +590,11 @@ const translations: Record<Language, Record<string, string>> = {
     "clients.formsSent": "Formulare Gesendet",
     "clients.formsComplete": "Vollständig",
     "clients.formsPending": "Ausstehend",
-    "clients.consentsLabel": "Einwilligungen",
+    "clients.consentsLabel": "Formulare",
     "clients.recordingOk": "Aufnahme OK",
     "clients.recordingBlocked": "Aufnahme gesperrt",
-    "clients.sendConsentLink": "Einwilligungslink senden",
-    "clients.inviteSent": "Einladung gesendet!",
+    "clients.sendConsentLink": "Formulare-Link senden",
+    "clients.inviteSent": "Formulare-Einladung gesendet!",
     "clients.inviteFailed": "Einladung konnte nicht gesendet werden",
     "clients.backToList": "Klienten",
     "clients.notFound": "Klient nicht gefunden",
@@ -616,7 +624,7 @@ const translations: Record<Language, Record<string, string>> = {
       "Die Aufnahme bleibt auf dem Desktop gesperrt, bis die Aufnahme-Einwilligung unterschrieben ist.",
 
     // Consents
-    "consent.title": "Einwilligungsformulare",
+    "consent.title": "Intake-Formulare",
     "consent.draftWarning": "ENTWURF — KEINE RECHTSBERATUNG",
     "consent.draftDesc": "Diese Formulare sind nur Muster. Lassen Sie sie von einem Gesundheitsanwalt prüfen, bevor Sie sie mit echten Klienten verwenden.",
     "consent.sign": "Unterschreiben",
@@ -724,9 +732,9 @@ const translations: Record<Language, Record<string, string>> = {
     "settings.practiceName": "Praxisname",
     "settings.practiceNamePlaceholder": "Ihr Praxisname",
     "settings.payments": "Zahlungen",
-    "settings.paymentsConnected": "Zahlungskonto verbunden",
-    "settings.paymentsNotConnected": "Zahlungskonto nicht verbunden",
-    "settings.connectPayments": "Zahlungskonto Verbinden",
+    "settings.paymentsConnected": "Bereit, Zahlungen zu empfangen",
+    "settings.paymentsNotConnected": "Zahlungen noch nicht eingerichtet",
+    "settings.connectPayments": "Zahlungen einrichten",
     "settings.consentForms": "Einwilligungsformulare",
     "settings.theme": "Erscheinungsbild",
     "settings.themeLight": "Hell",
@@ -752,7 +760,7 @@ const translations: Record<Language, Record<string, string>> = {
     "security.title": "Ihre Privatsphäre Zählt",
     "security.localData": "Klinische Notizen und Aufnahmen bleiben auf Ihrem Computer",
     "security.encrypted": "Klinische Notizen bleiben auf Ihrem Computer",
-    "security.noCloud": "Keine sensiblen Informationen werden in die Cloud hochgeladen",
+    "security.noCloud": "Sitzungsnotizen werden nie mit dem Web synchronisiert",
   },
 
   sv: {
@@ -769,8 +777,8 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.closeMenu": "Stäng meny",
 
     // Home page
-    "home.title": "Din Praktik, Förenklad",
-    "home.subtitle": "Ett enkelt verktyg som hjälper dig fokusera på det viktigaste — dina klienter.",
+    "home.title": "SoloPractice",
+    "home.subtitle": "Hantera intag, schema och betalningar från telefonen. Sessionsanteckningar stannar på din dator — alltid.",
     "home.forTherapists": "För Terapeuter",
     "home.forClients": "För Klienter",
     "home.getStarted": "Kom Igång",
@@ -798,12 +806,12 @@ const translations: Record<Language, Record<string, string>> = {
     // Dashboard
     "dashboard.welcome": "Välkommen tillbaka",
     "dashboard.totalClients": "Totalt Antal Klienter",
-    "dashboard.pendingInvoices": "Obetalda Fakturor",
+    "dashboard.pendingInvoices": "Obetalda fakturor",
     "dashboard.upcomingAppts": "Kommande Möten",
     "dashboard.recentActivity": "Senaste Aktivitet",
     "dashboard.noActivity": "Ingen senaste aktivitet",
     "dashboard.stripeNotConnected": "Betalningsinställning ofullständig",
-    "dashboard.stripeNotConnectedDesc": "Anslut ditt betalningskonto för att börja ta emot betalningar.",
+    "dashboard.stripeNotConnectedDesc": "Konfigurera betalningar för att börja ta emot pengar från klienter.",
     "dashboard.connectStripe": "Konfigurera Betalningar",
 
     // Clients
@@ -827,11 +835,11 @@ const translations: Record<Language, Record<string, string>> = {
     "clients.formsSent": "Formulär Skickade",
     "clients.formsComplete": "Klart",
     "clients.formsPending": "Väntar",
-    "clients.consentsLabel": "samtycken",
+    "clients.consentsLabel": "formulär",
     "clients.recordingOk": "Inspelning OK",
     "clients.recordingBlocked": "Inspelning blockerad",
-    "clients.sendConsentLink": "Skicka samtyckeslänk",
-    "clients.inviteSent": "Samtyckesinbjudan skickad!",
+    "clients.sendConsentLink": "Skicka formulärlänk",
+    "clients.inviteSent": "Formulärinbjudan skickad!",
     "clients.inviteFailed": "Kunde inte skicka inbjudan",
     "clients.backToList": "Klienter",
     "clients.notFound": "Klient hittades inte",
@@ -861,7 +869,7 @@ const translations: Record<Language, Record<string, string>> = {
       "Inspelning förblir blockerad på skrivbordet tills inspelningsamtycke är signerat.",
 
     // Consents
-    "consent.title": "Samtyckeformulär",
+    "consent.title": "Intagsformulär",
     "consent.draftWarning": "UTKAST — INTE JURIDISK RÅDGIVNING",
     "consent.draftDesc": "Dessa formulär är endast exempel. Låt en hälsojurist granska dem innan du använder dem med riktiga klienter.",
     "consent.sign": "Signera",
@@ -969,9 +977,9 @@ const translations: Record<Language, Record<string, string>> = {
     "settings.practiceName": "Praktiknamn",
     "settings.practiceNamePlaceholder": "Ditt Praktiknamn",
     "settings.payments": "Betalningar",
-    "settings.paymentsConnected": "Betalningskonto anslutet",
-    "settings.paymentsNotConnected": "Betalningskonto inte anslutet",
-    "settings.connectPayments": "Anslut Betalningskonto",
+    "settings.paymentsConnected": "Redo att ta emot betalningar",
+    "settings.paymentsNotConnected": "Betalningar inte uppsatta ännu",
+    "settings.connectPayments": "Konfigurera betalningar",
     "settings.consentForms": "Samtyckeformulär",
     "settings.theme": "Utseende",
     "settings.themeLight": "Ljust",
@@ -997,7 +1005,7 @@ const translations: Record<Language, Record<string, string>> = {
     "security.title": "Din Integritet Är Viktig",
     "security.localData": "Kliniska anteckningar och inspelningar stannar på din dator",
     "security.encrypted": "Kliniska anteckningar stannar på din dator",
-    "security.noCloud": "Ingen känslig information laddas upp till molnet",
+    "security.noCloud": "Sessionsanteckningar synkas aldrig till webben",
   },
 };
 

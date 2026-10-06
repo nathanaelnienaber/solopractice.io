@@ -107,8 +107,8 @@ export default async function SettingsPage({
           <CardDescription>
             Get set up to receive payments from clients. SoloPractice&apos;s
             only cost is 1% on payments you collect, plus normal card
-            processing fees — no monthly subscription, and no fees for
-            clients, notes, or local note AI.
+            processing fees — no monthly fee, and no charge for clients,
+            notes, or local note AI.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -134,7 +134,8 @@ export default async function SettingsPage({
         <CardHeader>
           <CardTitle>Consent Forms</CardTitle>
           <CardDescription>
-            Review the consent forms sent to clients. All forms are required.
+            Review the forms clients sign before starting. All five are
+            required. Templates are drafts until an attorney reviews them.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -151,33 +152,29 @@ export default async function SettingsPage({
 
       <Card id="sms-reminders">
         <CardHeader>
-          <CardTitle>SMS Appointment Reminders</CardTitle>
+          <CardTitle>Text appointment reminders</CardTitle>
           <CardDescription>
             Automatic texts go out about 24 hours before an appointment when
             the client has a phone number and no reminder has been sent yet.
-            You can still send manually from the appointments list.
+            You can also send one from the calendar anytime.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Auto reminders need Twilio credentials (
-            <code className="text-xs">TWILIO_ACCOUNT_SID</code>,{" "}
-            <code className="text-xs">TWILIO_AUTH_TOKEN</code>,{" "}
-            <code className="text-xs">TWILIO_PHONE_NUMBER</code>) and a{" "}
-            <code className="text-xs">CRON_SECRET</code> on the Vercel project
-            so the daily cron can run. Without Twilio, nothing is auto-sent
-            (manual Send Reminder still stubs locally).
+            If automatic reminders aren&apos;t arriving, SMS may not be enabled
+            for this account yet. Manual &ldquo;Send Reminder&rdquo; from the
+            calendar still works when SMS is configured.
           </p>
         </CardContent>
       </Card>
 
       <Card id="desktop">
         <CardHeader>
-          <CardTitle>Desktop App</CardTitle>
+          <CardTitle>Desktop app</CardTitle>
           <CardDescription>
-            Generate a connection code to connect the SoloPractice desktop app. It syncs
-            client contact info and consent status only -- clinical notes and
-            recordings never leave the desktop app.
+            Generate a connection code for the SoloPractice desktop app. It
+            updates client contact info and form status only — clinical notes
+            and recordings never leave the desktop.
           </CardDescription>
         </CardHeader>
         <CardContent>

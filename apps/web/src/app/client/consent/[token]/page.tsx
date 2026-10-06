@@ -28,9 +28,9 @@ export default async function ConsentPage({ params }: PageProps) {
     return (
       <CenteredShell>
         <div className="max-w-md text-center">
-          <h1 className="mb-4 text-2xl font-bold">Link Expired</h1>
+          <h1 className="mb-4 text-2xl font-bold">Link expired</h1>
           <p className="text-muted-foreground">
-            This consent link has expired. Please contact your therapist for a new link.
+            This forms link has expired. Contact your therapist for a new one.
           </p>
         </div>
       </CenteredShell>
@@ -80,28 +80,28 @@ export default async function ConsentPage({ params }: PageProps) {
                 />
               </svg>
             </div>
-            <h2 className="mb-2 text-xl font-semibold">All forms completed!</h2>
+            <h2 className="mb-2 text-xl font-semibold">All forms signed</h2>
             <p className="text-muted-foreground">
-              Thank you for completing your intake forms. Your therapist has been notified.
+              Thank you. You can close this page — your therapist has been notified.
             </p>
           </div>
         ) : (
           <div className="space-y-8">
             <div className="rounded-lg border border-warning/20 bg-warning/10 p-4">
               <p className="text-sm font-medium text-warning">
-                DRAFT FORMS - NOT LEGAL ADVICE
+                DRAFT — NOT LEGAL ADVICE
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                These are placeholder forms for testing. Do not use with real clients
-                until reviewed by an attorney.
+                These are sample forms for testing. Do not use with real clients
+                until a healthcare attorney reviews them for your practice.
               </p>
             </div>
 
             <div className="text-sm text-muted-foreground">
               <p>
-                Hello {client.firstName}, please review and sign the following{" "}
-                {pendingForms.length} form{pendingForms.length > 1 ? "s" : ""} to complete
-                your intake.
+                Hi {client.firstName} — please review and sign the{" "}
+                {pendingForms.length} form{pendingForms.length > 1 ? "s" : ""} below
+                to finish intake.
               </p>
             </div>
 

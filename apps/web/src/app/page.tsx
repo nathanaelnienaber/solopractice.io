@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PublicChrome } from "@/components/PublicNav";
 import {
   CenteredShell,
   touchStackActionClassName,
@@ -8,7 +9,8 @@ import {
 
 export default function HomePage() {
   return (
-    <CenteredShell className="items-stretch sm:items-center">
+    <PublicChrome>
+      <CenteredShell className="min-h-0 flex-1 items-stretch sm:items-center">
       <div className="mx-auto w-full max-w-4xl space-y-8 py-4">
         <div className="space-y-4 text-center">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">SoloPractice</h1>
@@ -114,6 +116,7 @@ export default function HomePage() {
         </div>
       </div>
     </CenteredShell>
+    </PublicChrome>
   );
 }
 

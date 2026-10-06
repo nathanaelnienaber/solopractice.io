@@ -23,6 +23,8 @@ const translations: Record<Language, Record<string, string>> = {
   en: {
     // Navigation
     "nav.home": "Home",
+    "nav.download": "Download",
+    "nav.signIn": "Sign in",
     "nav.dashboard": "Dashboard",
     "nav.clients": "Clients",
     "nav.invoices": "Invoices",
@@ -280,6 +282,8 @@ const translations: Record<Language, Record<string, string>> = {
   es: {
     // Navigation
     "nav.home": "Inicio",
+    "nav.download": "Descargar",
+    "nav.signIn": "Iniciar sesión",
     "nav.dashboard": "Panel",
     "nav.clients": "Clientes",
     "nav.invoices": "Facturas",
@@ -527,6 +531,8 @@ const translations: Record<Language, Record<string, string>> = {
   de: {
     // Navigation
     "nav.home": "Startseite",
+    "nav.download": "Download",
+    "nav.signIn": "Anmelden",
     "nav.dashboard": "Übersicht",
     "nav.clients": "Klienten",
     "nav.invoices": "Rechnungen",
@@ -774,6 +780,8 @@ const translations: Record<Language, Record<string, string>> = {
   sv: {
     // Navigation
     "nav.home": "Hem",
+    "nav.download": "Ladda ner",
+    "nav.signIn": "Logga in",
     "nav.dashboard": "Översikt",
     "nav.clients": "Klienter",
     "nav.invoices": "Fakturor",

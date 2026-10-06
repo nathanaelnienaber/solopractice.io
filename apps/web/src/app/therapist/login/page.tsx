@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PublicChrome } from "@/components/PublicNav";
 import {
   CenteredShell,
   touchStackActionClassName,
@@ -43,70 +43,66 @@ export default function TherapistLoginPage() {
 
   if (sent) {
     return (
-      <CenteredShell>
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Check your email</CardTitle>
-            <CardDescription>
-              We sent a sign-in link to <strong>{email}</strong>
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Click the link in your email to sign in. The link expires in 15 minutes.
-            </p>
-            <Button
-              variant="outline"
-              className={touchStackActionClassName}
-              onClick={() => setSent(false)}
-            >
-              Use a different email
-            </Button>
-          </CardContent>
-        </Card>
-      </CenteredShell>
+      <PublicChrome>
+        <CenteredShell className="min-h-0 flex-1">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Check your email</CardTitle>
+              <CardDescription>
+                We sent a sign-in link to <strong>{email}</strong>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Click the link in your email to sign in. The link expires in 15 minutes.
+              </p>
+              <Button
+                variant="outline"
+                className={touchStackActionClassName}
+                onClick={() => setSent(false)}
+              >
+                Use a different email
+              </Button>
+            </CardContent>
+          </Card>
+        </CenteredShell>
+      </PublicChrome>
     );
   }
 
   return (
-    <CenteredShell>
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Therapist sign in</CardTitle>
-          <CardDescription>
-            Enter your email and we&apos;ll send you a link to sign in.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              type="email"
-              label="Email address"
-              placeholder="you@practice.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              error={error}
-            />
-            <Button
-              type="submit"
-              className={touchStackActionClassName}
-              loading={loading}
-            >
-              Send sign-in link
-            </Button>
-          </form>
-          <div className="mt-6 text-center">
-            <Link
-              href="/"
-              className="inline-flex min-h-11 items-center text-sm text-muted-foreground hover:text-foreground"
-            >
-              &larr; Back to home
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    </CenteredShell>
+    <PublicChrome>
+      <CenteredShell className="min-h-0 flex-1">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Therapist sign in</CardTitle>
+            <CardDescription>
+              Enter your email and we&apos;ll send you a link to sign in.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <Input
+                type="email"
+                label="Email address"
+                placeholder="you@practice.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                error={error}
+              />
+              <Button
+                type="submit"
+                className={touchStackActionClassName}
+                loading={loading}
+              >
+                Send sign-in link
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </CenteredShell>
+    </PublicChrome>
   );
 }

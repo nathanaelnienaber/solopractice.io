@@ -172,7 +172,7 @@ export default async function SettingsPage({
         <CardHeader>
           <CardTitle>Desktop app</CardTitle>
           <CardDescription>
-            Generate a connection code for the SoloPractice desktop app. It
+            Connect the SoloPractice desktop app with a connection code. It
             updates client contact info and form status only — clinical notes
             and recordings never leave the desktop.
           </CardDescription>

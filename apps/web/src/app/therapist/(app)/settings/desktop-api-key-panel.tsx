@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -166,6 +167,21 @@ export function DesktopApiKeyPanel() {
           </Button>
         </div>
       )}
+
+      <div className="space-y-2 border-t border-border pt-4">
+        <p className="text-sm text-muted-foreground">
+          Need the app first? Download it, then paste the connection code.
+        </p>
+        <Link href="/download" className="block">
+          <Button
+            type="button"
+            variant="outline"
+            className={touchStackActionClassName}
+          >
+            Download desktop app
+          </Button>
+        </Link>
+      </div>
     </div>
   );
 }

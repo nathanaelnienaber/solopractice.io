@@ -1,6 +1,16 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { BackgroundJob, JobQueueStats } from "@solopractice/shared/desktop";
+import {
+  Badge,
+  EmptyState,
+  PageBody,
+  PageFooter,
+  PageHeader,
+  PageShell,
+  Surface,
+  type BadgeTone,
+} from "./ui";
 
 export function JobQueue() {
   const [jobs, setJobs] = useState<BackgroundJob[]>([]);
@@ -10,6 +20,7 @@ export function JobQueue() {
     completed: 0,
     failed: 0,
   });
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     loadJobs();
@@ -24,34 +35,40 @@ export function JobQueue() {
       );
       setJobs(result.jobs);
       setStats(result.stats);
+      setLoadError(null);
     } catch (error) {
       console.error("Failed to load jobs:", error);
-      setJobs(getMockJobs());
-      setStats({ pending: 1, inProgress: 1, completed: 2, failed: 0 });
+      setLoadError(error instanceof Error ? error.message : String(error));
+      setJobs([]);
+      setStats({ pending: 0, inProgress: 0, completed: 0, failed: 0 });
     }
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <header className="p-4 border-b border-border">
-        <h1 className="text-xl font-semibold">Background Jobs</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Transcription and SOAP drafts process here
-        </p>
-      </header>
+    <PageShell>
+      <PageHeader
+        title="Background Jobs"
+        description="Transcription and SOAP drafts process here"
+      />
 
-      <div className="p-4 grid grid-cols-4 gap-4">
-        <StatCard label="Pending" value={stats.pending} color="muted" />
-        <StatCard label="In Progress" value={stats.inProgress} color="warning" />
-        <StatCard label="Completed" value={stats.completed} color="success" />
-        <StatCard label="Failed" value={stats.failed} color="destructive" />
+      <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <StatCard label="Pending" value={stats.pending} tone="neutral" />
+        <StatCard label="In Progress" value={stats.inProgress} tone="warning" />
+        <StatCard label="Completed" value={stats.completed} tone="success" />
+        <StatCard label="Failed" value={stats.failed} tone="destructive" />
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
-        {jobs.length === 0 ? (
-          <div className="text-center text-muted-foreground py-8">
-            No jobs in queue
-          </div>
+      <PageBody className="pt-0">
+        {loadError ? (
+          <EmptyState
+            title="Could not load jobs"
+            description={loadError}
+          />
+        ) : jobs.length === 0 ? (
+          <EmptyState
+            title="No jobs in queue"
+            description="When you stop a recording with transcription, jobs appear here."
+          />
         ) : (
           <div className="space-y-2">
             {jobs.map((job) => (
@@ -59,53 +76,46 @@ export function JobQueue() {
             ))}
           </div>
         )}
-      </div>
+      </PageBody>
 
-      <div className="p-4 border-t border-border bg-muted/50">
-        <p className="text-xs text-muted-foreground">
-          Jobs run in the background using local whisper.cpp and Ollama.
-          The UI remains responsive during processing.
-        </p>
-      </div>
-    </div>
+      <PageFooter>
+        Jobs run locally with speech-to-text and drafting on this computer. The
+        UI stays responsive while they work.
+      </PageFooter>
+    </PageShell>
   );
 }
 
 function StatCard({
   label,
   value,
-  color,
+  tone,
 }: {
   label: string;
   value: number;
-  color: "muted" | "warning" | "success" | "destructive";
+  tone: BadgeTone;
 }) {
-  const colorClasses = {
-    muted: "text-muted-foreground",
-    warning: "text-warning",
-    success: "text-success",
-    destructive: "text-destructive",
-  };
-
   return (
-    <div className="p-3 rounded-lg border border-border">
+    <Surface className="p-3">
       <p className="text-2xl font-semibold tabular-nums">{value}</p>
-      <p className={`text-xs ${colorClasses[color]}`}>{label}</p>
-    </div>
+      <Badge tone={tone} className="mt-1">
+        {label}
+      </Badge>
+    </Surface>
   );
 }
 
 function JobCard({ job }: { job: BackgroundJob }) {
-  const statusColors = {
-    pending: "bg-muted text-muted-foreground",
-    queued: "bg-muted text-muted-foreground",
-    in_progress: "bg-warning/10 text-warning",
-    completed: "bg-success/10 text-success",
-    failed: "bg-destructive/10 text-destructive",
-    cancelled: "bg-muted text-muted-foreground",
+  const statusTone: Record<string, BadgeTone> = {
+    pending: "neutral",
+    queued: "neutral",
+    in_progress: "warning",
+    completed: "success",
+    failed: "destructive",
+    cancelled: "neutral",
   };
 
-  const typeLabels = {
+  const typeLabels: Record<string, string> = {
     transcription: "Transcription",
     soap_draft: "SOAP Draft",
     superbill_pdf: "Superbill PDF",
@@ -113,19 +123,17 @@ function JobCard({ job }: { job: BackgroundJob }) {
   };
 
   return (
-    <div className="p-3 rounded-lg border border-border">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="font-medium">{typeLabels[job.type]}</p>
+    <Surface>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-medium">{typeLabels[job.type] ?? job.type}</p>
           <p className="text-xs text-muted-foreground">
             {new Date(job.createdAt as string).toLocaleString()}
           </p>
         </div>
-        <span
-          className={`text-xs px-2 py-0.5 rounded-full ${statusColors[job.status]}`}
-        >
+        <Badge tone={statusTone[job.status] ?? "neutral"}>
           {job.status.replace("_", " ")}
-        </span>
+        </Badge>
       </div>
 
       {job.status === "in_progress" && job.progress !== undefined && (
@@ -143,65 +151,6 @@ function JobCard({ job }: { job: BackgroundJob }) {
       {job.error && (
         <p className="mt-2 text-xs text-destructive">{job.error}</p>
       )}
-    </div>
+    </Surface>
   );
-}
-
-function getMockJobs(): BackgroundJob[] {
-  return [
-    {
-      id: "job-1" as any,
-      type: "transcription",
-      status: "in_progress",
-      progress: 45,
-      payload: {
-        type: "transcription",
-        sessionId: "session-1" as any,
-        recordingId: "rec-1" as any,
-        audioFilePath: "/recordings/session-1.wav",
-        modelSize: "base",
-      },
-      attempts: 1,
-      maxAttempts: 3,
-      createdAt: new Date(Date.now() - 120000),
-      startedAt: new Date(Date.now() - 60000),
-    },
-    {
-      id: "job-2" as any,
-      type: "soap_draft",
-      status: "pending",
-      payload: {
-        type: "soap_draft",
-        sessionId: "session-1" as any,
-        clientId: "client-1" as any,
-        transcriptId: "trans-1" as any,
-        transcriptContent: "...",
-      },
-      attempts: 0,
-      maxAttempts: 3,
-      createdAt: new Date(Date.now() - 60000),
-    },
-    {
-      id: "job-3" as any,
-      type: "transcription",
-      status: "completed",
-      payload: {
-        type: "transcription",
-        sessionId: "session-0" as any,
-        recordingId: "rec-0" as any,
-        audioFilePath: "/recordings/session-0.wav",
-      },
-      result: {
-        type: "transcription",
-        transcriptId: "trans-0" as any,
-        wordCount: 1523,
-        durationSeconds: 45,
-      },
-      attempts: 1,
-      maxAttempts: 3,
-      createdAt: new Date(Date.now() - 3600000),
-      startedAt: new Date(Date.now() - 3540000),
-      completedAt: new Date(Date.now() - 3500000),
-    },
-  ];
 }

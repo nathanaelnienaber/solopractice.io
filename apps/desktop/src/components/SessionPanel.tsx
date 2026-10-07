@@ -10,6 +10,16 @@ import {
   soapFieldsAreEmpty,
   type SessionPipelineStatusData,
 } from "./SessionPipelineStatus";
+import {
+  ActionRow,
+  Banner,
+  Button,
+  EmptyState,
+  LoadingState,
+  PageBody,
+  PageHeader,
+  PageShell,
+} from "./ui";
 
 interface MlSetupStatus {
   whisperModelDownloaded: boolean;
@@ -154,9 +164,13 @@ export function SessionPanel({
 
   if (!clientId) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <p className="text-muted-foreground">Select a client to start a session</p>
-      </div>
+      <PageShell>
+        <EmptyState
+          className="h-full"
+          title="Select a client to start a session"
+          description="Choose someone with recording consent from Clients."
+        />
+      </PageShell>
     );
   }
 
@@ -351,26 +365,24 @@ export function SessionPanel({
   const isRecordingUi = state === "recording";
 
   return (
-    <div className="h-full flex flex-col">
-      <header className="p-4 border-b border-border flex items-center gap-4">
-        <button
-          onClick={onBack}
-          className="text-muted-foreground hover:text-foreground"
-        >
-          &larr;
-        </button>
-        <h1 className="text-xl font-semibold flex-1">Session</h1>
-        {onViewHistory && (
-          <button
-            onClick={onViewHistory}
-            className="text-sm px-3 py-1.5 border border-border rounded-lg hover:bg-accent transition-colors"
-          >
-            View History
-          </button>
-        )}
-      </header>
+    <PageShell>
+      <PageHeader
+        title="Session"
+        leading={
+          <Button variant="ghost" size="sm" onClick={onBack} aria-label="Back to clients">
+            ←
+          </Button>
+        }
+        actions={
+          onViewHistory ? (
+            <Button variant="outline" size="sm" onClick={onViewHistory}>
+              View history
+            </Button>
+          ) : undefined
+        }
+      />
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <PageBody>
         {state === "idle" && (
           <div className="flex flex-col items-center justify-center h-full gap-6">
             <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center">
@@ -383,21 +395,18 @@ export function SessionPanel({
               </p>
             </div>
             {statusMessage && (
-              <div className="max-w-md text-center text-sm bg-muted rounded-lg px-4 py-2">
+              <Banner tone="muted" className="max-w-md text-center">
                 {statusMessage}
-              </div>
+              </Banner>
             )}
             {recorderState.error && (
-              <div className="max-w-xs text-center text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-2">
+              <Banner tone="destructive" className="max-w-md text-center">
                 {recorderState.error}
-              </div>
+              </Banner>
             )}
-            <button
-              onClick={startRecording}
-              className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
-            >
-              Start Recording
-            </button>
+            <Button size="lg" onClick={startRecording}>
+              Start recording
+            </Button>
           </div>
         )}
 
@@ -425,30 +434,28 @@ export function SessionPanel({
               </p>
             </div>
             {recorderState.error && (
-              <div className="max-w-xs text-center text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-2">
+              <Banner tone="destructive" className="max-w-md text-center">
                 {recorderState.error}
-              </div>
+              </Banner>
             )}
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <ActionRow className="justify-center gap-3">
               {recorderState.canPause && (
-                <button
+                <Button
+                  size="lg"
+                  variant="outline"
                   onClick={() =>
                     recorderState.isPaused
                       ? recorderControls.resumeRecording()
                       : recorderControls.pauseRecording()
                   }
-                  className="px-6 py-3 border border-border rounded-lg font-medium hover:bg-accent transition-colors"
                 >
                   {recorderState.isPaused ? "Resume" : "Pause"}
-                </button>
+                </Button>
               )}
-              <button
-                onClick={requestStop}
-                className="px-6 py-3 bg-destructive text-white rounded-lg font-medium hover:bg-destructive/90 transition-colors"
-              >
+              <Button size="lg" variant="destructive" onClick={requestStop}>
                 Stop
-              </button>
-            </div>
+              </Button>
+            </ActionRow>
             <p className="text-xs text-muted-foreground max-w-sm text-center">
               Audio stays on this computer. After Stop you choose: open SOAP notes,
               keep recording, save the audio file, or auto-transcribe and draft SOAP.
@@ -457,21 +464,15 @@ export function SessionPanel({
         )}
 
         {state === "saving" && (
-          <div className="flex flex-col items-center justify-center h-full gap-6">
-            <LoadingSpinner className="w-12 h-12 text-primary" />
-            <div className="text-center">
-              <h2 className="text-lg font-medium">Saving session audio…</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                {statusMessage || "Writing the recording to this computer"}
-              </p>
-            </div>
-          </div>
+          <LoadingState
+            className="h-full"
+            label={statusMessage || "Saving session audio…"}
+          />
         )}
 
         {state === "waiting_pipeline" && (
           <div className="max-w-lg mx-auto space-y-6 py-8">
-            <div className="text-center space-y-2">
-              <LoadingSpinner className="w-12 h-12 text-primary mx-auto" />
+            <div className="text-center space-y-2 py-4">
               <h2 className="text-lg font-medium">Transcribing and drafting SOAP</h2>
               <p className="text-sm text-muted-foreground">
                 Local speech-to-text and drafting run on this computer. This can take a few minutes.
@@ -488,13 +489,10 @@ export function SessionPanel({
                 void refreshMlReadiness();
               }}
             />
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => setState("editing")}
-                className="px-4 py-2 border border-border rounded-lg font-medium hover:bg-accent transition-colors"
-              >
+            <div className="flex flex-col gap-2 items-stretch">
+              <Button variant="outline" onClick={() => setState("editing")}>
                 Write SOAP notes by hand
-              </button>
+              </Button>
               <p className="text-xs text-muted-foreground text-center">
                 You can write by hand while jobs finish. A draft will fill empty fields when ready.
               </p>
@@ -534,7 +532,7 @@ export function SessionPanel({
             />
           </div>
         )}
-      </div>
+      </PageBody>
 
       {showStopMenu && (
         <StopChoiceDialog
@@ -547,7 +545,7 @@ export function SessionPanel({
           }}
         />
       )}
-    </div>
+    </PageShell>
   );
 }
 
@@ -596,12 +594,9 @@ function StopChoiceDialog({
             primary
           />
         </div>
-        <button
-          onClick={onDismiss}
-          className="w-full text-sm text-muted-foreground hover:text-foreground py-2"
-        >
+        <Button variant="ghost" className="w-full" onClick={onDismiss}>
           Keep recording (resume)
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -641,11 +636,3 @@ function MicIcon({ className }: { className?: string }) {
   );
 }
 
-function LoadingSpinner({ className }: { className?: string }) {
-  return (
-    <svg className={`animate-spin ${className}`} fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-    </svg>
-  );
-}

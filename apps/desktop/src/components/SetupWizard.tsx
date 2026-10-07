@@ -7,6 +7,12 @@ import {
   micFailureUserMessage,
   type MicFailureKind,
 } from "../lib/audioCapture";
+import {
+  ActionRow,
+  Banner,
+  Button,
+  Input,
+} from "./ui";
 
 interface MlSetupStatus {
   whisperModelDownloaded: boolean;
@@ -213,21 +219,15 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
             body="If you already have a SoloPractice account on the web, connect this computer to it so your client list stays in sync. This is optional -- you can skip it and add clients by hand instead."
           >
             {connected ? (
-              <StatusBanner tone="success">{connectResult?.text}</StatusBanner>
+              <Banner tone="success">{connectResult?.text}</Banner>
             ) : hasAccount === "unknown" ? (
               <div className="flex gap-2">
-                <button
-                  onClick={() => setHasAccount("yes")}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90"
-                >
+                <Button onClick={() => setHasAccount("yes")}>
                   Yes, I have an account
-                </button>
-                <button
-                  onClick={() => setHasAccount("no")}
-                  className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-accent"
-                >
+                </Button>
+                <Button variant="outline" onClick={() => setHasAccount("no")}>
                   Not yet
-                </button>
+                </Button>
               </div>
             ) : hasAccount === "no" ? (
               <div className="space-y-3">
@@ -235,42 +235,39 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
                   Create your free account in your browser, then come back here and pick
                   &ldquo;Yes, I have an account&rdquo;.
                 </p>
-                <button
-                  onClick={() => openWebPortal("/therapist/login")}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90"
-                >
+                <Button onClick={() => openWebPortal("/therapist/login")}>
                   Create my account
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="space-y-3">
-                <input
+                <Input
                   type="password"
                   autoComplete="off"
                   value={connectionCode}
                   onChange={(e) => setConnectionCode(e.target.value)}
                   placeholder="Paste your connection code"
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
-                <div className="flex items-center gap-3 flex-wrap">
-                  <button
+                <ActionRow>
+                  <Button
                     onClick={connectToAccount}
                     disabled={connecting || !connectionCode.trim()}
-                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 disabled:opacity-50"
+                    loading={connecting}
                   >
-                    {connecting ? "Connecting..." : "Connect"}
-                  </button>
-                  <button
+                    {connecting ? "Connecting…" : "Connect"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => openWebPortal("/therapist/settings#desktop")}
-                    className="text-sm text-muted-foreground hover:text-foreground underline"
                   >
                     Don&rsquo;t have a code? Get one from your account
-                  </button>
-                </div>
+                  </Button>
+                </ActionRow>
                 {connectResult && (
-                  <StatusBanner tone={connectResult.isError ? "warning" : "success"}>
+                  <Banner tone={connectResult.isError ? "warning" : "success"}>
                     {connectResult.text}
-                  </StatusBanner>
+                  </Banner>
                 )}
               </div>
             )}
@@ -312,20 +309,17 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
             body="SoloPractice needs permission to hear your microphone so it can record sessions."
           >
             {(micState === "unchecked" || micState === "failed") && (
-              <button
-                onClick={checkMicrophone}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90"
-              >
+              <Button onClick={checkMicrophone}>
                 {micState === "failed" ? "Try microphone again" : "Test my microphone"}
-              </button>
+              </Button>
             )}
             {micState === "checking" && <p className="text-sm text-muted-foreground">Checking...</p>}
             {micState === "ok" && (
-              <StatusBanner tone="success">Your microphone is working.</StatusBanner>
+              <Banner tone="success">Your microphone is working.</Banner>
             )}
             {micState === "failed" && micFailureDetail && (
               <div className="space-y-2 mt-3">
-                <StatusBanner tone="warning">{micFailureDetail}</StatusBanner>
+                <Banner tone="warning">{micFailureDetail}</Banner>
                 {micFailureKind === "permission" ? (
                   <p className="text-xs text-muted-foreground">
                     On Linux, allow SoloPractice in your system privacy / PipeWire portal prompt,
@@ -354,9 +348,9 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
             body="This is optional. SoloPractice can automatically turn your session recordings into a written transcript, entirely on this computer, using nothing sent over the internet. The AppImage does not include these files — download them once into this computer's data folder."
           >
             {status?.whisperModelDownloaded && status?.whisperBinaryAvailable ? (
-              <StatusBanner tone="success">
+              <Banner tone="success">
                 Speech-to-text is ready on this computer (program + model).
-              </StatusBanner>
+              </Banner>
             ) : (
               <>
                 <p className="text-sm text-muted-foreground mb-3">
@@ -365,22 +359,18 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
                   whisper.cpp — no terminal install needed.
                 </p>
                 {status?.whisperModelDownloaded && !status?.whisperBinaryAvailable && (
-                  <StatusBanner tone="warning">
+                  <Banner tone="warning">
                     The model file is present, but the speech-to-text program is still missing.
                     Click below to finish setup.
-                  </StatusBanner>
+                  </Banner>
                 )}
-                <button
-                  onClick={setUpSpeechToText}
-                  disabled={working}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 disabled:opacity-50"
-                >
+                <Button onClick={setUpSpeechToText} loading={working}>
                   {working
                     ? "Downloading…"
                     : status?.whisperModelDownloaded
                       ? "Finish speech-to-text setup"
                       : "Set up speech-to-text"}
-                </button>
+                </Button>
               </>
             )}
             {progress && progress.kind !== "ollama-model" && (
@@ -400,23 +390,19 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
             body="Also optional. SoloPractice can write a first draft of your session notes for you to review and edit, using AI that runs only on this computer."
           >
             {status?.ollamaRunning ? (
-              <StatusBanner tone="success">
+              <Banner tone="success">
                 AI drafting is ready to go ({status.ollamaModels.length} model
                 {status.ollamaModels.length === 1 ? "" : "s"} installed).
-              </StatusBanner>
+              </Banner>
             ) : status?.ollamaInstalled ? (
               <>
                 <p className="text-sm text-muted-foreground mb-3">
                   We found the AI drafting program on your computer, but it isn't turned on. Open
                   it, then come back here.
                 </p>
-                <button
-                  onClick={setUpAiDrafting}
-                  disabled={working}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 disabled:opacity-50"
-                >
-                  {working ? "Setting up..." : "Try again"}
-                </button>
+                <Button onClick={setUpAiDrafting} loading={working}>
+                  {working ? "Setting up…" : "Try again"}
+                </Button>
               </>
             ) : (
               <>
@@ -424,23 +410,19 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
                   This needs a free helper program called Ollama installed first. If you'd rather
                   skip this step, you'll still write your notes yourself, exactly as before.
                 </p>
-                <div className="flex gap-2">
-                  <button
+                <ActionRow>
+                  <Button
+                    variant="outline"
                     onClick={() =>
                       import("@tauri-apps/plugin-shell").then(({ open }) => open("https://ollama.com/download"))
                     }
-                    className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-accent"
                   >
                     Get the AI drafting program
-                  </button>
-                  <button
-                    onClick={setUpAiDrafting}
-                    disabled={working}
-                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 disabled:opacity-50"
-                  >
-                    {working ? "Setting up..." : "I installed it, continue"}
-                  </button>
-                </div>
+                  </Button>
+                  <Button onClick={setUpAiDrafting} loading={working}>
+                    {working ? "Setting up…" : "I installed it, continue"}
+                  </Button>
+                </ActionRow>
               </>
             )}
             {progress && progress.kind === "ollama-model" && (
@@ -478,25 +460,19 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
           </div>
         )}
 
-        <div className="flex justify-between mt-6 pt-4 border-t">
-          <button onClick={onSkip} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground">
+        <div className="flex justify-between mt-6 pt-4 border-t border-border">
+          <Button variant="ghost" onClick={onSkip}>
             Skip for now
-          </button>
+          </Button>
 
           {step === "done" ? (
-            <button
-              onClick={onComplete}
-              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90"
-            >
+            <Button onClick={onComplete}>
               Start using SoloPractice
-            </button>
+            </Button>
           ) : (
-            <button
-              onClick={nextStep}
-              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90"
-            >
+            <Button onClick={nextStep}>
               Continue
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -536,13 +512,6 @@ function Section({
   );
 }
 
-function StatusBanner({ tone, children }: { tone: "success" | "warning"; children: React.ReactNode }) {
-  const classes =
-    tone === "success"
-      ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200"
-      : "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200";
-  return <div className={`border rounded-lg p-3 text-sm font-medium ${classes}`}>{children}</div>;
-}
 
 function ProgressBar({
   label,

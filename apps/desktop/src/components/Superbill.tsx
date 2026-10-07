@@ -1,5 +1,15 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import {
+  ActionRow,
+  Banner,
+  Button,
+  EmptyState,
+  LoadingState,
+  PageBody,
+  PageHeader,
+  PageShell,
+} from "./ui";
 
 interface Client {
   id: string;
@@ -331,104 +341,88 @@ export function Superbill() {
   );
 
   return (
-    <div className="h-full flex flex-col">
-      <header className="p-4 border-b border-[var(--border)] flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Superbill</h1>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setView("form")}
-            className={`px-3 py-1 rounded-lg text-sm ${
-              view === "form"
-                ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
-                : "bg-[var(--muted)] text-[var(--foreground)]"
-            }`}
-          >
-            Create New
-          </button>
-          <button
-            onClick={() => {
-              setView("pending");
-              loadPending();
-            }}
-            className={`px-3 py-1 rounded-lg text-sm ${
-              view === "pending"
-                ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
-                : "bg-[var(--muted)] text-[var(--foreground)]"
-            }`}
-          >
-            Pending ({pending.length})
-          </button>
-          <button
-            onClick={() => setView("history")}
-            className={`px-3 py-1 rounded-lg text-sm ${
-              view === "history"
-                ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
-                : "bg-[var(--muted)] text-[var(--foreground)]"
-            }`}
-          >
-            History ({superbills.length})
-          </button>
-        </div>
-      </header>
+    <PageShell>
+      <PageHeader
+        title="Superbill"
+        actions={
+          <ActionRow>
+            <Button
+              size="sm"
+              variant={view === "form" ? "primary" : "secondary"}
+              onClick={() => setView("form")}
+            >
+              Create new
+            </Button>
+            <Button
+              size="sm"
+              variant={view === "pending" ? "primary" : "secondary"}
+              onClick={() => {
+                setView("pending");
+                loadPending();
+              }}
+            >
+              Pending ({pending.length})
+            </Button>
+            <Button
+              size="sm"
+              variant={view === "history" ? "primary" : "secondary"}
+              onClick={() => setView("history")}
+            >
+              History ({superbills.length})
+            </Button>
+          </ActionRow>
+        }
+      />
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <PageBody>
         {view === "form" ? (
           <div className="max-w-3xl mx-auto space-y-6">
             {generatedPath && (
-              <div className="p-4 bg-[var(--success)]/10 border border-[var(--success)]/20 rounded-lg space-y-3">
-                <p className="text-[var(--success)] font-medium">
-                  Superbill generated successfully — saved on this computer only.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => openPdf(generatedPath)}
-                    className="px-4 py-2 bg-[var(--success)] text-white rounded-lg text-sm"
-                  >
+              <Banner tone="success" title="Superbill generated — saved on this computer only.">
+                <ActionRow>
+                  <Button size="sm" onClick={() => openPdf(generatedPath)}>
                     Open PDF
-                  </button>
-                  <button
-                    onClick={openLocalMailShare}
-                    className="px-4 py-2 bg-[var(--muted)] text-[var(--foreground)] rounded-lg text-sm"
-                  >
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={openLocalMailShare}>
                     Open mail client
-                  </button>
+                  </Button>
                   {fulfillingInvoiceId && (
-                    <button
+                    <Button
+                      size="sm"
                       onClick={markRequestSent}
-                      disabled={markingSent}
-                      className="px-4 py-2 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-lg text-sm disabled:opacity-50"
+                      loading={markingSent}
                     >
                       {markingSent ? "Marking…" : "Mark sent"}
-                    </button>
+                    </Button>
                   )}
-                </div>
-                <p className="text-xs text-[var(--muted-foreground)]">
+                </ActionRow>
+                <p className="text-xs text-muted-foreground">
                   Attach the PDF yourself in your mail app. SoloPractice never
                   emails or stores the superbill PDF.
                 </p>
-              </div>
+              </Banner>
             )}
 
             {fulfillingInvoiceId && !generatedPath && (
-              <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--muted)]/40 text-sm">
+              <Banner tone="info">
                 Fulfilling request for invoice{" "}
                 <span className="font-mono text-xs">{fulfillingInvoiceId.slice(0, 8)}…</span>
                 . Enter Dx/CPT and DOB, generate PDF, share locally, then Mark sent.
-              </div>
+              </Banner>
             )}
 
             {/* Client Selection */}
             <section className="space-y-3">
-              <h2 className="font-medium">Client Information</h2>
+              <h2 className="text-lg font-medium tracking-tight">Client information</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-[var(--muted-foreground)] mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
                     Client
                   </label>
                   <select
                     value={selectedClient}
                     onChange={(e) => setSelectedClient(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)]"
+                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   >
                     <option value="">Select client...</option>
                     {clients.map((c) => (
@@ -439,7 +433,7 @@ export function Superbill() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-[var(--muted-foreground)] mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
                     Date of Birth (required)
                   </label>
                   <input
@@ -447,13 +441,13 @@ export function Superbill() {
                     value={clientDob}
                     onChange={(e) => setClientDob(e.target.value)}
                     required
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)]"
+                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-[var(--muted-foreground)] mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
                     Address (optional)
                   </label>
                   <input
@@ -461,11 +455,11 @@ export function Superbill() {
                     value={clientAddress}
                     onChange={(e) => setClientAddress(e.target.value)}
                     placeholder="123 Main St, City, ST 12345"
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)]"
+                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-[var(--muted-foreground)] mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
                     Phone (optional)
                   </label>
                   <input
@@ -473,7 +467,7 @@ export function Superbill() {
                     value={clientPhone}
                     onChange={(e) => setClientPhone(e.target.value)}
                     placeholder="(555) 123-4567"
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)]"
+                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
               </div>
@@ -481,24 +475,24 @@ export function Superbill() {
 
             {/* Service Date */}
             <section className="space-y-3">
-              <h2 className="font-medium">Service Date</h2>
+              <h2 className="text-lg font-medium tracking-tight">Service date</h2>
               <input
                 type="date"
                 value={serviceDate}
                 onChange={(e) => setServiceDate(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)]"
+                className="block rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </section>
 
             {/* Diagnosis Codes */}
             <section className="space-y-3">
-              <h2 className="font-medium">Diagnosis Codes (ICD-10)</h2>
+              <h2 className="text-lg font-medium tracking-tight">Diagnosis codes (ICD-10)</h2>
               {selectedDiagnoses.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {selectedDiagnoses.map((dx, i) => (
                     <span
                       key={dx.code}
-                      className="inline-flex items-center gap-2 px-3 py-1 bg-[var(--primary)]/10 text-[var(--primary)] rounded-full text-sm"
+                      className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm"
                     >
                       <span className="font-medium">
                         {String.fromCharCode(65 + i)}.
@@ -506,7 +500,7 @@ export function Superbill() {
                       {dx.code} - {dx.description}
                       <button
                         onClick={() => removeDiagnosis(dx.code)}
-                        className="hover:text-[var(--destructive)]"
+                        className="hover:text-destructive"
                       >
                         ×
                       </button>
@@ -521,7 +515,7 @@ export function Superbill() {
                   <button
                     key={dx.code}
                     onClick={() => addDiagnosis(dx)}
-                    className="px-2 py-1 text-xs border border-[var(--border)] rounded hover:bg-[var(--muted)]"
+                    className="px-2 py-1 text-xs border border-border rounded hover:bg-muted"
                   >
                     {dx.code}
                   </button>
@@ -531,18 +525,18 @@ export function Superbill() {
 
             {/* Service Codes */}
             <section className="space-y-3">
-              <h2 className="font-medium">Service Codes (CPT)</h2>
+              <h2 className="text-lg font-medium tracking-tight">Service codes (CPT)</h2>
               {selectedServices.length > 0 && (
                 <div className="space-y-2">
                   {selectedServices.map((svc, i) => (
                     <div
                       key={i}
-                      className="flex items-center gap-3 p-3 bg-[var(--muted)]/50 rounded-lg"
+                      className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg"
                     >
                       <span className="font-mono font-medium">{svc.cptCode}</span>
                       <span className="flex-1 text-sm">{svc.description}</span>
                       <div className="flex items-center gap-2">
-                        <label className="text-xs text-[var(--muted-foreground)]">
+                        <label className="text-xs text-muted-foreground">
                           Dx:
                         </label>
                         <input
@@ -551,11 +545,11 @@ export function Superbill() {
                           onChange={(e) =>
                             updateService(i, { diagnosisPointer: e.target.value })
                           }
-                          className="w-12 px-2 py-1 text-xs rounded border border-[var(--border)] bg-[var(--background)]"
+                          className="w-12 px-2 py-1 text-xs rounded border border-border bg-background"
                         />
                       </div>
                       <div className="flex items-center gap-2">
-                        <label className="text-xs text-[var(--muted-foreground)]">
+                        <label className="text-xs text-muted-foreground">
                           Units:
                         </label>
                         <input
@@ -565,11 +559,11 @@ export function Superbill() {
                           onChange={(e) =>
                             updateService(i, { units: parseInt(e.target.value) || 1 })
                           }
-                          className="w-16 px-2 py-1 text-xs rounded border border-[var(--border)] bg-[var(--background)]"
+                          className="w-16 px-2 py-1 text-xs rounded border border-border bg-background"
                         />
                       </div>
                       <div className="flex items-center gap-2">
-                        <label className="text-xs text-[var(--muted-foreground)]">
+                        <label className="text-xs text-muted-foreground">
                           $
                         </label>
                         <input
@@ -584,12 +578,12 @@ export function Superbill() {
                               ),
                             })
                           }
-                          className="w-20 px-2 py-1 text-xs rounded border border-[var(--border)] bg-[var(--background)]"
+                          className="w-20 px-2 py-1 text-xs rounded border border-border bg-background"
                         />
                       </div>
                       <button
                         onClick={() => removeService(i)}
-                        className="text-[var(--destructive)] hover:opacity-70"
+                        className="text-destructive hover:opacity-70"
                       >
                         ×
                       </button>
@@ -602,7 +596,7 @@ export function Superbill() {
                   <button
                     key={cpt.code}
                     onClick={() => addService(cpt)}
-                    className="px-2 py-1 text-xs border border-[var(--border)] rounded hover:bg-[var(--muted)]"
+                    className="px-2 py-1 text-xs border border-border rounded hover:bg-muted"
                   >
                     {cpt.code} - {cpt.description}
                   </button>
@@ -612,10 +606,10 @@ export function Superbill() {
 
             {/* Therapist Info */}
             <section className="space-y-3">
-              <h2 className="font-medium">Therapist / Practice Information</h2>
+              <h2 className="text-lg font-medium tracking-tight">Therapist / practice information</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-[var(--muted-foreground)] mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
                     Practice Name
                   </label>
                   <input
@@ -624,11 +618,11 @@ export function Superbill() {
                     onChange={(e) =>
                       setTherapistInfo({ ...therapistInfo, practiceName: e.target.value })
                     }
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)]"
+                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-[var(--muted-foreground)] mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
                     Therapist Name
                   </label>
                   <input
@@ -637,13 +631,13 @@ export function Superbill() {
                     onChange={(e) =>
                       setTherapistInfo({ ...therapistInfo, therapistName: e.target.value })
                     }
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)]"
+                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm text-[var(--muted-foreground)] mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
                     Credentials
                   </label>
                   <input
@@ -652,11 +646,11 @@ export function Superbill() {
                     onChange={(e) =>
                       setTherapistInfo({ ...therapistInfo, credentials: e.target.value })
                     }
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)]"
+                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-[var(--muted-foreground)] mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
                     NPI Number
                   </label>
                   <input
@@ -665,11 +659,11 @@ export function Superbill() {
                     onChange={(e) =>
                       setTherapistInfo({ ...therapistInfo, npiNumber: e.target.value })
                     }
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)]"
+                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-[var(--muted-foreground)] mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
                     Tax ID
                   </label>
                   <input
@@ -678,12 +672,12 @@ export function Superbill() {
                     onChange={(e) =>
                       setTherapistInfo({ ...therapistInfo, taxId: e.target.value })
                     }
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)]"
+                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm text-[var(--muted-foreground)] mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1.5">
                   Address (street, city, state, ZIP required)
                 </label>
                 <input
@@ -693,7 +687,7 @@ export function Superbill() {
                     setTherapistInfo({ ...therapistInfo, addressStreet: e.target.value })
                   }
                   placeholder="Street address"
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)]"
+                  className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
               <div className="grid grid-cols-3 gap-4">
@@ -705,7 +699,7 @@ export function Superbill() {
                       setTherapistInfo({ ...therapistInfo, addressCity: e.target.value })
                     }
                     placeholder="City"
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)]"
+                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
                 <div>
@@ -716,7 +710,7 @@ export function Superbill() {
                       setTherapistInfo({ ...therapistInfo, addressState: e.target.value })
                     }
                     placeholder="State"
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)]"
+                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
                 <div>
@@ -727,12 +721,12 @@ export function Superbill() {
                       setTherapistInfo({ ...therapistInfo, addressZip: e.target.value })
                     }
                     placeholder="ZIP"
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)]"
+                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm text-[var(--muted-foreground)] mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1.5">
                   Phone
                 </label>
                 <input
@@ -741,57 +735,56 @@ export function Superbill() {
                   onChange={(e) =>
                     setTherapistInfo({ ...therapistInfo, phone: e.target.value })
                   }
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)]"
+                  className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
             </section>
 
             {/* Total and Generate */}
-            <section className="p-4 bg-[var(--muted)]/50 rounded-lg flex items-center justify-between">
+            <section className="p-4 bg-muted/50 rounded-lg flex items-center justify-between">
               <div>
-                <span className="text-[var(--muted-foreground)]">Total: </span>
+                <span className="text-muted-foreground">Total: </span>
                 <span className="text-2xl font-bold">
                   ${(totalCents / 100).toFixed(2)}
                 </span>
               </div>
-              <button
+              <Button
+                size="lg"
                 onClick={generateSuperbill}
-                disabled={generating}
-                className="px-6 py-3 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-lg font-medium disabled:opacity-50"
+                loading={generating}
               >
-                {generating ? "Generating..." : "Generate Superbill PDF"}
-              </button>
+                {generating ? "Generating…" : "Generate superbill PDF"}
+              </Button>
             </section>
           </div>
         ) : view === "pending" ? (
           <div className="max-w-3xl mx-auto space-y-4">
-            <p className="text-sm text-[var(--muted-foreground)]">
+            <p className="text-sm text-muted-foreground">
               Clients who paid and requested a superbill. Generate the PDF on
               this computer, share it yourself (mail client / file), then mark
               sent. Clinical codes never sync to the web.
             </p>
             {pendingLoading ? (
-              <p className="text-[var(--muted-foreground)]">Loading…</p>
+              <LoadingState label="Loading pending requests…" />
             ) : pendingError ? (
-              <p className="text-sm text-[var(--destructive)]" role="alert">
-                {pendingError}
-              </p>
+              <EmptyState title="Could not load requests" description={pendingError} />
             ) : pending.length === 0 ? (
-              <div className="text-center py-12 text-[var(--muted-foreground)]">
-                No pending superbill requests
-              </div>
+              <EmptyState
+                title="No pending superbill requests"
+                description="When a client requests a superbill after paying, it shows up here."
+              />
             ) : (
               <div className="space-y-3">
                 {pending.map((req) => (
                   <div
                     key={req.invoiceId}
-                    className="flex items-center justify-between gap-4 p-4 border border-[var(--border)] rounded-lg"
+                    className="flex items-center justify-between gap-4 p-4 border border-border rounded-lg"
                   >
                     <div className="min-w-0">
                       <p className="font-medium">
                         {req.clientFirstName} {req.clientLastName}
                       </p>
-                      <p className="text-sm text-[var(--muted-foreground)] truncate">
+                      <p className="text-sm text-muted-foreground truncate">
                         {req.description} · $
                         {(req.amountCents / 100).toFixed(2)}
                         {req.superbillRequestedAt
@@ -801,57 +794,56 @@ export function Superbill() {
                           : ""}
                       </p>
                     </div>
-                    <button
+                    <Button
+                      className="shrink-0"
+                      size="sm"
                       onClick={() => fulfillRequest(req)}
-                      className="shrink-0 px-4 py-2 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-lg text-sm"
                     >
                       Prepare
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
             )}
-            <button
-              type="button"
-              onClick={loadPending}
-              className="text-sm text-[var(--primary)] underline"
-            >
+            <Button variant="ghost" size="sm" onClick={loadPending}>
               Refresh
-            </button>
+            </Button>
           </div>
         ) : (
           /* History View */
           <div className="max-w-3xl mx-auto">
             {superbills.length === 0 ? (
-              <div className="text-center py-12 text-[var(--muted-foreground)]">
-                No superbills generated yet
-              </div>
+              <EmptyState
+                title="No superbills generated yet"
+                description="Create a new superbill PDF from the Create new tab."
+              />
             ) : (
               <div className="space-y-3">
                 {superbills.map((sb) => (
                   <div
                     key={sb.id}
-                    className="flex items-center justify-between p-4 border border-[var(--border)] rounded-lg"
+                    className="flex items-center justify-between p-4 border border-border rounded-lg"
                   >
                     <div>
                       <p className="font-medium">{sb.clientName}</p>
-                      <p className="text-sm text-[var(--muted-foreground)]">
+                      <p className="text-sm text-muted-foreground">
                         {sb.serviceDate} • ${(sb.totalAmountCents / 100).toFixed(2)}
                       </p>
                     </div>
-                    <button
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => openPdf(sb.pdfPath)}
-                      className="px-4 py-2 bg-[var(--muted)] text-[var(--foreground)] rounded-lg text-sm hover:bg-[var(--accent)]"
                     >
                       Open PDF
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
             )}
           </div>
         )}
-      </div>
-    </div>
+      </PageBody>
+    </PageShell>
   );
 }

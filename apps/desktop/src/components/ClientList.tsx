@@ -1,5 +1,19 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import {
+  ActionRow,
+  Badge,
+  Banner,
+  Button,
+  EmptyState,
+  Input,
+  LoadingState,
+  PageBody,
+  PageFooter,
+  PageHeader,
+  PageShell,
+  Surface,
+} from "./ui";
 
 interface Client {
   id: string;
@@ -17,7 +31,11 @@ interface ClientListProps {
   onViewHistory: (id: string, name: string, canRecord: boolean) => void;
 }
 
-export function ClientList({ selectedClientId, onSelectClient, onViewHistory }: ClientListProps) {
+export function ClientList({
+  selectedClientId,
+  onSelectClient,
+  onViewHistory,
+}: ClientListProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -33,8 +51,6 @@ export function ClientList({ selectedClientId, onSelectClient, onViewHistory }: 
       setClients(result);
     } catch (error) {
       console.error("Failed to load clients:", error);
-      // Do not invent mock clients on failure — that bypasses consent state
-      // and confuses Gate A walkthroughs. Show the empty/error state instead.
       setClients([]);
     } finally {
       setLoading(false);
@@ -49,53 +65,61 @@ export function ClientList({ selectedClientId, onSelectClient, onViewHistory }: 
   );
 
   return (
-    <div className="h-full flex flex-col">
-      <header className="p-4 border-b border-border">
-        <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl font-semibold">Clients</h1>
-          <button
+    <PageShell>
+      <PageHeader
+        title="Clients"
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setShowAddClientHelp((v) => !v)}
-            className="px-3 py-1.5 border border-border rounded-lg hover:bg-accent text-sm"
           >
             {showAddClientHelp ? "Close" : "+ Add Client"}
-          </button>
-        </div>
+          </Button>
+        }
+      >
         {showAddClientHelp && (
-          <div className="mb-3 space-y-2 rounded-lg border border-border p-3 text-sm text-muted-foreground">
-            <p>
-              New clients are added from the <strong>web portal</strong>, not
-              here. That's where their intake forms and recording consent get
-              signed before a session can ever be recorded.
+          <Banner tone="info" title="Add clients on the web portal">
+            <p className="text-muted-foreground">
+              New clients are added from the web portal, not here — that&apos;s
+              where intake forms and recording consent get signed before a
+              session can be recorded.
             </p>
-            <p>
-              Once a client signs their consent on the web portal, they'll
-              sync down to this list automatically and show as{" "}
-              <span className="text-success">Ready</span>.
+            <p className="text-muted-foreground mt-1">
+              Once consent is signed, the client syncs here and shows as{" "}
+              <span className="text-success font-medium">Ready</span>.
             </p>
-            <button
-              onClick={() => setShowAddClientHelp(false)}
-              className="mt-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs hover:opacity-90"
-            >
-              Got it
-            </button>
-          </div>
+            <ActionRow className="mt-2">
+              <Button
+                size="sm"
+                onClick={() => setShowAddClientHelp(false)}
+              >
+                Got it
+              </Button>
+            </ActionRow>
+          </Banner>
         )}
-        <input
-          type="text"
-          placeholder="Search clients..."
+        <Input
+          type="search"
+          placeholder="Search clients…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          aria-label="Search clients"
         />
-      </header>
+      </PageHeader>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <PageBody>
         {loading ? (
-          <div className="text-center text-muted-foreground py-8">Loading...</div>
+          <LoadingState label="Loading clients…" />
         ) : filteredClients.length === 0 ? (
-          <div className="text-center text-muted-foreground py-8">
-            {search ? "No clients match your search" : "No clients yet"}
-          </div>
+          <EmptyState
+            title={search ? "No clients match your search" : "No clients yet"}
+            description={
+              search
+                ? "Try a different name or email."
+                : "Connect your account and sync from Settings, or add clients on the web portal."
+            }
+          />
         ) : (
           <div className="space-y-2">
             {filteredClients.map((client) => (
@@ -121,14 +145,13 @@ export function ClientList({ selectedClientId, onSelectClient, onViewHistory }: 
             ))}
           </div>
         )}
-      </div>
+      </PageBody>
 
-      <div className="p-4 border-t border-border bg-muted/50">
-        <p className="text-xs text-muted-foreground">
-          Clients sync from web portal. Recording requires signed recording consent.
-        </p>
-      </div>
-    </div>
+      <PageFooter>
+        Clients sync from the web portal. Recording requires signed recording
+        consent.
+      </PageFooter>
+    </PageShell>
   );
 }
 
@@ -146,33 +169,27 @@ function ClientCard({
   const canRecord = client.recordingConsentSigned;
 
   return (
-    <div
-      className={`
-        w-full text-left p-3 rounded-lg border transition-colors
-        ${selected ? "border-primary bg-primary/5" : "border-border hover:bg-accent"}
-      `}
-    >
+    <Surface selected={selected} interactive>
       <button
+        type="button"
         onClick={onSelect}
         disabled={!canRecord}
         className={`w-full text-left ${!canRecord ? "opacity-60 cursor-not-allowed" : ""}`}
       >
-        <div className="flex items-start justify-between">
-          <div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
             <p className="font-medium">
               {client.firstName} {client.lastName}
             </p>
-            <p className="text-sm text-muted-foreground">{client.email}</p>
+            <p className="text-sm text-muted-foreground truncate">
+              {client.email}
+            </p>
           </div>
-          <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-col items-end gap-1 shrink-0">
             {canRecord ? (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-success/10 text-success">
-                Ready
-              </span>
+              <Badge tone="success">Ready</Badge>
             ) : (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">
-                Record blocked
-              </span>
+              <Badge tone="destructive">Recording blocked</Badge>
             )}
             {!client.allConsentsSigned && (
               <span className="text-xs text-muted-foreground">
@@ -183,20 +200,16 @@ function ClientCard({
         </div>
         {!canRecord && (
           <p className="mt-2 text-xs text-muted-foreground">
-            Recording consent not signed. Send consent link from web portal.
+            Recording consent not signed. Send the consent link from the web
+            portal.
           </p>
         )}
       </button>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onViewHistory();
-        }}
-        className="mt-2 text-xs px-2 py-1 rounded border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-      >
-        View Session History
-      </button>
-    </div>
+      <ActionRow className="mt-2">
+        <Button variant="outline" size="sm" onClick={onViewHistory}>
+          View session history
+        </Button>
+      </ActionRow>
+    </Surface>
   );
 }
-

@@ -2,6 +2,15 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { SoapEditor } from "./SoapEditor";
 import type { SoapNote as SharedSoapNote } from "@solopractice/shared/desktop";
+import {
+  ActionRow,
+  Badge,
+  Button,
+  EmptyState,
+  LoadingState,
+  PageHeader,
+  PageShell,
+} from "./ui";
 
 interface SessionInfo {
   id: string;
@@ -108,98 +117,70 @@ export function SessionHistory({
 
   function getStatusBadge(session: SessionInfo) {
     if (session.hasSoapNote && !session.soapIsDraft) {
-      return (
-        <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
-          Finalized
-        </span>
-      );
+      return <Badge tone="success">Finalized</Badge>;
     }
     if (session.hasSoapNote && session.soapIsDraft) {
-      return (
-        <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300">
-          Draft
-        </span>
-      );
+      return <Badge tone="warning">Draft</Badge>;
     }
     if (session.hasTranscript) {
-      return (
-        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
-          Transcribed
-        </span>
-      );
+      return <Badge tone="info">Transcribed</Badge>;
     }
     if (session.hasRecording) {
-      return (
-        <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
-          Recorded
-        </span>
-      );
+      return <Badge tone="neutral">Recorded</Badge>;
     }
-    return (
-      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-        {session.status}
-      </span>
-    );
+    return <Badge tone="neutral">{session.status}</Badge>;
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <header className="p-4 border-b border-[var(--border)] flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onClose}
-            className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+    <PageShell>
+      <PageHeader
+        title="Session History"
+        description={clientName}
+        leading={
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Back">
+            ←
+          </Button>
+        }
+        actions={
+          <Button
+            onClick={onStartNewSession}
+            disabled={!canRecord}
+            title={
+              canRecord
+                ? "Start a new session"
+                : "Recording consent required before starting a session"
+            }
           >
-            &larr;
-          </button>
-          <div>
-            <h1 className="text-xl font-semibold">Session History</h1>
-            <p className="text-sm text-[var(--muted-foreground)]">{clientName}</p>
-          </div>
-        </div>
-        <button
-          onClick={onStartNewSession}
-          disabled={!canRecord}
-          title={
-            canRecord
-              ? "Start a new session"
-              : "Recording consent required before starting a session"
-          }
-          className="px-4 py-2 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          + New Session
-        </button>
-      </header>
+            + New session
+          </Button>
+        }
+      />
 
       <div className="flex-1 overflow-hidden flex">
         {/* Session list */}
-        <div className="w-1/3 border-r border-[var(--border)] overflow-y-auto">
+        <div className="w-1/3 border-r border-border overflow-y-auto">
           {loading ? (
-            <div className="p-4 text-center text-[var(--muted-foreground)]">
-              Loading sessions...
-            </div>
+            <LoadingState label="Loading sessions…" />
           ) : error ? (
-            <div className="p-4 text-center text-[var(--destructive)]">{error}</div>
+            <EmptyState title="Could not load sessions" description={error} />
           ) : sessions.length === 0 ? (
-            <div className="p-8 text-center">
-              <p className="text-[var(--muted-foreground)]">No sessions yet</p>
-              <button
-                onClick={onStartNewSession}
-                disabled={!canRecord}
-                className="mt-4 px-4 py-2 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Start First Session
-              </button>
-            </div>
+            <EmptyState
+              title="No sessions yet"
+              action={
+                <Button onClick={onStartNewSession} disabled={!canRecord}>
+                  Start first session
+                </Button>
+              }
+            />
           ) : (
-            <div className="divide-y divide-[var(--border)]">
+            <div className="divide-y divide-border">
               {sessions.map((session) => (
                 <button
                   key={session.id}
                   onClick={() => loadSessionDetails(session.id)}
-                  className={`w-full p-4 text-left hover:bg-[var(--accent)] transition-colors ${
+                  className={`w-full p-4 text-left hover:bg-accent transition-colors ${
                     selectedSession?.session.id === session.id
-                      ? "bg-[var(--accent)]"
+                      ? "bg-accent"
                       : ""
                   }`}
                 >
@@ -209,10 +190,10 @@ export function SessionHistory({
                     </span>
                     {getStatusBadge(session)}
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
-                    {session.hasRecording && <span>🎙️</span>}
-                    {session.hasTranscript && <span>📝</span>}
-                    {session.hasSoapNote && <span>📋</span>}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    {session.hasRecording && <span>Audio</span>}
+                    {session.hasTranscript && <span>Transcript</span>}
+                    {session.hasSoapNote && <span>SOAP</span>}
                   </div>
                 </button>
               ))}
@@ -240,9 +221,11 @@ export function SessionHistory({
               exportingPdf={exportingPdf === selectedSession.session.id}
             />
           ) : (
-            <div className="h-full flex items-center justify-center text-[var(--muted-foreground)]">
-              Select a session to view details
-            </div>
+            <EmptyState
+              className="h-full"
+              title="Select a session"
+              description="Choose a session from the list to view transcript and SOAP."
+            />
           )}
         </div>
       </div>
@@ -273,7 +256,7 @@ export function SessionHistory({
           }}
         />
       )}
-    </div>
+    </PageShell>
   );
 }
 
@@ -296,27 +279,25 @@ function SessionDetails({
           <h2 className="text-lg font-semibold">
             Session {session.session.id.slice(0, 8)}
           </h2>
-          <p className="text-sm text-[var(--muted-foreground)]">
+          <p className="text-sm text-muted-foreground">
             {session.client.firstName} {session.client.lastName}
           </p>
         </div>
-        <div className="flex gap-2">
+        <ActionRow>
           {session.soapNote && !session.soapNote.isDraft && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={onExportPdf}
-              disabled={exportingPdf}
-              className="px-3 py-1.5 text-sm border border-[var(--border)] rounded-lg hover:bg-[var(--accent)] disabled:opacity-50"
+              loading={exportingPdf}
             >
-              {exportingPdf ? "Exporting..." : "Export PDF"}
-            </button>
+              {exportingPdf ? "Exporting…" : "Export PDF"}
+            </Button>
           )}
-          <button
-            onClick={onOpenSoapEditor}
-            className="px-3 py-1.5 text-sm bg-[var(--primary)] text-[var(--primary-foreground)] rounded-lg hover:opacity-90"
-          >
-            {session.soapNote ? "Edit SOAP Note" : "Create SOAP Note"}
-          </button>
-        </div>
+          <Button size="sm" onClick={onOpenSoapEditor}>
+            {session.soapNote ? "Edit SOAP note" : "Create SOAP note"}
+          </Button>
+        </ActionRow>
       </div>
 
       {/* Status */}
@@ -339,7 +320,7 @@ function SessionDetails({
           </span>
           SOAP Note
           {session.soapNote && (
-            <span className="text-xs text-[var(--muted-foreground)]">
+            <span className="text-xs text-muted-foreground">
               ({session.soapNote.isDraft ? "Draft" : "Finalized"})
             </span>
           )}
@@ -350,14 +331,14 @@ function SessionDetails({
       {session.transcript && (
         <div className="space-y-2">
           <h3 className="font-medium">Transcript</h3>
-          <div className="p-4 bg-[var(--muted)]/50 rounded-lg max-h-48 overflow-y-auto">
+          <div className="p-4 bg-muted/50 rounded-lg max-h-48 overflow-y-auto">
             <p className="text-sm whitespace-pre-wrap font-mono">
               {session.transcript.content.slice(0, 1000)}
               {session.transcript.content.length > 1000 && "..."}
             </p>
           </div>
           {session.transcript.modelUsed && (
-            <p className="text-xs text-[var(--muted-foreground)]">
+            <p className="text-xs text-muted-foreground">
               Transcribed with: {session.transcript.modelUsed}
             </p>
           )}
@@ -369,11 +350,7 @@ function SessionDetails({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="font-medium">SOAP Note</h3>
-            {session.soapNote.isDraft && (
-              <span className="text-xs px-2 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300">
-                DRAFT
-              </span>
-            )}
+            {session.soapNote.isDraft && <Badge tone="warning">Draft</Badge>}
           </div>
           <div className="space-y-3">
             <SoapSection label="S - Subjective" content={session.soapNote.subjective} />
@@ -386,7 +363,7 @@ function SessionDetails({
 
       {/* No data state */}
       {!session.transcript && !session.soapNote && (
-        <div className="text-center py-8 text-[var(--muted-foreground)]">
+        <div className="text-center py-8 text-muted-foreground">
           <p>No transcript or SOAP note yet.</p>
           <p className="text-sm mt-1">
             {session.session.hasRecording
@@ -403,8 +380,8 @@ function SoapSection({ label, content }: { label: string; content: string }) {
   if (!content) return null;
 
   return (
-    <div className="p-3 bg-[var(--muted)]/50 rounded-lg">
-      <h4 className="text-xs font-medium text-[var(--muted-foreground)] mb-1">
+    <div className="p-3 bg-muted/50 rounded-lg">
+      <h4 className="text-xs font-medium text-muted-foreground mb-1">
         {label}
       </h4>
       <p className="text-sm whitespace-pre-wrap">

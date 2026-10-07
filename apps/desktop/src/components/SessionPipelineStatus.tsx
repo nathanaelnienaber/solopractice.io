@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { ActionRow, Banner, Button, type BannerTone } from "./ui";
 
 export interface SessionJobStatus {
   id: string;
@@ -38,7 +39,7 @@ export interface SessionPipelineStatusData {
   ollamaReady: boolean;
 }
 
-type Tone = "muted" | "info" | "success" | "warning" | "destructive";
+type Tone = BannerTone;
 
 function jobLabel(status: string | undefined, kind: "transcription" | "soap"): {
   text: string;
@@ -72,14 +73,6 @@ function jobLabel(status: string | undefined, kind: "transcription" | "soap"): {
       };
   }
 }
-
-const toneClasses: Record<Tone, string> = {
-  muted: "border-border bg-muted/40 text-muted-foreground",
-  info: "border-border bg-primary/5 text-foreground",
-  success: "border-success/30 bg-success/10 text-foreground",
-  warning: "border-warning/30 bg-warning/10 text-foreground",
-  destructive: "border-destructive/30 bg-destructive/10 text-destructive",
-};
 
 function isWhisperNotConfiguredError(error: string | null | undefined): boolean {
   if (!error) return false;
@@ -155,25 +148,25 @@ export function SessionPipelineStatusPanel({
 
   if (loadError) {
     return (
-      <div className={`rounded-lg border px-4 py-3 text-sm ${toneClasses.destructive}`}>
+      <Banner tone="destructive">
         Could not load local AI status: {loadError}
-      </div>
+      </Banner>
     );
   }
 
   if (!status && loading) {
     return (
-      <div className={`rounded-lg border px-4 py-3 text-sm ${toneClasses.info}`}>
+      <Banner tone="info">
         Checking local transcription and SOAP draft status…
-      </div>
+      </Banner>
     );
   }
 
   if (!status) {
     return (
-      <div className={`rounded-lg border px-4 py-3 text-sm ${toneClasses.muted}`}>
+      <Banner tone="muted">
         Local AI status unavailable. You can still write the SOAP note by hand below.
-      </div>
+      </Banner>
     );
   }
 
@@ -197,12 +190,14 @@ export function SessionPipelineStatusPanel({
 
   return (
     <div className="space-y-3">
-      <div className={`rounded-lg border px-4 py-3 text-sm space-y-2 ${toneClasses.info}`}>
-        <p className="font-medium">
-          {mode === "waiting"
+      <Banner
+        tone="info"
+        title={
+          mode === "waiting"
             ? "Working on your session notes locally"
-            : "Local AI status"}
-        </p>
+            : "Local AI status"
+        }
+      >
         <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
           <li>
             {status.whisperReady
@@ -217,18 +212,15 @@ export function SessionPipelineStatusPanel({
           {status.hasRecording && <li>Audio saved on this computer</li>}
           {status.hasTranscript && <li>Transcript saved for this session</li>}
         </ul>
-      </div>
+      </Banner>
 
       {whisperConfigError && (
-        <div className={`rounded-lg border px-4 py-3 text-sm space-y-3 ${toneClasses.warning}`}>
-          <div>
-            <p className="font-medium">Speech-to-text needs a one-time download</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              The AppImage does not ship the speech-to-text files. Download them once into this
-              computer&apos;s SoloPractice data folder (nothing is uploaded). You can also skip and
-              write the SOAP note by hand below.
-            </p>
-          </div>
+        <Banner tone="warning" title="Speech-to-text needs a one-time download" className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            The AppImage does not ship the speech-to-text files. Download them once into this
+            computer&apos;s SoloPractice data folder (nothing is uploaded). You can also skip and
+            write the SOAP note by hand below.
+          </p>
           {(downloading || downloadPct != null) && (
             <div>
               <div className="flex justify-between text-xs mb-1">
@@ -246,30 +238,26 @@ export function SessionPipelineStatusPanel({
           {downloadError && (
             <p className="text-xs text-destructive whitespace-pre-wrap">{downloadError}</p>
           )}
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
+          <ActionRow>
+            <Button
+              size="sm"
               disabled={downloading}
+              loading={downloading}
               onClick={downloadSpeechToText}
-              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 disabled:opacity-50"
             >
               {downloading ? "Downloading…" : "Download speech-to-text"}
-            </button>
+            </Button>
             {onOpenSetup && (
-              <button
-                type="button"
-                onClick={onOpenSetup}
-                className="px-3 py-1.5 border border-border rounded-lg text-xs font-medium hover:bg-accent"
-              >
+              <Button size="sm" variant="outline" onClick={onOpenSetup}>
                 Open Setup
-              </button>
+              </Button>
             )}
-          </div>
+          </ActionRow>
           <p className="text-xs text-muted-foreground">
             Manual SOAP notes always work — scroll down and type. After download, record again (or
             re-run transcription from a new Stop → auto-SOAP) to fill a draft.
           </p>
-        </div>
+        </Banner>
       )}
 
       <StatusRow
@@ -297,22 +285,22 @@ export function SessionPipelineStatusPanel({
       />
 
       {mode === "editor" && !hasDraftContent && (txActive || soapActive) && (
-        <div className={`rounded-lg border px-4 py-3 text-sm ${toneClasses.warning}`}>
+        <Banner tone="warning">
           Fields below are empty for now. You can type while local AI works — if a draft
           arrives and your fields are still blank, it will fill in automatically.
-        </div>
+        </Banner>
       )}
 
       {mode === "editor" && !hasDraftContent && !txActive && !soapActive && !whisperConfigError && (
-        <div className={`rounded-lg border px-4 py-3 text-sm ${toneClasses.muted}`}>
+        <Banner tone="muted">
           No AI draft yet. Write the SOAP note below — your audio is already saved on this computer.
-        </div>
+        </Banner>
       )}
 
       {mode === "waiting" && (txFailed || soapFailed) && !whisperConfigError && (
-        <div className={`rounded-lg border px-4 py-3 text-sm ${toneClasses.destructive}`}>
+        <Banner tone="destructive">
           Local AI could not finish. Open SOAP notes to write by hand, or check Setup.
-        </div>
+        </Banner>
       )}
     </div>
   );
@@ -332,7 +320,7 @@ function StatusRow({
   spinning?: boolean;
 }) {
   return (
-    <div className={`rounded-lg border px-4 py-3 text-sm ${toneClasses[tone]}`}>
+    <Banner tone={tone}>
       <div className="flex items-center gap-2">
         {spinning && <Spinner />}
         <span className="font-medium">{label}</span>
@@ -354,7 +342,7 @@ function StatusRow({
         </div>
       )}
       {detail && <p className="mt-2 text-xs whitespace-pre-wrap">{detail}</p>}
-    </div>
+    </Banner>
   );
 }
 

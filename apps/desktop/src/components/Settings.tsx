@@ -1,5 +1,18 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import {
+  ActionRow,
+  Button,
+  Field,
+  Input,
+  Label,
+  PageBody,
+  PageHeader,
+  PageSection,
+  PageShell,
+  Select,
+  Surface,
+} from "./ui";
 
 interface SettingsState {
   webApiUrl: string;
@@ -27,15 +40,11 @@ export function Settings({ onReopenWizard }: SettingsProps) {
   const [saving, setSaving] = useState(false);
   const [opening, setOpening] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [syncMessage, setSyncMessage] = useState<{ text: string; isError: boolean } | null>(null);
+  const [syncMessage, setSyncMessage] = useState<{
+    text: string;
+    isError: boolean;
+  } | null>(null);
 
-  // Load whatever was actually saved last time instead of trusting the
-  // hardcoded defaults above forever. Before this, every remount of the
-  // Settings page silently reset the visible webApiUrl/apiKey fields back
-  // to their initial useState values even though save_settings had already
-  // persisted the real ones to the settings table -- clicking Save again
-  // after that would have overwritten the real saved key with blank/default
-  // values without any error, since save_settings always succeeds.
   useEffect(() => {
     let cancelled = false;
     invoke<SettingsState>("get_settings")
@@ -80,7 +89,10 @@ export function Settings({ onReopenWizard }: SettingsProps) {
     setSyncMessage(null);
     try {
       const count = await invoke<number>("sync_clients");
-      setSyncMessage({ text: `Synced ${count} client${count === 1 ? "" : "s"} from the web portal.`, isError: false });
+      setSyncMessage({
+        text: `Synced ${count} client${count === 1 ? "" : "s"} from the web portal.`,
+        isError: false,
+      });
     } catch (error) {
       setSyncMessage({ text: String(error), isError: true });
     } finally {
@@ -100,189 +112,186 @@ export function Settings({ onReopenWizard }: SettingsProps) {
   }
 
   return (
-    <div className="h-full overflow-y-auto">
-      <header className="p-4 border-b border-border sticky top-0 bg-background">
-        <h1 className="text-xl font-semibold">Settings</h1>
-      </header>
+    <PageShell>
+      <PageHeader title="Settings" sticky />
 
       {!loaded && (
-        <p className="px-4 pt-2 text-xs text-muted-foreground">Loading saved settings...</p>
+        <p className="px-4 pt-2 text-xs text-muted-foreground">
+          Loading saved settings…
+        </p>
       )}
 
-      <div className="p-4 space-y-6 max-w-2xl">
-        <section className="space-y-3">
-          <h2 className="text-lg font-medium">Getting started</h2>
-          <p className="text-sm text-muted-foreground">
-            Want to go through the welcome setup again -- for example, to connect your account,
-            or to check your microphone?
-          </p>
-          <button
-            onClick={onReopenWizard}
-            className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-accent transition-colors"
-          >
+      <PageBody className="max-w-2xl mx-auto w-full space-y-6">
+        <PageSection
+          title="Getting started"
+          description="Want to go through the welcome setup again — for example, to connect your account, or to check your microphone?"
+        >
+          <Button variant="outline" onClick={onReopenWizard}>
             Run setup again
-          </button>
-        </section>
+          </Button>
+        </PageSection>
 
-        <section className="space-y-3">
-          <h2 className="text-lg font-medium">Your data</h2>
-          <p className="text-sm text-muted-foreground">
-            Recordings, transcripts, and notes are stored in a private folder on this computer
-            only. Use this to make a backup copy.
-          </p>
-          <button
-            onClick={openDataFolder}
-            disabled={opening}
-            className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-accent disabled:opacity-50"
-          >
-            {opening ? "Opening..." : "Open my data folder"}
-          </button>
+        <PageSection
+          title="Your data"
+          description="Recordings, transcripts, and notes are stored in a private folder on this computer only. Use this to make a backup copy."
+        >
+          <ActionRow>
+            <Button
+              variant="outline"
+              onClick={openDataFolder}
+              loading={opening}
+            >
+              {opening ? "Opening…" : "Open my data folder"}
+            </Button>
+          </ActionRow>
           <div className="flex items-center gap-3 pt-1">
             <input
               type="checkbox"
               id="autoBackup"
               checked={settings.autoBackup}
-              onChange={(e) => setSettings({ ...settings, autoBackup: e.target.checked })}
+              onChange={(e) =>
+                setSettings({ ...settings, autoBackup: e.target.checked })
+              }
               className="rounded border-border"
             />
-            <label htmlFor="autoBackup" className="text-sm">
+            <Label htmlFor="autoBackup" className="mb-0 font-normal">
               Remind me to back up automatically
-            </label>
+            </Label>
           </div>
-        </section>
+        </PageSection>
 
-        <section className="space-y-4">
-          <h2 className="text-lg font-medium">Superbill</h2>
-          <p className="text-sm text-muted-foreground">
-            Use the Superbill item in the left sidebar to create a PDF with diagnosis and
-            procedure codes, or fulfill client requests under Pending. Superbills stay on
-            this computer and are never synced to the web.
-          </p>
-        </section>
+        <PageSection
+          title="Superbill"
+          description="Use Superbill in the left sidebar to create a PDF with diagnosis and procedure codes, or fulfill client requests under Pending. Superbills stay on this computer and are never synced to the web."
+        />
 
         <details className="group border border-border rounded-lg">
           <summary className="cursor-pointer px-4 py-3 text-sm font-medium select-none">
             Advanced settings
             <span className="text-muted-foreground font-normal ml-2">
-              (only needed if something you set up manually isn't working)
+              (only needed if something you set up manually isn&apos;t working)
             </span>
           </summary>
           <div className="px-4 pb-4 space-y-6 border-t border-border pt-4">
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium">Web Portal Connection</h3>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={settings.webApiUrl}
-                  onChange={(e) => setSettings({ ...settings, webApiUrl: e.target.value })}
-                  className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            <PageSection title="Web portal connection">
+              <Field hint="Address of the SoloPractice web portal, used only to check consent status.">
+                <ActionRow>
+                  <Input
+                    type="url"
+                    value={settings.webApiUrl}
+                    onChange={(e) =>
+                      setSettings({ ...settings, webApiUrl: e.target.value })
+                    }
+                    className="flex-1 min-w-[12rem]"
+                  />
+                  <Button variant="outline" onClick={testConnection}>
+                    Test
+                  </Button>
+                </ActionRow>
+              </Field>
+
+              <Field
+                label="Connection code"
+                htmlFor="desktopApiKey"
+                hint="Get this from your account at solopractice.io, under Settings → Desktop App, then paste it here."
+              >
+                <Input
+                  id="desktopApiKey"
+                  type="password"
+                  autoComplete="off"
+                  value={settings.apiKey ?? ""}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      apiKey: e.target.value || null,
+                    })
+                  }
+                  placeholder="sp_desktop_..."
                 />
-                <button
-                  onClick={testConnection}
-                  className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-accent transition-colors"
-                >
-                  Test
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Address of the SoloPractice web portal, used only to check consent status.
-              </p>
+              </Field>
 
-              <label htmlFor="desktopApiKey" className="block text-xs font-medium text-muted-foreground pt-1">
-                Connection code
-              </label>
-              <input
-                id="desktopApiKey"
-                type="password"
-                autoComplete="off"
-                value={settings.apiKey ?? ""}
-                onChange={(e) => setSettings({ ...settings, apiKey: e.target.value || null })}
-                placeholder="sp_desktop_..."
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-              <p className="text-xs text-muted-foreground">
-                Get this from your account at solopractice.io, under Settings &rarr; Desktop App,
-                then paste it here.
-              </p>
-
-              <div className="flex items-center gap-3 pt-1">
-                <button
-                  onClick={syncNow}
-                  disabled={syncing}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-                >
-                  {syncing ? "Syncing..." : "Sync Now"}
-                </button>
+              <ActionRow>
+                <Button onClick={syncNow} loading={syncing}>
+                  {syncing ? "Syncing…" : "Sync now"}
+                </Button>
                 {syncMessage && (
-                  <p className={`text-xs ${syncMessage.isError ? "text-destructive" : "text-success"}`}>
+                  <p
+                    className={`text-xs ${
+                      syncMessage.isError ? "text-destructive" : "text-success"
+                    }`}
+                  >
                     {syncMessage.text}
                   </p>
                 )}
-              </div>
+              </ActionRow>
               <p className="text-xs text-muted-foreground">
-                Pulls clients and consent status from the web portal now. This does not happen
-                automatically in the background -- use this button whenever you want the latest
-                list.
+                Pulls clients and consent status from the web portal now. This
+                does not happen automatically in the background — use this
+                button whenever you want the latest list.
               </p>
-            </div>
+            </PageSection>
 
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium">Transcription (whisper.cpp)</h3>
-              <select
+            <Field
+              label="Transcription (whisper.cpp)"
+              hint="Larger models are more accurate but slower. Most people should leave this on Base."
+            >
+              <Select
                 value={settings.whisperModelSize}
                 onChange={(e) =>
-                  setSettings({ ...settings, whisperModelSize: e.target.value as SettingsState["whisperModelSize"] })
+                  setSettings({
+                    ...settings,
+                    whisperModelSize: e.target
+                      .value as SettingsState["whisperModelSize"],
+                  })
                 }
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <option value="tiny">Tiny (~75MB, fastest)</option>
                 <option value="base">Base (~142MB, balanced, recommended)</option>
                 <option value="small">Small (~466MB, better)</option>
                 <option value="medium">Medium (~1.5GB, good)</option>
                 <option value="large">Large (~2.9GB, best)</option>
-              </select>
-              <p className="text-xs text-muted-foreground">
-                Larger models are more accurate but slower. Most people should leave this on Base.
-              </p>
-            </div>
+              </Select>
+            </Field>
 
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium">AI note drafting (Ollama)</h3>
-              <input
+            <Field
+              label="AI note drafting (Ollama)"
+              hint="Ollama model name. Run the first-time setup again if you need to reinstall this."
+            >
+              <Input
                 type="text"
                 value={settings.ollamaModel}
-                onChange={(e) => setSettings({ ...settings, ollamaModel: e.target.value })}
+                onChange={(e) =>
+                  setSettings({ ...settings, ollamaModel: e.target.value })
+                }
                 placeholder="llama3.2"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
-              <p className="text-xs text-muted-foreground">
-                Ollama model name. Run the first-time setup again from Help if you need to
-                reinstall this.
-              </p>
-            </div>
+            </Field>
           </div>
         </details>
 
-        <div className="pt-4 border-t border-border">
-          <button
-            onClick={saveSettings}
-            disabled={saving}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {saving ? "Saving..." : "Save Settings"}
-          </button>
+        <div className="pt-2 border-t border-border">
+          <Button onClick={saveSettings} loading={saving}>
+            {saving ? "Saving…" : "Save settings"}
+          </Button>
         </div>
 
-        <section className="p-4 bg-muted/50 rounded-lg space-y-2">
-          <h3 className="font-medium text-sm">Data Security</h3>
+        <Surface className="bg-muted/50 p-4 space-y-2">
+          <h3 className="font-medium text-sm">Data security</h3>
           <ul className="text-xs text-muted-foreground space-y-1">
-            <li>• Clinical data is stored locally on this computer (the app does not encrypt the database yet — use full-disk encryption such as BitLocker)</li>
+            <li>
+              • Clinical data is stored locally on this computer (the app does
+              not encrypt the database yet — use full-disk encryption such as
+              BitLocker)
+            </li>
             <li>• Audio recordings are saved only on your device</li>
             <li>• Transcripts and SOAP notes never leave your computer</li>
-            <li>• Web sync is limited to client contact info and consent status (not session notes)</li>
+            <li>
+              • Web sync is limited to client contact info and consent status
+              (not session notes)
+            </li>
           </ul>
-        </section>
-      </div>
-    </div>
+        </Surface>
+      </PageBody>
+    </PageShell>
   );
 }

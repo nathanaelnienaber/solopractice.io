@@ -7,6 +7,8 @@ export interface AudioRecorderState {
   duration: number;
   audioBlob: Blob | null;
   error: string | null;
+  /** True when MediaRecorder.pause is available on this engine. */
+  canPause: boolean;
 }
 
 export interface AudioRecorderControls {
@@ -17,19 +19,46 @@ export interface AudioRecorderControls {
   resetRecording: () => void;
 }
 
+function mediaRecorderSupportsPause(): boolean {
+  return (
+    typeof MediaRecorder !== "undefined" &&
+    typeof MediaRecorder.prototype.pause === "function" &&
+    typeof MediaRecorder.prototype.resume === "function"
+  );
+}
+
 export function useAudioRecorder(): [AudioRecorderState, AudioRecorderControls] {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [duration, setDuration] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [canPause] = useState(mediaRecorderSupportsPause);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
-  const pausedDurationRef = useRef<number>(0);
+  const pausedAccumulatedRef = useRef<number>(0);
+  const pauseStartedAtRef = useRef<number | null>(null);
+  const isPausedRef = useRef(false);
+
+  const clearTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const startDurationTimer = () => {
+    clearTimer();
+    timerRef.current = setInterval(() => {
+      if (isPausedRef.current) return;
+      const elapsed = Date.now() - startTimeRef.current - pausedAccumulatedRef.current;
+      setDuration(Math.max(0, Math.floor(elapsed / 1000)));
+    }, 100);
+  };
 
   const startRecording = useCallback(async () => {
     try {
@@ -37,7 +66,9 @@ export function useAudioRecorder(): [AudioRecorderState, AudioRecorderControls] 
       chunksRef.current = [];
       setAudioBlob(null);
       setDuration(0);
-      pausedDurationRef.current = 0;
+      pausedAccumulatedRef.current = 0;
+      pauseStartedAtRef.current = null;
+      isPausedRef.current = false;
 
       const stream = await acquireAudioStream();
 
@@ -80,6 +111,8 @@ export function useAudioRecorder(): [AudioRecorderState, AudioRecorderControls] 
         console.error("MediaRecorder error:", event);
         setError("Recording failed. Please check microphone permissions.");
         setIsRecording(false);
+        isPausedRef.current = false;
+        setIsPaused(false);
       };
 
       // Request data every second for progress tracking
@@ -87,14 +120,8 @@ export function useAudioRecorder(): [AudioRecorderState, AudioRecorderControls] 
       setIsRecording(true);
       setIsPaused(false);
 
-      // Start duration timer
       startTimeRef.current = Date.now();
-      timerRef.current = setInterval(() => {
-        if (!isPaused) {
-          const elapsed = Date.now() - startTimeRef.current - pausedDurationRef.current;
-          setDuration(Math.floor(elapsed / 1000));
-        }
-      }, 100);
+      startDurationTimer();
 
       console.log("[AudioRecorder] Started recording with mimeType:", mimeType);
     } catch (err) {
@@ -103,84 +130,107 @@ export function useAudioRecorder(): [AudioRecorderState, AudioRecorderControls] 
       setError(micFailureUserMessage(kind, err));
       throw err;
     }
-  }, [isPaused]);
+  }, []);
 
   const stopRecording = useCallback(async (): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       const mediaRecorder = mediaRecorderRef.current;
-      
+
       if (!mediaRecorder || mediaRecorder.state === "inactive") {
         reject(new Error("No active recording"));
         return;
       }
 
-      // Clear timer
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
+      clearTimer();
+      if (pauseStartedAtRef.current !== null) {
+        pausedAccumulatedRef.current += Date.now() - pauseStartedAtRef.current;
+        pauseStartedAtRef.current = null;
       }
 
       mediaRecorder.onstop = () => {
-        // Stop all tracks
         if (streamRef.current) {
           streamRef.current.getTracks().forEach((track) => track.stop());
           streamRef.current = null;
         }
 
-        // Create blob from chunks
         const blob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType });
         setAudioBlob(blob);
         setIsRecording(false);
+        isPausedRef.current = false;
         setIsPaused(false);
 
         console.log("[AudioRecorder] Stopped. Blob size:", blob.size, "bytes");
         resolve(blob);
       };
 
+      // If paused, resume briefly so some engines flush the final chunk cleanly.
+      if (mediaRecorder.state === "paused") {
+        try {
+          mediaRecorder.resume();
+        } catch {
+          // ignore — stop() below still runs
+        }
+      }
       mediaRecorder.stop();
     });
   }, []);
 
   const pauseRecording = useCallback(() => {
     const mediaRecorder = mediaRecorderRef.current;
-    if (mediaRecorder && mediaRecorder.state === "recording") {
-      mediaRecorder.pause();
-      setIsPaused(true);
-      pausedDurationRef.current = Date.now() - startTimeRef.current - (duration * 1000);
-      console.log("[AudioRecorder] Paused");
+    if (!mediaRecorder || mediaRecorder.state !== "recording") return;
+    if (!mediaRecorderSupportsPause()) {
+      setError("Pause is not supported on this system. Stop when you are ready.");
+      return;
     }
-  }, [duration]);
+    try {
+      mediaRecorder.pause();
+      isPausedRef.current = true;
+      setIsPaused(true);
+      pauseStartedAtRef.current = Date.now();
+      console.log("[AudioRecorder] Paused");
+    } catch (err) {
+      console.error("Pause failed:", err);
+      setError("Could not pause recording on this system.");
+    }
+  }, []);
 
   const resumeRecording = useCallback(() => {
     const mediaRecorder = mediaRecorderRef.current;
-    if (mediaRecorder && mediaRecorder.state === "paused") {
+    if (!mediaRecorder || mediaRecorder.state !== "paused") return;
+    try {
       mediaRecorder.resume();
+      if (pauseStartedAtRef.current !== null) {
+        pausedAccumulatedRef.current += Date.now() - pauseStartedAtRef.current;
+        pauseStartedAtRef.current = null;
+      }
+      isPausedRef.current = false;
       setIsPaused(false);
-      startTimeRef.current = Date.now() - (duration * 1000);
       console.log("[AudioRecorder] Resumed");
+    } catch (err) {
+      console.error("Resume failed:", err);
+      setError("Could not resume recording.");
     }
-  }, [duration]);
+  }, []);
 
   const resetRecording = useCallback(() => {
-    // Stop any active recording
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {
+        // already stopping
+      }
     }
 
-    // Stop stream
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
 
-    // Clear timer
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-
-    // Reset state
+    clearTimer();
     chunksRef.current = [];
+    pausedAccumulatedRef.current = 0;
+    pauseStartedAtRef.current = null;
+    isPausedRef.current = false;
     setIsRecording(false);
     setIsPaused(false);
     setDuration(0);
@@ -191,7 +241,7 @@ export function useAudioRecorder(): [AudioRecorderState, AudioRecorderControls] 
   }, []);
 
   return [
-    { isRecording, isPaused, duration, audioBlob, error },
+    { isRecording, isPaused, duration, audioBlob, error, canPause },
     { startRecording, stopRecording, pauseRecording, resumeRecording, resetRecording },
   ];
 }

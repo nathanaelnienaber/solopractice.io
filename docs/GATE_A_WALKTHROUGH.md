@@ -1,6 +1,6 @@
-# Gate A — Fake-client walkthrough (Windows)
+# Gate A — Fake-client walkthrough
 
-**Purpose:** Prove the full practice loop with **test data only** on her Windows PC.  
+**Purpose:** Prove the full practice loop with **test data only**. Developers/testers on Linux can run the checklist with the **AppImage**; Gate A exit still needs one successful pass on **her Windows PC** (PRODUCT_PLAN “Windows first”).  
 **Desktop build:** **v0.1.2** (Pending → local PDF → mark sent).  
 **Do not use real clients.** Consent forms are still DRAFT until Gate B attorney review.
 
@@ -15,14 +15,17 @@ Record results in the tables below. When every required row passes (or a blocker
 | Item | Link / note |
 |------|-------------|
 | Release | https://github.com/nathanaelnienaber/solopractice.io/releases/tag/v0.1.2 |
+| **Linux AppImage** (dev / Omarchy) | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.2/SoloPractice_0.1.2_amd64.AppImage |
 | Windows setup.exe | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.2/SoloPractice_0.1.2_x64-setup.exe |
 | Windows MSI | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.2/SoloPractice_0.1.2_x64_en-US.msi |
 | In-app / site download | Web → `/download` or Settings → Download desktop app |
 
-**Unsigned installer:** SmartScreen → **More info** → **Run anyway**. No auto-update — use a fresh installer for each release.
+**Linux:** download the AppImage → `chmod +x SoloPractice_0.1.2_amd64.AppImage` → run it. No auto-update — use a fresh AppImage for each release.
 
-1. Uninstall / remove older SoloPractice builds (v0.1.1 and earlier trials).
-2. Install **0.1.2** from the Windows setup.exe (or MSI).
+**Windows (unsigned installer):** SmartScreen → **More info** → **Run anyway**. No auto-update — use a fresh installer for each release.
+
+1. Remove older SoloPractice builds (v0.1.1 and earlier trials) — uninstall on Windows; replace the AppImage on Linux.
+2. Install / launch **0.1.2** (AppImage on Linux, or Windows setup.exe / MSI).
 3. Web: therapist magic link → **Settings** → copy Desktop API key.
 4. Desktop: paste key in setup wizard / Settings → **Sync** (or equivalent). Confirm clients pull.
 5. Optional for transcript/SOAP: complete ML setup (whisper.cpp + model, Ollama) **or** plan to enter transcript / SOAP by hand.
@@ -32,6 +35,15 @@ Record results in the tables below. When every required row passes (or a blocker
 - Web app reachable with test Stripe / Resend / Twilio / Neon configured  
 - Desktop **0.1.2** installed and paired as above  
 - Fake-client data only  
+
+### Local data paths
+
+| Platform | App data directory |
+|----------|--------------------|
+| Linux | `~/.local/share/com.solopractice.desktop/` |
+| Windows | `%APPDATA%\com.solopractice.desktop\` |
+
+Recordings land under `recordings/`; superbills under `superbills/`.
 
 ---
 
@@ -51,7 +63,7 @@ Record results in the tables below. When every required row passes (or a blocker
 
 | # | Step | Pass? | Notes |
 |---|------|-------|-------|
-| 2a | Record session → audio file under `%APPDATA%\com.solopractice.desktop\recordings\` | | |
+| 2a | Record session → audio file under app data `recordings/` (see paths above) | | |
 | 2b | Transcript via whisper **or** manual entry | Whisper model: ________ (see pick table) |
 | 2c | SOAP draft (Ollama or hand) → edit → save | | |
 | 2d | Export SOAP PDF (finalized only) → opens | | |
@@ -61,7 +73,7 @@ Record results in the tables below. When every required row passes (or a blocker
 | # | Step | Pass? | Notes |
 |---|------|-------|-------|
 | 3a | Sidebar → Superbill → generate PDF (letterhead + DOB + ≥1 Dx + ≥1 CPT) | | |
-| 3b | PDF under `%APPDATA%\com.solopractice.desktop\superbills\` and opens | | |
+| 3b | PDF under app data `superbills/` and opens | | |
 | 3c | Superbill History lists the new row; Open works | | |
 
 ### 4 — Pay + superbill request → Pending fulfill → mark sent *(0.1.2)*
@@ -85,9 +97,11 @@ Clinical PDF stays on the desktop. Cloud holds **request status only** (`none` �
 
 ---
 
-## Whisper model pick (her PC)
+## Whisper model pick
 
 Setup wizard defaults to **`ggml-base.en`**. Settings also expose a size picker (tiny → large). Try **base** first; step down if too slow, step up only if quality fails.
+
+Dev/tester runs on Linux are useful for the loop; **record the Gate A exit model after a try on her Windows PC**.
 
 | Model | Approx. size | Speed | Quality | Try when |
 |-------|--------------|-------|---------|----------|
@@ -101,13 +115,14 @@ Setup wizard defaults to **`ggml-base.en`**. Settings also expose a size picker 
 
 | Field | Value |
 |-------|--------|
+| Platform | Linux AppImage / Windows (her PC): ________ |
 | Model chosen | ________ |
 | How obtained | Setup wizard / Settings / manual path: ________ |
 | Approx. session length tried | ________ |
 | Acceptable quality? | Y / N |
 | Notes (CPU, RAM, time to finish) | ________ |
 
-Update `PRODUCT_PLAN.md` §2 Decisions log when chosen.
+Update `PRODUCT_PLAN.md` §2 Decisions log when chosen (her-PC model for Gate A exit).
 
 ---
 
@@ -117,6 +132,7 @@ If a step fails for environment (keys, Ollama, whisper binary), write it here. D
 
 - **2026-10-03:** Live Windows walkthrough not run in this build session (no access to her Windows PC from the builder environment). Code path verified via Rust unit tests (`generate_superbill` insert/history + `generate_superbill_pdf`).
 - **2026-10-07:** Docs updated for **v0.1.2** (install/pair + Pending fulfill). **Live Windows run still pending** — clear this blocker only after she completes the checklist and records the whisper model above.
+- **2026-10-07:** Install docs clarify **Linux AppImage** for developers/testers (Omarchy); Windows remains required for Gate A exit on her PC. Live Linux walkthrough still pending Nathanael’s run.
 
 ---
 
@@ -124,6 +140,7 @@ If a step fails for environment (keys, Ollama, whisper binary), write it here. D
 
 - Date run: ________  
 - Runner: ________  
+- Platform: ________ (Linux AppImage and/or Windows)  
 - Desktop version confirmed: ________ (expect **0.1.2**)  
 - Whisper model recorded: ________  
 - Gate A ready for go/no-go? ________  

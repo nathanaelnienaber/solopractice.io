@@ -1302,14 +1302,6 @@ fn query_session_pipeline(
         .optional()
         .map_err(|e| e.to_string())?;
 
-    let whisper_path = read_setting(conn, "whisper_path");
-    let whisper_model_path = read_setting(conn, "whisper_model_path");
-    let whisper_ready = whisper_path
-        .as_ref()
-        .zip(whisper_model_path.as_ref())
-        .map(|(bin, model)| std::path::Path::new(bin).exists() && std::path::Path::new(model).exists())
-        .unwrap_or(false);
-
     // Ollama readiness is "paths configured / model chosen"; live probe is
     // expensive for a 2s poll — UI can still show job failures if Ollama is down.
     let ollama_ready = read_setting(conn, "ollama_model").is_some()
@@ -1323,7 +1315,8 @@ fn query_session_pipeline(
         transcription_job: latest_session_job(conn, session_id, "transcription")?,
         soap_draft_job: latest_session_job(conn, session_id, "soap_draft")?,
         soap_note,
-        whisper_ready,
+        // Filled by the Tauri command with AppHandle (disk + settings heal).
+        whisper_ready: false,
         ollama_ready,
     })
 }
@@ -1335,7 +1328,10 @@ pub async fn get_session_pipeline_status(
     session_id: String,
 ) -> Result<SessionPipelineStatus, String> {
     let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
-    query_session_pipeline(&conn, &session_id)
+    let mut status = query_session_pipeline(&conn, &session_id)?;
+    let get_setting = |key: &str| -> Option<String> { read_setting(&conn, key) };
+    status.whisper_ready = crate::ml_setup::resolve_whisper_paths(&app, &get_setting).is_ok();
+    Ok(status)
 }
 
 /// Render a session's finalized SOAP note to a PDF on local disk and return

@@ -154,33 +154,23 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
     setWorking(true);
     setMessage(null);
     try {
-      const modelPath = await invoke<string>("download_whisper_model", {
+      // One command: model + Linux/Windows binary, persist paths, refresh detect.
+      const refreshed = await invoke<MlSetupStatus>("setup_speech_to_text", {
         model: status?.recommendedWhisperModel ?? "ggml-base.en",
       });
-      let binaryPath = status?.whisperBinaryPath ?? null;
-      if (!binaryPath && status?.whisperBinaryDownloadSupported) {
-        try {
-          binaryPath = await invoke<string>("download_whisper_binary");
-        } catch (err) {
-          // Not fatal -- manual notes still work.
-          setMessage(String(err));
-        }
-      }
-      await invoke("save_ml_paths", {
-        whisperPath: binaryPath,
-        whisperModelPath: modelPath,
-        ollamaModel: null,
-      });
-      const refreshed = await invoke<MlSetupStatus>("detect_ml_setup");
       setStatus(refreshed);
-      if (!binaryPath) {
+      if (!refreshed.whisperBinaryAvailable) {
         setMessage(
-          "The speech-to-text files are ready, but automatic setup isn't available for this computer's operating system yet. You can still write session notes by hand, no problem."
+          refreshed.whisperBinaryDownloadSupported
+            ? "The model downloaded, but the speech-to-text program did not. Try again, or write notes by hand for now."
+            : "The model is ready, but automatic program download isn't available on this OS yet. You can still write session notes by hand."
         );
+      } else if (refreshed.whisperModelDownloaded) {
+        setMessage("Speech-to-text is ready. Continue to the next step, or skip AI drafting.");
       }
     } catch (err) {
       setMessage(
-        "We couldn't finish setting up speech-to-text automatically. You can skip this for now and write session notes by hand, then try again later from Settings."
+        "We couldn't finish setting up speech-to-text automatically. You can skip this for now and write session notes by hand, then try again later from Settings or the SOAP status panel."
       );
       console.error(err);
     } finally {
@@ -361,24 +351,35 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
         {step === "speechToText" && (
           <Section
             title="Turn recordings into text"
-            body="This is optional. SoloPractice can automatically turn your session recordings into a written transcript, entirely on this computer, using nothing sent over the internet."
+            body="This is optional. SoloPractice can automatically turn your session recordings into a written transcript, entirely on this computer, using nothing sent over the internet. The AppImage does not include these files — download them once into this computer's data folder."
           >
-            {status?.whisperModelDownloaded ? (
+            {status?.whisperModelDownloaded && status?.whisperBinaryAvailable ? (
               <StatusBanner tone="success">
-                Speech-to-text is already set up on this computer.
+                Speech-to-text is ready on this computer (program + model).
               </StatusBanner>
             ) : (
               <>
                 <p className="text-sm text-muted-foreground mb-3">
-                  Click below and SoloPractice will download what it needs, just once. You don't
-                  need to install anything yourself.
+                  Click below and SoloPractice will download the speech-to-text program and model,
+                  just once. On Linux (including Omarchy) this uses the official ubuntu build from
+                  whisper.cpp — no terminal install needed.
                 </p>
+                {status?.whisperModelDownloaded && !status?.whisperBinaryAvailable && (
+                  <StatusBanner tone="warning">
+                    The model file is present, but the speech-to-text program is still missing.
+                    Click below to finish setup.
+                  </StatusBanner>
+                )}
                 <button
                   onClick={setUpSpeechToText}
                   disabled={working}
                   className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 disabled:opacity-50"
                 >
-                  {working ? "Setting up..." : "Set up speech-to-text"}
+                  {working
+                    ? "Downloading…"
+                    : status?.whisperModelDownloaded
+                      ? "Finish speech-to-text setup"
+                      : "Set up speech-to-text"}
                 </button>
               </>
             )}
@@ -387,7 +388,8 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
             )}
             {message && <p className="text-sm mt-3 text-muted-foreground">{message}</p>}
             <p className="text-xs text-muted-foreground mt-4">
-              You can skip this. You'll still be able to write session notes by hand at any time.
+              You can skip this. You&apos;ll still be able to write session notes by hand at any
+              time. If you skip, Session → SOAP will offer Download speech-to-text later.
             </p>
           </Section>
         )}
@@ -464,7 +466,9 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
             <div className="bg-muted/50 rounded-lg p-4 text-left text-sm space-y-2">
               <p>
                 <span className="font-medium">Speech-to-text:</span>{" "}
-                {status?.whisperModelDownloaded ? "Ready" : "Not set up yet, write notes by hand for now"}
+                {status?.whisperModelDownloaded && status?.whisperBinaryAvailable
+                  ? "Ready"
+                  : "Not set up yet — write notes by hand, or download from Session → SOAP / Settings → Run setup again"}
               </p>
               <p>
                 <span className="font-medium">AI drafting:</span>{" "}

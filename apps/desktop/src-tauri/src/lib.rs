@@ -229,6 +229,7 @@ pub fn run() {
             ml_setup::detect_ml_setup,
             ml_setup::download_whisper_model,
             ml_setup::download_whisper_binary,
+            ml_setup::setup_speech_to_text,
             ml_setup::test_whisper,
             ml_setup::pull_ollama_model,
             ml_setup::test_ollama,

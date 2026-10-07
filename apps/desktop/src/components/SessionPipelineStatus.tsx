@@ -4,6 +4,10 @@
  * blank SOAP screen with no idea whether whisper/Ollama are working.
  */
 
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+
 export interface SessionJobStatus {
   id: string;
   jobType: string;
@@ -77,18 +81,78 @@ const toneClasses: Record<Tone, string> = {
   destructive: "border-destructive/30 bg-destructive/10 text-destructive",
 };
 
+function isWhisperNotConfiguredError(error: string | null | undefined): boolean {
+  if (!error) return false;
+  const lower = error.toLowerCase();
+  return (
+    lower.includes("whisper.cpp not configured") ||
+    lower.includes("speech-to-text is not set up") ||
+    lower.includes("run setup")
+  );
+}
+
 export function SessionPipelineStatusPanel({
   status,
   loading,
   loadError,
   mode,
+  onOpenSetup,
+  onSpeechToTextReady,
 }: {
   status: SessionPipelineStatusData | null;
   loading?: boolean;
   loadError?: string | null;
   /** waiting = full-screen wait; editor = banner above SOAP fields */
   mode: "waiting" | "editor";
+  /** Opens the first-run Setup wizard (speech-to-text step). */
+  onOpenSetup?: () => void;
+  /** Called after an in-panel download finishes so the parent can re-poll. */
+  onSpeechToTextReady?: () => void;
 }) {
+  const [downloadPct, setDownloadPct] = useState<number | null>(null);
+  const [downloadLabel, setDownloadLabel] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  useEffect(() => {
+    const unlisten = listen<{
+      kind: string;
+      label: string;
+      percent: number | null;
+      done: boolean;
+      error: string | null;
+    }>("ml-download-progress", (event) => {
+      const p = event.payload;
+      if (p.kind === "ollama-model") return;
+      setDownloadLabel(p.label);
+      setDownloadPct(p.percent != null ? Math.round(p.percent) : null);
+      if (p.error) setDownloadError(p.error);
+      if (p.done && !p.error) {
+        setDownloadPct(100);
+      }
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
+
+  async function downloadSpeechToText() {
+    setDownloading(true);
+    setDownloadError(null);
+    setDownloadPct(0);
+    setDownloadLabel("Downloading speech-to-text…");
+    try {
+      await invoke("setup_speech_to_text", { model: null });
+      setDownloadLabel("Speech-to-text ready on this computer");
+      setDownloadPct(100);
+      onSpeechToTextReady?.();
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   if (loadError) {
     return (
       <div className={`rounded-lg border px-4 py-3 text-sm ${toneClasses.destructive}`}>
@@ -108,7 +172,7 @@ export function SessionPipelineStatusPanel({
   if (!status) {
     return (
       <div className={`rounded-lg border px-4 py-3 text-sm ${toneClasses.muted}`}>
-        Local AI status unavailable. You can still write the SOAP note by hand.
+        Local AI status unavailable. You can still write the SOAP note by hand below.
       </div>
     );
   }
@@ -127,11 +191,9 @@ export function SessionPipelineStatusPanel({
     [status.soapNote.subjective, status.soapNote.objective, status.soapNote.assessment, status.soapNote.plan]
       .some((s) => (s || "").trim().length > 0);
 
-  const readinessBits: string[] = [];
-  if (status.whisperReady) readinessBits.push("Speech-to-text is set up");
-  else readinessBits.push("Speech-to-text is not set up — run Setup or write notes by hand");
-  if (status.ollamaReady) readinessBits.push("Local drafting model is configured");
-  else readinessBits.push("Local drafting model is not configured yet");
+  const whisperMissing = !status.whisperReady;
+  const whisperConfigError =
+    isWhisperNotConfiguredError(status.transcriptionJob?.error) || whisperMissing;
 
   return (
     <div className="space-y-3">
@@ -142,13 +204,73 @@ export function SessionPipelineStatusPanel({
             : "Local AI status"}
         </p>
         <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
-          {readinessBits.map((bit) => (
-            <li key={bit}>{bit}</li>
-          ))}
+          <li>
+            {status.whisperReady
+              ? "Speech-to-text is set up on this computer"
+              : "Speech-to-text is not set up yet"}
+          </li>
+          <li>
+            {status.ollamaReady
+              ? "Local drafting model is ready"
+              : "Local drafting model is not configured yet"}
+          </li>
           {status.hasRecording && <li>Audio saved on this computer</li>}
           {status.hasTranscript && <li>Transcript saved for this session</li>}
         </ul>
       </div>
+
+      {whisperConfigError && (
+        <div className={`rounded-lg border px-4 py-3 text-sm space-y-3 ${toneClasses.warning}`}>
+          <div>
+            <p className="font-medium">Speech-to-text needs a one-time download</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              The AppImage does not ship the speech-to-text files. Download them once into this
+              computer&apos;s SoloPractice data folder (nothing is uploaded). You can also skip and
+              write the SOAP note by hand below.
+            </p>
+          </div>
+          {(downloading || downloadPct != null) && (
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span>{downloadLabel || "Downloading…"}</span>
+                {downloadPct != null && <span>{downloadPct}%</span>}
+              </div>
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-300"
+                  style={{ width: `${downloadPct ?? 15}%` }}
+                />
+              </div>
+            </div>
+          )}
+          {downloadError && (
+            <p className="text-xs text-destructive whitespace-pre-wrap">{downloadError}</p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={downloading}
+              onClick={downloadSpeechToText}
+              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 disabled:opacity-50"
+            >
+              {downloading ? "Downloading…" : "Download speech-to-text"}
+            </button>
+            {onOpenSetup && (
+              <button
+                type="button"
+                onClick={onOpenSetup}
+                className="px-3 py-1.5 border border-border rounded-lg text-xs font-medium hover:bg-accent"
+              >
+                Open Setup
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Manual SOAP notes always work — scroll down and type. After download, record again (or
+            re-run transcription from a new Stop → auto-SOAP) to fill a draft.
+          </p>
+        </div>
+      )}
 
       <StatusRow
         label={tx.text}
@@ -181,17 +303,15 @@ export function SessionPipelineStatusPanel({
         </div>
       )}
 
-      {mode === "editor" && !hasDraftContent && !txActive && !soapActive && (txFailed || soapFailed || !status.whisperReady) && (
+      {mode === "editor" && !hasDraftContent && !txActive && !soapActive && !whisperConfigError && (
         <div className={`rounded-lg border px-4 py-3 text-sm ${toneClasses.muted}`}>
-          No AI draft yet. Write the SOAP note below, or fix local speech-to-text / drafting
-          in Setup and record again.
+          No AI draft yet. Write the SOAP note below — your audio is already saved on this computer.
         </div>
       )}
 
-      {mode === "waiting" && (txFailed || soapFailed) && (
+      {mode === "waiting" && (txFailed || soapFailed) && !whisperConfigError && (
         <div className={`rounded-lg border px-4 py-3 text-sm ${toneClasses.destructive}`}>
-          Local AI could not finish. Open SOAP notes to write by hand, or check Setup
-          (speech-to-text binary/model and local drafting).
+          Local AI could not finish. Open SOAP notes to write by hand, or check Setup.
         </div>
       )}
     </div>

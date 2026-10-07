@@ -146,6 +146,7 @@ export default function App() {
             onSessionChange={setCurrentSession}
             onBack={() => setView("clients")}
             onViewHistory={() => setView("history")}
+            onOpenSetup={reopenWizard}
           />
         )}
         {view === "history" && selectedClientId && (

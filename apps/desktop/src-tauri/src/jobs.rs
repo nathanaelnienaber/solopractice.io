@@ -66,7 +66,7 @@ fn process_next_job(app: &AppHandle) -> Result<(), String> {
     };
 
     let result: Result<String, String> = match job_type.as_str() {
-        "transcription" => process_transcription_job(&conn, &payload, &get_setting),
+        "transcription" => process_transcription_job(app, &conn, &payload, &get_setting),
         "soap_draft" => process_soap_draft_job(&conn, &payload, &get_setting),
         other => Err(format!("unknown job_type: {}", other)),
     };
@@ -92,6 +92,7 @@ fn process_next_job(app: &AppHandle) -> Result<(), String> {
 }
 
 fn process_transcription_job(
+    app: &AppHandle,
     conn: &rusqlite::Connection,
     payload: &str,
     get_setting: &dyn Fn(&str) -> Option<String>,
@@ -107,14 +108,10 @@ fn process_transcription_job(
         );
     }
 
-    let whisper_path = get_setting("whisper_path");
-    let model_path = get_setting("whisper_model_path");
-    let (Some(wp), Some(mp)) = (whisper_path, model_path) else {
-        return Err(
-            "whisper.cpp not configured -- run setup wizard first (or enter SOAP notes manually)"
-                .to_string(),
-        );
-    };
+    // Settings may be empty after Skip / older Linux builds even when files
+    // sit under app data — resolve_whisper_paths heals that and returns a
+    // clear Setup CTA message when truly missing.
+    let (wp, mp) = crate::ml_setup::resolve_whisper_paths(app, get_setting)?;
 
     let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
     let r = rt.block_on(run_transcription_job(audio_path, &wp, &mp))?;

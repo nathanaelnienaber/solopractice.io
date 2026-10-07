@@ -24,6 +24,8 @@ interface SessionPanelProps {
   onSessionChange: (session: SessionWithDetails | null) => void;
   onBack: () => void;
   onViewHistory?: () => void;
+  /** Re-open first-run Setup (speech-to-text download). */
+  onOpenSetup?: () => void;
 }
 
 type SessionState =
@@ -43,6 +45,7 @@ export function SessionPanel({
   clientId,
   onBack,
   onViewHistory,
+  onOpenSetup,
 }: SessionPanelProps) {
   const [state, setState] = useState<SessionState>("idle");
   const [soapNote, setSoapNote] = useState<Partial<SoapNote> | null>(null);
@@ -479,13 +482,18 @@ export function SessionPanel({
               loading={pipelineLoading}
               loadError={pipelineError}
               mode="waiting"
+              onOpenSetup={onOpenSetup}
+              onSpeechToTextReady={() => {
+                if (sessionId) void refreshPipeline(sessionId);
+                void refreshMlReadiness();
+              }}
             />
             <div className="flex flex-col gap-2">
               <button
                 onClick={() => setState("editing")}
                 className="px-4 py-2 border border-border rounded-lg font-medium hover:bg-accent transition-colors"
               >
-                Open SOAP notes now
+                Write SOAP notes by hand
               </button>
               <p className="text-xs text-muted-foreground text-center">
                 You can write by hand while jobs finish. A draft will fill empty fields when ready.
@@ -501,6 +509,11 @@ export function SessionPanel({
               loading={pipelineLoading}
               loadError={pipelineError}
               mode="editor"
+              onOpenSetup={onOpenSetup}
+              onSpeechToTextReady={() => {
+                if (sessionId) void refreshPipeline(sessionId);
+                void refreshMlReadiness();
+              }}
             />
             <SoapEditor
               soapNote={soapNote}

@@ -84,6 +84,45 @@ fn whisper_binary_name() -> &'static str {
     }
 }
 
+/// Locate a previously downloaded whisper-cli under the app tools dir.
+/// Windows zips flatten into `tools/`; Linux ubuntu tarballs unpack into
+/// `tools/whisper-bin-ubuntu-*/whisper-cli` (with shared libs beside it —
+/// RUNPATH is `$ORIGIN`, so the binary must stay in that folder).
+fn find_local_whisper_binary(app: &AppHandle) -> Option<PathBuf> {
+    let tools = bin_dir(app);
+    let flat = tools.join(whisper_binary_name());
+    if flat.exists() {
+        return Some(flat);
+    }
+    // Nested extract dirs from official ubuntu / windows archives.
+    let Ok(entries) = std::fs::read_dir(&tools) else {
+        return None;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        for candidate in [
+            path.join(whisper_binary_name()),
+            path.join("whisper-cli"),
+            path.join("whisper-cli.exe"),
+            path.join("main"),
+            path.join("main.exe"),
+        ] {
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+    }
+    None
+}
+
+/// True when this OS can download a prebuilt whisper.cpp CLI from GitHub.
+fn whisper_binary_download_supported() -> bool {
+    cfg!(any(target_os = "windows", target_os = "linux"))
+}
+
 fn http_client() -> reqwest::Client {
     reqwest::Client::builder()
         .timeout(Duration::from_secs(30))
@@ -100,10 +139,27 @@ pub async fn detect_ml_setup(app: AppHandle) -> Result<MlSetupStatus, String> {
     let model_path = models_dir(&app).join(format!("{DEFAULT_WHISPER_MODEL}.bin"));
     let whisper_model_downloaded = model_path.exists();
 
-    let binary_path = bin_dir(&app).join(whisper_binary_name());
-    let whisper_binary_available = binary_path.exists();
+    let binary_path = find_local_whisper_binary(&app);
+    let whisper_binary_available = binary_path.is_some();
 
     let (ollama_running, ollama_models) = probe_ollama().await;
+
+    // If files already exist on disk but settings were never written (common
+    // after Skip / older Linux builds), heal settings so transcription jobs
+    // stop failing with "whisper.cpp not configured".
+    if whisper_model_downloaded || whisper_binary_available {
+        let _ = persist_discovered_ml_paths(
+            &app,
+            binary_path
+                .as_ref()
+                .map(|p| p.to_string_lossy().to_string()),
+            if whisper_model_downloaded {
+                Some(model_path.to_string_lossy().to_string())
+            } else {
+                None
+            },
+        );
+    }
 
     Ok(MlSetupStatus {
         whisper_model_downloaded,
@@ -113,18 +169,73 @@ pub async fn detect_ml_setup(app: AppHandle) -> Result<MlSetupStatus, String> {
             None
         },
         whisper_binary_available,
-        whisper_binary_path: if whisper_binary_available {
-            Some(binary_path.to_string_lossy().to_string())
-        } else {
-            None
-        },
-        whisper_binary_download_supported: cfg!(target_os = "windows"),
+        whisper_binary_path: binary_path.map(|p| p.to_string_lossy().to_string()),
+        whisper_binary_download_supported: whisper_binary_download_supported(),
         ollama_installed: ollama_running || ollama_common_path_exists(),
         ollama_running,
         ollama_models,
         recommended_model: "llama3.2".to_string(),
         recommended_whisper_model: DEFAULT_WHISPER_MODEL.to_string(),
     })
+}
+
+fn persist_discovered_ml_paths(
+    app: &AppHandle,
+    whisper_path: Option<String>,
+    whisper_model_path: Option<String>,
+) -> Result<(), String> {
+    let db_path = crate::db::get_db_path(app);
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| e.to_string())?;
+    for (key, value) in [
+        ("whisper_path", whisper_path),
+        ("whisper_model_path", whisper_model_path),
+    ] {
+        if let Some(value) = value {
+            conn.execute(
+                "INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, datetime('now'))
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')",
+                rusqlite::params![key, value],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+/// Resolve whisper binary + model paths for a transcription job.
+/// Prefers settings rows, then files already on disk under app data.
+/// Returns a clear error when neither is ready (UI should offer Setup).
+pub fn resolve_whisper_paths(
+    app: &AppHandle,
+    get_setting: &dyn Fn(&str) -> Option<String>,
+) -> Result<(String, String), String> {
+    let setting_bin = get_setting("whisper_path").filter(|p| PathBuf::from(p).exists());
+    let setting_model = get_setting("whisper_model_path").filter(|p| PathBuf::from(p).exists());
+
+    let disk_bin = find_local_whisper_binary(app).map(|p| p.to_string_lossy().to_string());
+    let disk_model = {
+        let p = models_dir(app).join(format!("{DEFAULT_WHISPER_MODEL}.bin"));
+        if p.exists() {
+            Some(p.to_string_lossy().to_string())
+        } else {
+            None
+        }
+    };
+
+    let bin = setting_bin.or(disk_bin);
+    let model = setting_model.or(disk_model);
+
+    match (bin, model) {
+        (Some(b), Some(m)) => {
+            let _ = persist_discovered_ml_paths(app, Some(b.clone()), Some(m.clone()));
+            Ok((b, m))
+        }
+        _ => Err(
+            "Speech-to-text is not set up on this computer yet. Open Setup to download the local \
+             speech-to-text files, or write SOAP notes by hand."
+                .to_string(),
+        ),
+    }
 }
 
 async fn probe_ollama() -> (bool, Vec<String>) {
@@ -282,7 +393,31 @@ pub async fn download_whisper_model(app: AppHandle, model: Option<String>) -> Re
     let dest = models_dir(&app).join(format!("{model_name}.bin"));
 
     download_with_progress(&app, &url, &dest, "whisper-model", "Speech-to-text engine").await?;
-    Ok(dest.to_string_lossy().to_string())
+    let path_str = dest.to_string_lossy().to_string();
+    let _ = persist_discovered_ml_paths(&app, None, Some(path_str.clone()));
+    Ok(path_str)
+}
+
+/// One-shot from the SOAP status UI: download model (+ binary when supported),
+/// persist paths, return refreshed detect status. Clinical audio never leaves
+/// the machine.
+#[tauri::command]
+pub async fn setup_speech_to_text(app: AppHandle, model: Option<String>) -> Result<MlSetupStatus, String> {
+    let model_path = download_whisper_model(app.clone(), model).await?;
+    let mut binary_path = find_local_whisper_binary(&app).map(|p| p.to_string_lossy().to_string());
+    if binary_path.is_none() && whisper_binary_download_supported() {
+        match download_whisper_binary(app.clone()).await {
+            Ok(p) => binary_path = Some(p),
+            Err(e) => {
+                // Model is enough to show progress; binary failure is surfaced
+                // via detect status rather than failing the whole call hard
+                // when the user can still write notes by hand.
+                eprintln!("[ml_setup] whisper binary download failed: {e}");
+            }
+        }
+    }
+    let _ = persist_discovered_ml_paths(&app, binary_path, Some(model_path));
+    detect_ml_setup(app).await
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -296,45 +431,122 @@ struct GithubRelease {
     assets: Vec<GithubAsset>,
 }
 
-/// Find the whisper.cpp prebuilt binary asset for this OS from the project's
-/// latest GitHub release, if one exists. Returns Ok(None) rather than an
-/// error when there simply isn't a matching prebuilt asset (e.g. on macOS,
-/// where whisper.cpp does not currently publish a signed CLI zip) -- that is
-/// an expected, non-fatal state, not a bug.
+/// Asset names we accept for the current OS/arch, preferred first.
+fn whisper_binary_asset_candidates() -> Vec<&'static str> {
+    if cfg!(target_os = "windows") {
+        if cfg!(target_arch = "x86_64") {
+            vec!["whisper-bin-x64.zip", "whisper-blas-bin-x64.zip"]
+        } else if cfg!(target_arch = "aarch64") {
+            vec!["whisper-bin-win-cpu-arm64.zip"]
+        } else {
+            vec!["whisper-bin-Win32.zip"]
+        }
+    } else if cfg!(target_os = "linux") {
+        if cfg!(target_arch = "aarch64") {
+            vec!["whisper-bin-ubuntu-arm64.tar.gz"]
+        } else {
+            // Omarchy / Arch / Ubuntu x86_64 AppImage hosts
+            vec!["whisper-bin-ubuntu-x64.tar.gz"]
+        }
+    } else {
+        vec![]
+    }
+}
+
+/// Find a prebuilt whisper.cpp CLI asset. Semver "latest" tags often have
+/// **zero** assets (e.g. v1.9.5); build tags like `b5454` carry the real
+/// Windows zips and Linux ubuntu tarballs. Walk recent releases newest-first.
 async fn find_whisper_binary_asset(app: &AppHandle) -> Result<Option<GithubAsset>, String> {
-    if !cfg!(target_os = "windows") {
-        // No official prebuilt CLI archive for macOS/Linux at the moment.
-        // Surfaced to the UI as "automatic download not available here".
+    let _ = app;
+    let candidates = whisper_binary_asset_candidates();
+    if candidates.is_empty() {
         return Ok(None);
     }
-    let _ = app; // reserved for future per-OS asset caching
+
     let client = http_client();
+    // Prefer a releases list over /latest — tagged latest may be asset-less.
+    let list_url = "https://api.github.com/repos/ggml-org/whisper.cpp/releases?per_page=20";
     let resp = client
-        .get(GITHUB_LATEST_RELEASE_URL)
+        .get(list_url)
         .send()
         .await
         .map_err(|e| format!("could not reach GitHub: {e}"))?;
     if !resp.status().is_success() {
-        return Err(format!("GitHub returned HTTP {}", resp.status()));
+        // Fall back to the old latest endpoint once.
+        let resp = client
+            .get(GITHUB_LATEST_RELEASE_URL)
+            .send()
+            .await
+            .map_err(|e| format!("could not reach GitHub: {e}"))?;
+        if !resp.status().is_success() {
+            return Err(format!("GitHub returned HTTP {}", resp.status()));
+        }
+        let release: GithubRelease = resp
+            .json()
+            .await
+            .map_err(|e| format!("could not parse GitHub release info: {e}"))?;
+        return Ok(release
+            .assets
+            .into_iter()
+            .find(|a| candidates.iter().any(|c| a.name == *c)));
     }
-    let release: GithubRelease = resp
+
+    let releases: Vec<GithubRelease> = resp
         .json()
         .await
-        .map_err(|e| format!("could not parse GitHub release info: {e}"))?;
+        .map_err(|e| format!("could not parse GitHub release list: {e}"))?;
 
-    let wanted = if cfg!(target_arch = "x86_64") {
-        "whisper-bin-x64.zip"
-    } else {
-        "whisper-bin-Win32.zip"
-    };
-
-    Ok(release.assets.into_iter().find(|a| a.name == wanted))
+    for release in releases {
+        if let Some(asset) = release
+            .assets
+            .into_iter()
+            .find(|a| candidates.iter().any(|c| a.name == *c))
+        {
+            return Ok(Some(asset));
+        }
+    }
+    Ok(None)
 }
 
-/// Download and unpack the whisper.cpp command-line binary. Only supported
-/// where a prebuilt archive exists (currently Windows x64/x86). On other
-/// platforms this returns a clear "not supported here" error that the UI
-/// turns into "use manual notes for now" rather than a crash.
+fn extract_whisper_archive(archive_path: &PathBuf, extract_dir: &PathBuf) -> Result<(), String> {
+    let name = archive_path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or_default()
+        .to_lowercase();
+
+    if name.ends_with(".zip") {
+        let file =
+            std::fs::File::open(archive_path).map_err(|e| format!("could not open archive: {e}"))?;
+        let mut zip =
+            zip::ZipArchive::new(file).map_err(|e| format!("could not read archive: {e}"))?;
+        zip.extract(extract_dir)
+            .map_err(|e| format!("could not unpack archive: {e}"))?;
+        return Ok(());
+    }
+
+    if name.ends_with(".tar.gz") || name.ends_with(".tgz") {
+        // System tar is always present on Linux AppImage host targets; keeps
+        // Cargo deps small and preserves nested folder + shared libs.
+        let status = std::process::Command::new("tar")
+            .arg("-xzf")
+            .arg(archive_path)
+            .arg("-C")
+            .arg(extract_dir)
+            .status()
+            .map_err(|e| format!("could not run tar: {e}"))?;
+        if !status.success() {
+            return Err("could not unpack the speech-to-text archive (tar failed)".to_string());
+        }
+        return Ok(());
+    }
+
+    Err(format!("unsupported speech-to-text archive format: {name}"))
+}
+
+/// Download and unpack the whisper.cpp command-line binary (Windows zip or
+/// Linux ubuntu tar.gz). On unsupported platforms returns a clear message
+/// so the UI can fall back to manual notes.
 #[tauri::command]
 pub async fn download_whisper_binary(app: AppHandle) -> Result<String, String> {
     let asset = find_whisper_binary_asset(&app)
@@ -356,14 +568,26 @@ pub async fn download_whisper_binary(app: AppHandle) -> Result<String, String> {
     .await?;
 
     let extract_dir = bin_dir(&app);
-    let file = std::fs::File::open(&archive_path).map_err(|e| format!("could not open archive: {e}"))?;
-    let mut zip = zip::ZipArchive::new(file).map_err(|e| format!("could not read archive: {e}"))?;
-    zip.extract(&extract_dir)
-        .map_err(|e| format!("could not unpack archive: {e}"))?;
+    extract_whisper_archive(&archive_path, &extract_dir)?;
     let _ = std::fs::remove_file(&archive_path);
 
-    // Older whisper.cpp releases name the binary `main.exe`; newer ones use
-    // `whisper-cli.exe`. Accept either and normalize to our expected name.
+    // Prefer leaving nested ubuntu layouts intact (shared libs need $ORIGIN).
+    if let Some(found) = find_local_whisper_binary(&app) {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if let Ok(meta) = std::fs::metadata(&found) {
+                let mut perms = meta.permissions();
+                perms.set_mode(0o755);
+                let _ = std::fs::set_permissions(&found, perms);
+            }
+        }
+        let path_str = found.to_string_lossy().to_string();
+        let _ = persist_discovered_ml_paths(&app, Some(path_str.clone()), None);
+        return Ok(path_str);
+    }
+
+    // Flat zip fallback: rename common names into tools/whisper-cli[.exe]
     let expected = extract_dir.join(whisper_binary_name());
     if !expected.exists() {
         for candidate in ["main.exe", "whisper-cli.exe", "main", "whisper-cli"] {
@@ -377,7 +601,8 @@ pub async fn download_whisper_binary(app: AppHandle) -> Result<String, String> {
 
     if !expected.exists() {
         return Err(
-            "The speech-to-text program downloaded but couldn't be found after unpacking.".to_string(),
+            "The speech-to-text program downloaded but couldn't be found after unpacking."
+                .to_string(),
         );
     }
 
@@ -391,7 +616,9 @@ pub async fn download_whisper_binary(app: AppHandle) -> Result<String, String> {
         }
     }
 
-    Ok(expected.to_string_lossy().to_string())
+    let path_str = expected.to_string_lossy().to_string();
+    let _ = persist_discovered_ml_paths(&app, Some(path_str.clone()), None);
+    Ok(path_str)
 }
 
 /// Quick sanity check that a whisper.cpp binary actually runs.

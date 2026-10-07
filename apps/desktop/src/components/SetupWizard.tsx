@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import {
+  acquireAudioStream,
+  classifyMicFailure,
+  micFailureUserMessage,
+  type MicFailureKind,
+} from "../lib/audioCapture";
 
 interface MlSetupStatus {
   whisperModelDownloaded: boolean;
@@ -38,7 +44,9 @@ interface SetupWizardProps {
 export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
   const [step, setStep] = useState<Step>("connectAccount");
   const [status, setStatus] = useState<MlSetupStatus | null>(null);
-  const [micState, setMicState] = useState<"unchecked" | "checking" | "ok" | "denied">("unchecked");
+  const [micState, setMicState] = useState<"unchecked" | "checking" | "ok" | "failed">("unchecked");
+  const [micFailureKind, setMicFailureKind] = useState<MicFailureKind | null>(null);
+  const [micFailureDetail, setMicFailureDetail] = useState<string | null>(null);
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -85,12 +93,20 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
 
   async function checkMicrophone() {
     setMicState("checking");
+    setMicFailureKind(null);
+    setMicFailureDetail(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Same ladder as Start Recording — never soft-fail a constraint bug as
+      // "permission denied". Uses preferred → soft → `{ audio: true }`.
+      const stream = await acquireAudioStream();
       stream.getTracks().forEach((track) => track.stop());
       setMicState("ok");
-    } catch {
-      setMicState("denied");
+    } catch (err) {
+      console.error("[SetupWizard] microphone check failed:", err);
+      const kind = classifyMicFailure(err);
+      setMicFailureKind(kind);
+      setMicFailureDetail(micFailureUserMessage(kind, err));
+      setMicState("failed");
     }
   }
 
@@ -305,24 +321,39 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
             title="Check your microphone"
             body="SoloPractice needs permission to hear your microphone so it can record sessions."
           >
-            {micState === "unchecked" && (
+            {(micState === "unchecked" || micState === "failed") && (
               <button
                 onClick={checkMicrophone}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90"
               >
-                Test my microphone
+                {micState === "failed" ? "Try microphone again" : "Test my microphone"}
               </button>
             )}
             {micState === "checking" && <p className="text-sm text-muted-foreground">Checking...</p>}
             {micState === "ok" && (
               <StatusBanner tone="success">Your microphone is working.</StatusBanner>
             )}
-            {micState === "denied" && (
-              <StatusBanner tone="warning">
-                We couldn't access your microphone. You can allow it later in your computer's
-                privacy settings, or from this app's Settings. You can still use SoloPractice
-                without recording, by typing notes directly.
-              </StatusBanner>
+            {micState === "failed" && micFailureDetail && (
+              <div className="space-y-2 mt-3">
+                <StatusBanner tone="warning">{micFailureDetail}</StatusBanner>
+                {micFailureKind === "permission" ? (
+                  <p className="text-xs text-muted-foreground">
+                    On Linux, allow SoloPractice in your system privacy / PipeWire portal prompt,
+                    then try again. You can also re-run this check later from Settings.
+                  </p>
+                ) : micFailureKind === "not_found" || micFailureKind === "unavailable" ? (
+                  <p className="text-xs text-muted-foreground">
+                    Confirm a mic is connected and not exclusively used by another app. On Arch /
+                    Omarchy, ensure PipeWire (or PulseAudio) is running. You can still type notes
+                    without recording.
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    You can still use SoloPractice without recording by typing notes directly.
+                    Re-run setup from Settings after updating the app if this persists.
+                  </p>
+                )}
+              </div>
             )}
           </Section>
         )}

@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { acquireAudioStream, classifyMicFailure, micFailureUserMessage } from "../lib/audioCapture";
 
 export interface AudioRecorderState {
   isRecording: boolean;
@@ -38,14 +39,7 @@ export function useAudioRecorder(): [AudioRecorderState, AudioRecorderControls] 
       setDuration(0);
       pausedDurationRef.current = 0;
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          sampleRate: 16000,
-          echoCancellation: true,
-          noiseSuppression: true,
-        },
-      });
+      const stream = await acquireAudioStream();
 
       streamRef.current = stream;
 
@@ -105,17 +99,8 @@ export function useAudioRecorder(): [AudioRecorderState, AudioRecorderControls] 
       console.log("[AudioRecorder] Started recording with mimeType:", mimeType);
     } catch (err) {
       console.error("Failed to start recording:", err);
-      if (err instanceof DOMException) {
-        if (err.name === "NotAllowedError") {
-          setError("Microphone access denied. Please allow microphone access in your system settings.");
-        } else if (err.name === "NotFoundError") {
-          setError("No microphone found. Please connect a microphone and try again.");
-        } else {
-          setError(`Microphone error: ${err.message}`);
-        }
-      } else {
-        setError("Failed to start recording. Please try again.");
-      }
+      const kind = classifyMicFailure(err);
+      setError(micFailureUserMessage(kind, err));
       throw err;
     }
   }, [isPaused]);

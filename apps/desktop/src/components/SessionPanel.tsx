@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { SessionWithDetails, SoapNote } from "@solopractice/shared/desktop";
 import { SoapEditor } from "./SoapEditor";
 import { useAudioRecorder } from "../hooks/useAudioRecorder";
+import { classifyMicFailure, micFailureUserMessage } from "../lib/audioCapture";
 
 interface SessionPanelProps {
   clientId: string | null;
@@ -40,7 +41,15 @@ export function SessionPanel({
       setState("recording");
     } catch (error) {
       console.error("Failed to start recording:", error);
-      alert("Could not start recording: " + (error instanceof Error ? error.message : String(error)));
+      // Prefer a classified mic message (constraint vs permission vs missing)
+      // over raw WebKit "Invalid constraint" / soft permission copy.
+      const kind = classifyMicFailure(error);
+      const message =
+        kind !== "unknown"
+          ? micFailureUserMessage(kind, error)
+          : recorderState.error ||
+            (error instanceof Error ? error.message : String(error));
+      alert("Could not start recording: " + message);
     }
   }
 

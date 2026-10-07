@@ -143,9 +143,10 @@ pub fn run() {
             // and denies every `permission-request` with no listener
             // override -- getUserMedia() silently rejects with
             // NotAllowedError and the OS-level mic prompt never appears.
-            // Enable media capture and auto-allow only UserMedia requests
-            // from our own app window (no-op on macOS/Windows, which use
-            // their native WKWebView/WebView2 permission prompts instead).
+            // Enable media capture and auto-allow only UserMedia /
+            // DeviceInfo requests from our own app window (no-op on
+            // macOS/Windows, which use their native WKWebView/WebView2
+            // permission prompts instead).
             #[cfg(target_os = "linux")]
             {
                 use tauri::Manager as _;
@@ -153,23 +154,51 @@ pub fn run() {
                 use webkit2gtk::{PermissionRequestExt, SettingsExt, WebViewExt};
 
                 if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.with_webview(|webview| {
+                    match window.with_webview(|webview| {
                         let wk_webview = webview.inner();
                         if let Some(settings) = WebViewExt::settings(&wk_webview) {
                             settings.set_enable_media_stream(true);
+                            // Extra media flags used by other Tauri Linux apps
+                            // that successfully call getUserMedia (huddles /
+                            // dictation). Harmless if already on.
+                            settings.set_enable_webrtc(true);
+                            settings.set_enable_mediasource(true);
+                            settings.set_enable_media(true);
                         }
                         wk_webview.connect_permission_request(|_, request| {
+                            // Mic/camera capture.
                             if request
-                                .clone()
-                                .downcast::<webkit2gtk::UserMediaPermissionRequest>()
-                                .is_ok()
+                                .downcast_ref::<webkit2gtk::UserMediaPermissionRequest>()
+                                .is_some()
                             {
                                 request.allow();
                                 return true;
                             }
+                            // Device labels / enumerateDevices — without this,
+                            // some WebKitGTK builds fail getUserMedia even for
+                            // `{ audio: true }` after a soft permission prompt.
+                            if request
+                                .downcast_ref::<webkit2gtk::DeviceInfoPermissionRequest>()
+                                .is_some()
+                            {
+                                request.allow();
+                                return true;
+                            }
+                            // Deny geolocation, notifications, etc.
                             false
                         });
-                    });
+                    }) {
+                        Ok(()) => {}
+                        Err(e) => {
+                            eprintln!(
+                                "Failed to enable WebKitGTK media permissions (mic may not work): {e}"
+                            );
+                        }
+                    }
+                } else {
+                    eprintln!(
+                        "Main webview window missing at setup; cannot enable Linux mic permissions"
+                    );
                 }
             }
 

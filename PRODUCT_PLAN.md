@@ -169,7 +169,7 @@ Work **only** the active gate. Later items are parking lot, not parallel scope. 
 1. ~~Wire `generate_superbill`~~ — command registered, Superbill mounted in sidebar, stub removed. Unit tests cover insert/history + PDF render.  
 2. ~~Fix receipt copy~~ — pay page no longer claims an emailed receipt. Optional later: send a real receipt via Resend.  
 3. ~~Sweep docs/UI for encryption claims~~ — done for README, desktop README, Windows setup, Settings, i18n, recording consent storage line. Re-check when adding copy.  
-4. **Remaining for Gate A exit:** Run and record the Windows fake-client walkthrough ([docs/GATE_A_WALKTHROUGH.md](docs/GATE_A_WALKTHROUGH.md)); note whisper model that works on her machine.  
+4. **Remaining for Gate A exit:** Run and record the Windows fake-client walkthrough on **desktop v0.1.2** ([docs/GATE_A_WALKTHROUGH.md](docs/GATE_A_WALKTHROUGH.md)) — install/pair, clinical path, pay → Request superbill → Pending → mark sent; note whisper model that works on her machine.  
 
 **Out of Gate A:** encryption, attorney consents, calendar, ACH, client portal, backup, job retry, multi-state.
 

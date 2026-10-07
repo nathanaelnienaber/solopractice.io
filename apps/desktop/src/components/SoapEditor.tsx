@@ -7,9 +7,26 @@ interface SoapEditorProps {
   onCancel: () => void;
   /** Optional heading context, shown above the editor when provided. */
   clientName?: string;
+  /** Shown when fields are empty so the therapist knows why. */
+  emptyHint?: string;
 }
 
-export function SoapEditor({ soapNote, onChange, onSave, onCancel, clientName }: SoapEditorProps) {
+function noteLooksEmpty(note: Partial<SoapNote>): boolean {
+  return ![note.subjective, note.objective, note.assessment, note.plan].some(
+    (s) => (s || "").trim().length > 0
+  );
+}
+
+export function SoapEditor({
+  soapNote,
+  onChange,
+  onSave,
+  onCancel,
+  clientName,
+  emptyHint,
+}: SoapEditorProps) {
+  const empty = noteLooksEmpty(soapNote);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -21,14 +38,22 @@ export function SoapEditor({ soapNote, onChange, onSave, onCancel, clientName }:
         </div>
         {soapNote.isDraft && (
           <span className="text-xs px-2 py-1 rounded-full bg-warning/10 text-warning">
-            Draft - AI Generated
+            {empty ? "Draft — waiting or write by hand" : "Draft"}
           </span>
         )}
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Review and edit the AI-generated draft. All changes are saved locally only.
+        {empty
+          ? "Write your note here, or wait for a local draft if speech-to-text is running. Saved on this computer only."
+          : "Review and edit the draft. All changes are saved on this computer only."}
       </p>
+
+      {empty && emptyHint && (
+        <p className="text-sm text-muted-foreground border border-border rounded-lg px-3 py-2 bg-muted/40">
+          {emptyHint}
+        </p>
+      )}
 
       <div className="space-y-4">
         <SoapSection

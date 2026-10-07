@@ -42,6 +42,8 @@ pub struct BackgroundJob {
     pub job_type: String,
     pub status: String,
     pub progress: Option<u8>,
+    /// Raw JSON payload (includes sessionId for filtering in the UI).
+    pub payload: Option<String>,
     #[serde(rename = "createdAt")]
     pub created_at: String,
     #[serde(rename = "startedAt")]
@@ -352,7 +354,7 @@ fn query_job_queue(conn: &rusqlite::Connection) -> Result<JobQueueResponse, Stri
     let mut stmt = conn
         .prepare(
             r#"
-            SELECT id, job_type, status, progress, created_at, started_at, completed_at, error, result
+            SELECT id, job_type, status, progress, payload, created_at, started_at, completed_at, error, result
             FROM jobs
             ORDER BY created_at DESC
             LIMIT 50
@@ -367,11 +369,12 @@ fn query_job_queue(conn: &rusqlite::Connection) -> Result<JobQueueResponse, Stri
                 job_type: row.get(1)?,
                 status: row.get(2)?,
                 progress: row.get(3)?,
-                created_at: row.get(4)?,
-                started_at: row.get(5)?,
-                completed_at: row.get(6)?,
-                error: row.get(7)?,
-                result: row.get(8)?,
+                payload: row.get(4)?,
+                created_at: row.get(5)?,
+                started_at: row.get(6)?,
+                completed_at: row.get(7)?,
+                error: row.get(8)?,
+                result: row.get(9)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -1176,6 +1179,165 @@ pub async fn get_full_session(
     }))
 }
 
+/// Compact job row for the session recording → SOAP pipeline status UI.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionJobStatus {
+    pub id: String,
+    pub job_type: String,
+    pub status: String,
+    pub progress: Option<u8>,
+    pub error: Option<String>,
+    pub created_at: String,
+    pub started_at: Option<String>,
+    pub completed_at: Option<String>,
+}
+
+/// Everything the Session panel needs to show transcription / SOAP progress
+/// without leaving the therapist staring at a blank editor.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionPipelineStatus {
+    pub session_id: String,
+    pub has_recording: bool,
+    pub recording_path: Option<String>,
+    pub has_transcript: bool,
+    pub transcription_job: Option<SessionJobStatus>,
+    pub soap_draft_job: Option<SessionJobStatus>,
+    pub soap_note: Option<SessionSoapNote>,
+    pub whisper_ready: bool,
+    pub ollama_ready: bool,
+}
+
+fn latest_session_job(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+    job_type: &str,
+) -> Result<Option<SessionJobStatus>, String> {
+    // Prefer json_extract when available; fall back to LIKE on the session id
+    // so older SQLite builds without JSON1 still work in tests.
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT id, job_type, status, progress, error, created_at, started_at, completed_at
+            FROM jobs
+            WHERE job_type = ?1
+              AND (
+                json_extract(payload, '$.sessionId') = ?2
+                OR payload LIKE '%' || ?2 || '%'
+              )
+            ORDER BY created_at DESC
+            LIMIT 1
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+
+    let row = stmt
+        .query_row(rusqlite::params![job_type, session_id], |row| {
+            Ok(SessionJobStatus {
+                id: row.get(0)?,
+                job_type: row.get(1)?,
+                status: row.get(2)?,
+                progress: row.get(3)?,
+                error: row.get(4)?,
+                created_at: row.get(5)?,
+                started_at: row.get(6)?,
+                completed_at: row.get(7)?,
+            })
+        })
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    Ok(row)
+}
+
+fn query_session_pipeline(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+) -> Result<SessionPipelineStatus, String> {
+    let recording_path: Option<String> = conn
+        .query_row(
+            r#"
+            SELECT file_path FROM recordings
+            WHERE session_id = ?1
+            ORDER BY created_at DESC
+            LIMIT 1
+            "#,
+            [session_id],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    let has_transcript: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM transcripts WHERE session_id = ?1)",
+            [session_id],
+            |r| r.get::<_, i64>(0),
+        )
+        .map(|n| n != 0)
+        .map_err(|e| e.to_string())?;
+
+    let soap_note = conn
+        .query_row(
+            r#"
+            SELECT id, subjective, objective, assessment, plan, is_draft
+            FROM soap_notes
+            WHERE session_id = ?1
+            ORDER BY updated_at DESC
+            LIMIT 1
+            "#,
+            [session_id],
+            |row| {
+                Ok(SessionSoapNote {
+                    id: Some(row.get(0)?),
+                    subjective: row.get(1)?,
+                    objective: row.get(2)?,
+                    assessment: row.get(3)?,
+                    plan: row.get(4)?,
+                    is_draft: row.get::<_, i64>(5)? != 0,
+                })
+            },
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    let whisper_path = read_setting(conn, "whisper_path");
+    let whisper_model_path = read_setting(conn, "whisper_model_path");
+    let whisper_ready = whisper_path
+        .as_ref()
+        .zip(whisper_model_path.as_ref())
+        .map(|(bin, model)| std::path::Path::new(bin).exists() && std::path::Path::new(model).exists())
+        .unwrap_or(false);
+
+    // Ollama readiness is "paths configured / model chosen"; live probe is
+    // expensive for a 2s poll — UI can still show job failures if Ollama is down.
+    let ollama_ready = read_setting(conn, "ollama_model").is_some()
+        || read_setting(conn, "ollama_model_name").is_some();
+
+    Ok(SessionPipelineStatus {
+        session_id: session_id.to_string(),
+        has_recording: recording_path.is_some(),
+        recording_path,
+        has_transcript,
+        transcription_job: latest_session_job(conn, session_id, "transcription")?,
+        soap_draft_job: latest_session_job(conn, session_id, "soap_draft")?,
+        soap_note,
+        whisper_ready,
+        ollama_ready,
+    })
+}
+
+/// Pollable status for one session's local transcription → SOAP draft pipeline.
+#[tauri::command]
+pub async fn get_session_pipeline_status(
+    app: AppHandle,
+    session_id: String,
+) -> Result<SessionPipelineStatus, String> {
+    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
+    query_session_pipeline(&conn, &session_id)
+}
+
 /// Render a session's finalized SOAP note to a PDF on local disk and return
 /// its path. Refuses to export a draft -- a draft SOAP note is not yet
 /// something the therapist has reviewed/signed off on for the record.
@@ -1409,15 +1571,17 @@ fn insert_recording_record(
 /// Writes captured audio bytes (handed over from the frontend's
 /// MediaRecorder Blob) to `$APPDATA/recordings/<session_id>.<format>` and
 /// records the recording's metadata in the local recordings table, linked
-/// to the given session. Also enqueues a local transcription job (whisper
-/// if configured; otherwise the job fails and the therapist can enter notes
-/// manually). Returns the absolute file path written.
+/// to the given session. When `enqueue_transcription` is true (default),
+/// also enqueues a local transcription job (whisper if configured;
+/// otherwise the job fails and the therapist can enter notes manually).
+/// Returns the absolute file path written.
 #[tauri::command]
 pub async fn save_recording_file(
     app: AppHandle,
     session_id: String,
     audio_bytes: Vec<u8>,
     format: String,
+    enqueue_transcription: Option<bool>,
 ) -> Result<String, String> {
     let recordings_dir = app
         .path()
@@ -1440,15 +1604,28 @@ pub async fn save_recording_file(
         audio_bytes.len() as i64,
     )?;
 
-    let payload = serde_json::json!({
-        "sessionId": session_id,
-        "recordingId": recording_id,
-        "audioPath": path_str,
-    })
-    .to_string();
-    enqueue_job(&conn, "transcription", &payload)?;
+    if enqueue_transcription.unwrap_or(true) {
+        let payload = serde_json::json!({
+            "sessionId": session_id,
+            "recordingId": recording_id,
+            "audioPath": path_str,
+        })
+        .to_string();
+        enqueue_job(&conn, "transcription", &payload)?;
+    }
 
     Ok(path_str)
+}
+
+/// Copy already-captured audio bytes to a therapist-chosen path (Save dialog).
+/// Used by the post-Stop "Save the audio file" action. Does not touch the
+/// clinical DB — `save_recording_file` already persisted the session copy.
+#[tauri::command]
+pub async fn export_audio_bytes(dest_path: String, audio_bytes: Vec<u8>) -> Result<(), String> {
+    if let Some(parent) = std::path::Path::new(&dest_path).parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&dest_path, &audio_bytes).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -1964,6 +2141,94 @@ mod job_queue_tests {
         let response = query_job_queue(&conn).unwrap();
         let completed = response.jobs.iter().find(|j| j.id == "job-3").unwrap();
         assert_eq!(completed.result, Some("{\"content\":\"hi\"}".to_string()));
+    }
+
+    #[test]
+    fn real_sql_session_pipeline_finds_jobs_and_soap_for_session() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            r#"
+            CREATE TABLE settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE TABLE recordings (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                duration_seconds INTEGER,
+                format TEXT NOT NULL DEFAULT 'wav',
+                size_bytes INTEGER,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE TABLE transcripts (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                recording_id TEXT NOT NULL,
+                content TEXT NOT NULL,
+                model_used TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE TABLE soap_notes (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                client_id TEXT NOT NULL,
+                subjective TEXT NOT NULL DEFAULT '',
+                objective TEXT NOT NULL DEFAULT '',
+                assessment TEXT NOT NULL DEFAULT '',
+                plan TEXT NOT NULL DEFAULT '',
+                is_draft INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE TABLE jobs (
+                id TEXT PRIMARY KEY,
+                job_type TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                progress INTEGER,
+                payload TEXT NOT NULL,
+                result TEXT,
+                error TEXT,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                max_attempts INTEGER NOT NULL DEFAULT 3,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                started_at TEXT,
+                completed_at TEXT
+            );
+            INSERT INTO recordings (id, session_id, file_path)
+            VALUES ('r1', 'sess-A', '/tmp/sess-A.wav');
+            INSERT INTO jobs (id, job_type, status, progress, payload, created_at)
+            VALUES (
+              'j-tx', 'transcription', 'in_progress', 20,
+              '{"sessionId":"sess-A","recordingId":"r1","audioPath":"/tmp/sess-A.wav"}',
+              '2026-01-01T10:00:00Z'
+            );
+            INSERT INTO jobs (id, job_type, status, payload, created_at)
+            VALUES (
+              'j-other', 'transcription', 'completed',
+              '{"sessionId":"sess-B","recordingId":"r2","audioPath":"/tmp/sess-B.wav"}',
+              '2026-01-01T10:05:00Z'
+            );
+            INSERT INTO soap_notes (id, session_id, client_id, subjective, is_draft)
+            VALUES ('n1', 'sess-A', 'c1', 'Client reports stress', 1);
+            "#,
+        )
+        .unwrap();
+
+        let status = query_session_pipeline(&conn, "sess-A").unwrap();
+        assert!(status.has_recording);
+        assert_eq!(status.recording_path.as_deref(), Some("/tmp/sess-A.wav"));
+        assert!(!status.has_transcript);
+        assert_eq!(status.transcription_job.as_ref().map(|j| j.id.as_str()), Some("j-tx"));
+        assert_eq!(
+            status.transcription_job.as_ref().map(|j| j.status.as_str()),
+            Some("in_progress")
+        );
+        assert!(status.soap_draft_job.is_none());
+        assert_eq!(
+            status.soap_note.as_ref().map(|n| n.subjective.as_str()),
+            Some("Client reports stress")
+        );
     }
 }
 

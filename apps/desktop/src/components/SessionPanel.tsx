@@ -1,9 +1,22 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
 import type { SessionWithDetails, SoapNote } from "@solopractice/shared/desktop";
 import { SoapEditor } from "./SoapEditor";
 import { useAudioRecorder } from "../hooks/useAudioRecorder";
 import { classifyMicFailure, micFailureUserMessage } from "../lib/audioCapture";
+import {
+  SessionPipelineStatusPanel,
+  soapFieldsAreEmpty,
+  type SessionPipelineStatusData,
+} from "./SessionPipelineStatus";
+
+interface MlSetupStatus {
+  whisperModelDownloaded: boolean;
+  whisperBinaryAvailable: boolean;
+  ollamaRunning: boolean;
+  ollamaModels: string[];
+}
 
 interface SessionPanelProps {
   clientId: string | null;
@@ -13,7 +26,18 @@ interface SessionPanelProps {
   onViewHistory?: () => void;
 }
 
-type SessionState = "idle" | "recording" | "transcribing" | "drafting" | "editing";
+type SessionState =
+  | "idle"
+  | "recording"
+  | "saving"
+  | "waiting_pipeline"
+  | "editing";
+
+type StopChoice =
+  | "go_soap"
+  | "continue"
+  | "save_audio"
+  | "auto_soap";
 
 export function SessionPanel({
   clientId,
@@ -23,7 +47,107 @@ export function SessionPanel({
   const [state, setState] = useState<SessionState>("idle");
   const [soapNote, setSoapNote] = useState<Partial<SoapNote> | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [showStopMenu, setShowStopMenu] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [pipeline, setPipeline] = useState<SessionPipelineStatusData | null>(null);
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
+  const [pipelineLoading, setPipelineLoading] = useState(false);
   const [recorderState, recorderControls] = useAudioRecorder();
+  const soapNoteRef = useRef(soapNote);
+  soapNoteRef.current = soapNote;
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const mlReadyRef = useRef<{ whisperReady: boolean; ollamaReady: boolean } | null>(null);
+
+  const refreshMlReadiness = useCallback(async () => {
+    try {
+      const ml = await invoke<MlSetupStatus>("detect_ml_setup");
+      mlReadyRef.current = {
+        whisperReady: ml.whisperBinaryAvailable && ml.whisperModelDownloaded,
+        ollamaReady: ml.ollamaRunning && ml.ollamaModels.length > 0,
+      };
+    } catch {
+      // Non-fatal — pipeline status still reports job rows.
+    }
+  }, []);
+
+  const refreshPipeline = useCallback(async (sid: string) => {
+    setPipelineLoading(true);
+    try {
+      const result = await invoke<SessionPipelineStatusData>("get_session_pipeline_status", {
+        sessionId: sid,
+      });
+      const ml = mlReadyRef.current;
+      const merged: SessionPipelineStatusData = ml
+        ? {
+            ...result,
+            whisperReady: ml.whisperReady,
+            ollamaReady: ml.ollamaReady,
+          }
+        : result;
+      setPipeline(merged);
+      setPipelineError(null);
+      return merged;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setPipelineError(message);
+      return null;
+    } finally {
+      setPipelineLoading(false);
+    }
+  }, []);
+
+  // Poll pipeline while waiting or editing after a recording.
+  useEffect(() => {
+    if (!sessionId) return;
+    if (state !== "waiting_pipeline" && state !== "editing") return;
+
+    let cancelled = false;
+    const tick = async () => {
+      if (cancelled) return;
+      const result = await refreshPipeline(sessionId);
+      if (cancelled || !result) return;
+
+      const currentState = stateRef.current;
+      const currentNote = soapNoteRef.current;
+
+      // Auto-fill SOAP when a draft arrives and the therapist hasn't typed yet.
+      if (
+        result.soapNote &&
+        currentState === "editing" &&
+        soapFieldsAreEmpty(currentNote)
+      ) {
+        setSoapNote({
+          subjective: result.soapNote.subjective || "",
+          objective: result.soapNote.objective || "",
+          assessment: result.soapNote.assessment || "",
+          plan: result.soapNote.plan || "",
+          isDraft: result.soapNote.isDraft,
+        });
+      }
+
+      if (currentState === "waiting_pipeline") {
+        const soapDone = result.soapDraftJob?.status === "completed" && result.soapNote;
+        if (soapDone) {
+          setSoapNote({
+            subjective: result.soapNote!.subjective || "",
+            objective: result.soapNote!.objective || "",
+            assessment: result.soapNote!.assessment || "",
+            plan: result.soapNote!.plan || "",
+            isDraft: result.soapNote!.isDraft,
+          });
+          setState("editing");
+        }
+      }
+    };
+
+    void refreshMlReadiness().then(tick);
+    const interval = setInterval(tick, 2000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [sessionId, state, refreshPipeline, refreshMlReadiness]);
 
   if (!clientId) {
     return (
@@ -35,14 +159,14 @@ export function SessionPanel({
 
   async function startRecording() {
     try {
+      setStatusMessage(null);
       const newSessionId = await invoke<string>("start_recording", { clientId });
       setSessionId(newSessionId);
       await recorderControls.startRecording();
       setState("recording");
+      setShowStopMenu(false);
     } catch (error) {
       console.error("Failed to start recording:", error);
-      // Prefer a classified mic message (constraint vs permission vs missing)
-      // over raw WebKit "Invalid constraint" / soft permission copy.
       const kind = classifyMicFailure(error);
       const message =
         kind !== "unknown"
@@ -53,31 +177,81 @@ export function SessionPanel({
     }
   }
 
-  async function stopRecording() {
+  function requestStop() {
+    // Pause first so "Continue recording" can resume without losing audio.
+    if (recorderState.isRecording && !recorderState.isPaused) {
+      recorderControls.pauseRecording();
+    }
+    setShowStopMenu(true);
+  }
+
+  function continueRecording() {
+    setShowStopMenu(false);
+    recorderControls.resumeRecording();
+  }
+
+  async function finalizeRecording(options: {
+    enqueueTranscription: boolean;
+    next: "editing" | "waiting_pipeline" | "idle";
+    exportCopy?: boolean;
+  }) {
     if (!sessionId) {
-      console.error("stopRecording called with no active sessionId");
+      console.error("finalizeRecording called with no active sessionId");
       setState("idle");
+      setShowStopMenu(false);
       return;
     }
-    setState("transcribing");
+
+    setShowStopMenu(false);
+    setState("saving");
+    setStatusMessage("Saving audio on this computer…");
 
     try {
       const audioBlob = await recorderControls.stopRecording();
       const audioBytes = new Uint8Array(await audioBlob.arrayBuffer());
       const format = mimeTypeToExtension(audioBlob.type);
+      const bytesArray = Array.from(audioBytes);
 
-      await invoke("save_recording_file", {
+      const savedPath = await invoke<string>("save_recording_file", {
         sessionId,
-        audioBytes: Array.from(audioBytes), // Tauri IPC serializes Vec<u8> as a JSON array of numbers
+        audioBytes: bytesArray,
         format,
+        enqueueTranscription: options.enqueueTranscription,
       });
       await invoke("stop_recording", { sessionId });
 
-      // save_recording_file already enqueued a local transcription job.
-      // Open an empty SOAP editor so the therapist can write notes manually
-      // (Gate A path when whisper isn't configured) while jobs run in the
-      // background and appear under Session History / Jobs.
-      setState("editing");
+      if (options.exportCopy) {
+        setStatusMessage("Choose where to save a copy of the audio…");
+        const dest = await save({
+          defaultPath: `session-${sessionId}.${format}`,
+          filters: [
+            {
+              name: "Audio",
+              extensions: [format],
+            },
+          ],
+        });
+        if (dest) {
+          await invoke("export_audio_bytes", {
+            destPath: dest,
+            audioBytes: bytesArray,
+          });
+          setStatusMessage(`Audio copy saved to ${dest}`);
+        } else {
+          setStatusMessage(
+            `Audio kept in the app library${savedPath ? ` (${savedPath})` : ""}. Save canceled.`
+          );
+        }
+      }
+
+      if (options.next === "idle") {
+        setState("idle");
+        setSoapNote(null);
+        setSessionId(null);
+        recorderControls.resetRecording();
+        return;
+      }
+
       setSoapNote({
         subjective: "",
         objective: "",
@@ -85,10 +259,51 @@ export function SessionPanel({
         plan: "",
         isDraft: true,
       });
+      setPipeline(null);
+      setState(options.next);
+      setStatusMessage(null);
+      await refreshPipeline(sessionId);
     } catch (error) {
       console.error("Error processing recording:", error);
-      setSoapNote({ subjective: "", objective: "", assessment: "", plan: "", isDraft: true });
+      setStatusMessage(
+        "Could not finish saving: " +
+          (error instanceof Error ? error.message : String(error))
+      );
+      setSoapNote({
+        subjective: "",
+        objective: "",
+        assessment: "",
+        plan: "",
+        isDraft: true,
+      });
       setState("editing");
+    }
+  }
+
+  async function handleStopChoice(choice: StopChoice) {
+    switch (choice) {
+      case "continue":
+        continueRecording();
+        break;
+      case "go_soap":
+        await finalizeRecording({
+          enqueueTranscription: true,
+          next: "editing",
+        });
+        break;
+      case "save_audio":
+        await finalizeRecording({
+          enqueueTranscription: false,
+          next: "idle",
+          exportCopy: true,
+        });
+        break;
+      case "auto_soap":
+        await finalizeRecording({
+          enqueueTranscription: true,
+          next: "waiting_pipeline",
+        });
+        break;
     }
   }
 
@@ -105,8 +320,14 @@ export function SessionPanel({
       recorderControls.resetRecording();
       setSoapNote(null);
       setSessionId(null);
+      setPipeline(null);
+      setStatusMessage(null);
     } catch (error) {
       console.error("Failed to save SOAP note:", error);
+      alert(
+        "Could not save SOAP note: " +
+          (error instanceof Error ? error.message : String(error))
+      );
     }
   }
 
@@ -116,18 +337,15 @@ export function SessionPanel({
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   }
 
-  // Maps the real MediaRecorder-reported MIME type to a file extension.
-  // useAudioRecorder.ts tries several candidates in order (wav, webm/opus,
-  // ogg/opus, mp4) since WebKitGTK/Firefox don't support webm for audio
-  // recording at all -- whatever MediaRecorder actually accepted is what
-  // audioBlob.type reports, which may not be the first candidate tried.
   function mimeTypeToExtension(mimeType: string): string {
     if (mimeType.includes("wav")) return "wav";
     if (mimeType.includes("ogg")) return "ogg";
     if (mimeType.includes("mp4")) return "mp4";
     if (mimeType.includes("webm")) return "webm";
-    return "webm"; // last-resort fallback, matches the old default
+    return "webm";
   }
+
+  const isRecordingUi = state === "recording";
 
   return (
     <div className="h-full flex flex-col">
@@ -156,11 +374,16 @@ export function SessionPanel({
               <MicIcon className="w-12 h-12 text-primary" />
             </div>
             <div className="text-center">
-              <h2 className="text-lg font-medium">Ready to Record</h2>
+              <h2 className="text-lg font-medium">Ready to record</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Click to start recording the session
+                Start when the session begins. You can pause, then choose what happens when you stop.
               </p>
             </div>
+            {statusMessage && (
+              <div className="max-w-md text-center text-sm bg-muted rounded-lg px-4 py-2">
+                {statusMessage}
+              </div>
+            )}
             {recorderState.error && (
               <div className="max-w-xs text-center text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-2">
                 {recorderState.error}
@@ -175,75 +398,225 @@ export function SessionPanel({
           </div>
         )}
 
-        {state === "recording" && (
+        {isRecordingUi && (
           <div className="flex flex-col items-center justify-center h-full gap-6">
-            <div className="w-24 h-24 rounded-full bg-destructive/10 flex items-center justify-center animate-pulse">
-              <div className="w-4 h-4 rounded-full bg-destructive" />
+            <div
+              className={`w-24 h-24 rounded-full flex items-center justify-center ${
+                recorderState.isPaused
+                  ? "bg-warning/10"
+                  : "bg-destructive/10 animate-pulse"
+              }`}
+            >
+              <div
+                className={`w-4 h-4 rounded-full ${
+                  recorderState.isPaused ? "bg-warning" : "bg-destructive"
+                }`}
+              />
             </div>
             <div className="text-center">
-              <h2 className="text-2xl font-mono font-medium">{formatTime(recorderState.duration)}</h2>
-              <p className="text-sm text-muted-foreground mt-1">Recording...</p>
+              <h2 className="text-2xl font-mono font-medium">
+                {formatTime(recorderState.duration)}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {recorderState.isPaused ? "Paused" : "Recording…"}
+              </p>
             </div>
             {recorderState.error && (
               <div className="max-w-xs text-center text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-2">
                 {recorderState.error}
               </div>
             )}
-            <button
-              onClick={stopRecording}
-              className="px-6 py-3 bg-destructive text-white rounded-lg font-medium hover:bg-destructive/90 transition-colors"
-            >
-              Stop Recording
-            </button>
-            <p className="text-xs text-muted-foreground max-w-xs text-center">
-              Audio is saved locally. If whisper.cpp is set up, transcription and
-              a SOAP draft run in the background; otherwise write the note by hand.
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              {recorderState.canPause && (
+                <button
+                  onClick={() =>
+                    recorderState.isPaused
+                      ? recorderControls.resumeRecording()
+                      : recorderControls.pauseRecording()
+                  }
+                  className="px-6 py-3 border border-border rounded-lg font-medium hover:bg-accent transition-colors"
+                >
+                  {recorderState.isPaused ? "Resume" : "Pause"}
+                </button>
+              )}
+              <button
+                onClick={requestStop}
+                className="px-6 py-3 bg-destructive text-white rounded-lg font-medium hover:bg-destructive/90 transition-colors"
+              >
+                Stop
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground max-w-sm text-center">
+              Audio stays on this computer. After Stop you choose: open SOAP notes,
+              keep recording, save the audio file, or auto-transcribe and draft SOAP.
             </p>
           </div>
         )}
 
-        {state === "transcribing" && (
+        {state === "saving" && (
           <div className="flex flex-col items-center justify-center h-full gap-6">
-            <div className="w-24 h-24 rounded-full bg-warning/10 flex items-center justify-center">
-              <LoadingSpinner className="w-12 h-12 text-warning" />
-            </div>
+            <LoadingSpinner className="w-12 h-12 text-primary" />
             <div className="text-center">
-              <h2 className="text-lg font-medium">Transcribing...</h2>
+              <h2 className="text-lg font-medium">Saving session audio…</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Processing audio with whisper.cpp
+                {statusMessage || "Writing the recording to this computer"}
               </p>
             </div>
           </div>
         )}
 
-        {state === "drafting" && (
-          <div className="flex flex-col items-center justify-center h-full gap-6">
-            <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center">
-              <LoadingSpinner className="w-12 h-12 text-primary" />
+        {state === "waiting_pipeline" && (
+          <div className="max-w-lg mx-auto space-y-6 py-8">
+            <div className="text-center space-y-2">
+              <LoadingSpinner className="w-12 h-12 text-primary mx-auto" />
+              <h2 className="text-lg font-medium">Transcribing and drafting SOAP</h2>
+              <p className="text-sm text-muted-foreground">
+                Local speech-to-text and drafting run on this computer. This can take a few minutes.
+              </p>
             </div>
-            <div className="text-center">
-              <h2 className="text-lg font-medium">Drafting SOAP Note...</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Generating draft with local LLM
+            <SessionPipelineStatusPanel
+              status={pipeline}
+              loading={pipelineLoading}
+              loadError={pipelineError}
+              mode="waiting"
+            />
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => setState("editing")}
+                className="px-4 py-2 border border-border rounded-lg font-medium hover:bg-accent transition-colors"
+              >
+                Open SOAP notes now
+              </button>
+              <p className="text-xs text-muted-foreground text-center">
+                You can write by hand while jobs finish. A draft will fill empty fields when ready.
               </p>
             </div>
           </div>
         )}
 
         {state === "editing" && soapNote && (
-          <SoapEditor
-            soapNote={soapNote}
-            onChange={setSoapNote}
-            onSave={saveSoapNote}
-            onCancel={() => {
-              setState("idle");
-              recorderControls.resetRecording();
-              setSoapNote(null);
-            }}
-          />
+          <div className="space-y-4 max-w-2xl mx-auto">
+            <SessionPipelineStatusPanel
+              status={pipeline}
+              loading={pipelineLoading}
+              loadError={pipelineError}
+              mode="editor"
+            />
+            <SoapEditor
+              soapNote={soapNote}
+              onChange={setSoapNote}
+              onSave={saveSoapNote}
+              onCancel={() => {
+                setState("idle");
+                recorderControls.resetRecording();
+                setSoapNote(null);
+                setSessionId(null);
+                setPipeline(null);
+              }}
+              emptyHint={
+                soapFieldsAreEmpty(soapNote)
+                  ? "These fields are empty until you type or a local draft arrives."
+                  : undefined
+              }
+            />
+          </div>
         )}
       </div>
+
+      {showStopMenu && (
+        <StopChoiceDialog
+          onChoice={handleStopChoice}
+          onDismiss={() => {
+            setShowStopMenu(false);
+            if (recorderState.isPaused) {
+              recorderControls.resumeRecording();
+            }
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function StopChoiceDialog({
+  onChoice,
+  onDismiss,
+}: {
+  onChoice: (choice: StopChoice) => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div
+        role="dialog"
+        aria-labelledby="stop-choice-title"
+        className="w-full max-w-md rounded-xl border border-border bg-background shadow-lg p-5 space-y-4"
+      >
+        <div>
+          <h2 id="stop-choice-title" className="text-lg font-semibold">
+            Recording paused — what next?
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Choose how to finish this session. Clinical audio stays on this computer.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2">
+          <ChoiceButton
+            title="Go to SOAP notes"
+            description="Save the audio and open the note editor (local AI can still draft in the background)."
+            onClick={() => onChoice("go_soap")}
+          />
+          <ChoiceButton
+            title="Continue recording this session"
+            description="Resume where you left off — nothing is finalized yet."
+            onClick={() => onChoice("continue")}
+          />
+          <ChoiceButton
+            title="Save the audio file"
+            description="Keep a copy you choose, without starting transcription."
+            onClick={() => onChoice("save_audio")}
+          />
+          <ChoiceButton
+            title="Transcribe and auto-produce SOAP notes"
+            description="Save audio, run local speech-to-text, then draft SOAP when ready."
+            onClick={() => onChoice("auto_soap")}
+            primary
+          />
+        </div>
+        <button
+          onClick={onDismiss}
+          className="w-full text-sm text-muted-foreground hover:text-foreground py-2"
+        >
+          Keep recording (resume)
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ChoiceButton({
+  title,
+  description,
+  onClick,
+  primary,
+}: {
+  title: string;
+  description: string;
+  onClick: () => void;
+  primary?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`text-left rounded-lg border px-4 py-3 transition-colors ${
+        primary
+          ? "border-primary bg-primary/10 hover:bg-primary/15"
+          : "border-border hover:bg-accent"
+      }`}
+    >
+      <p className="font-medium text-sm">{title}</p>
+      <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+    </button>
   );
 }
 

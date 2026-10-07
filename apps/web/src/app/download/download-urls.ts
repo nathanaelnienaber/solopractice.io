@@ -14,11 +14,11 @@
  * yet. Confirmed fine for the current trial user (Apple Silicon Mac).
  */
 export const DOWNLOAD_URLS = {
-  mac: "https://github.com/nathanaelnienaber/solopractice.io/releases/latest/download/SoloPractice_0.1.2_aarch64.dmg",
+  mac: "https://github.com/nathanaelnienaber/solopractice.io/releases/latest/download/SoloPractice_0.1.3_aarch64.dmg",
   windows:
-    "https://github.com/nathanaelnienaber/solopractice.io/releases/latest/download/SoloPractice_0.1.2_x64-setup.exe",
+    "https://github.com/nathanaelnienaber/solopractice.io/releases/latest/download/SoloPractice_0.1.3_x64-setup.exe",
   linux:
-    "https://github.com/nathanaelnienaber/solopractice.io/releases/latest/download/SoloPractice_0.1.2_amd64.AppImage",
+    "https://github.com/nathanaelnienaber/solopractice.io/releases/latest/download/SoloPractice_0.1.3_amd64.AppImage",
 } as const;
 
 // Real published assets are live — placeholder notice no longer shown.

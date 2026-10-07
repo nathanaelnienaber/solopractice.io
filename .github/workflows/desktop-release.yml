@@ -38,10 +38,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Linux bundler deps (webkit2gtk, appindicator, rpm/deb tooling)
+      - name: Install Linux bundler deps (webkit2gtk, appindicator, GStreamer, rpm/deb tooling)
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
+          # GStreamer plugins are required on the *build* host when
+          # tauri.conf.json sets bundle.linux.appimage.bundleMediaFramework
+          # so the AppImage can capture the mic via WebKitGTK on Arch/Omarchy
+          # (host plugins alone are ABI-mismatched with the bundled core).
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev \
             libappindicator3-dev \
@@ -49,7 +53,14 @@ jobs:
             patchelf \
             libssl-dev \
             file \
-            build-essential
+            build-essential \
+            gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-bad \
+            gstreamer1.0-alsa \
+            gstreamer1.0-pulseaudio \
+            libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4

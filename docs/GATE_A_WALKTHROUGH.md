@@ -1,7 +1,7 @@
 # Gate A — Fake-client walkthrough
 
 **Purpose:** Prove the full practice loop with **test data only**. Developers/testers on Linux can run the checklist with the **AppImage**; Gate A exit still needs one successful pass on **her Windows PC** (PRODUCT_PLAN “Windows first”).  
-**Desktop build:** **v0.1.2** (Pending → local PDF → mark sent).  
+**Desktop build:** **v0.1.3** (Linux mic: constraint fallback + WebKit/GStreamer; Pending → local PDF → mark sent).  
 **Do not use real clients.** Consent forms are still DRAFT until Gate B attorney review.
 
 Record results in the tables below. When every required row passes (or a blocker is written with a reason), Gate A can go to Nathanael for go/no-go before Gate B.
@@ -10,22 +10,22 @@ Record results in the tables below. When every required row passes (or a blocker
 
 ---
 
-## Install & pair (v0.1.2)
+## Install & pair (v0.1.3)
 
 | Item | Link / note |
 |------|-------------|
-| Release | https://github.com/nathanaelnienaber/solopractice.io/releases/tag/v0.1.2 |
-| **Linux AppImage** (dev / Omarchy) | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.2/SoloPractice_0.1.2_amd64.AppImage |
-| Windows setup.exe | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.2/SoloPractice_0.1.2_x64-setup.exe |
-| Windows MSI | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.2/SoloPractice_0.1.2_x64_en-US.msi |
+| Release | https://github.com/nathanaelnienaber/solopractice.io/releases/tag/v0.1.3 |
+| **Linux AppImage** (dev / Omarchy) | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.3/SoloPractice_0.1.3_amd64.AppImage |
+| Windows setup.exe | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.3/SoloPractice_0.1.3_x64-setup.exe |
+| Windows MSI | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.3/SoloPractice_0.1.3_x64_en-US.msi |
 | In-app / site download | Web → `/download` or Settings → Download desktop app |
 
-**Linux:** download the AppImage → `chmod +x SoloPractice_0.1.2_amd64.AppImage` → run it. No auto-update — use a fresh AppImage for each release.
+**Linux:** download the AppImage → `chmod +x SoloPractice_0.1.3_amd64.AppImage` → run it. No auto-update — use a fresh AppImage for each release.
 
 **Windows (unsigned installer):** SmartScreen → **More info** → **Run anyway**. No auto-update — use a fresh installer for each release.
 
-1. Remove older SoloPractice builds (v0.1.1 and earlier trials) — uninstall on Windows; replace the AppImage on Linux.
-2. Install / launch **0.1.2** (AppImage on Linux, or Windows setup.exe / MSI).
+1. Remove older SoloPractice builds (v0.1.2 and earlier) — uninstall on Windows; replace the AppImage on Linux.
+2. Install / launch **0.1.3** (AppImage on Linux, or Windows setup.exe / MSI).
 3. Web: therapist magic link → **Settings** → copy Desktop API key.
 4. Desktop: paste key in setup wizard / Settings → **Sync** (or equivalent). Confirm clients pull.
 5. Optional for transcript/SOAP: complete ML setup (whisper.cpp + model, Ollama) **or** plan to enter transcript / SOAP by hand.
@@ -33,7 +33,7 @@ Record results in the tables below. When every required row passes (or a blocker
 ### Prerequisites
 
 - Web app reachable with test Stripe / Resend / Twilio / Neon configured  
-- Desktop **0.1.2** installed and paired as above  
+- Desktop **0.1.3** installed and paired as above  
 - Fake-client data only  
 
 ### Local data paths
@@ -76,7 +76,7 @@ Recordings land under `recordings/`; superbills under `superbills/`.
 | 3b | PDF under app data `superbills/` and opens | | |
 | 3c | Superbill History lists the new row; Open works | | |
 
-### 4 — Pay + superbill request → Pending fulfill → mark sent *(0.1.2)*
+### 4 — Pay + superbill request → Pending fulfill → mark sent *(0.1.3)*
 
 Clinical PDF stays on the desktop. Cloud holds **request status only** (`none` → `requested` → `sent`). No Dx / CPT / DOB / PDF on the web.
 
@@ -131,7 +131,7 @@ Update `PRODUCT_PLAN.md` §2 Decisions log when chosen (her-PC model for Gate A 
 If a step fails for environment (keys, Ollama, whisper binary), write it here. Do **not** start Gate B until Gate A exits or Nathanael explicitly re-scopes.
 
 - **2026-10-03:** Live Windows walkthrough not run in this build session (no access to her Windows PC from the builder environment). Code path verified via Rust unit tests (`generate_superbill` insert/history + `generate_superbill_pdf`).
-- **2026-10-07:** Docs updated for **v0.1.2** (install/pair + Pending fulfill). **Live Windows run still pending** — clear this blocker only after she completes the checklist and records the whisper model above.
+- **2026-10-07:** Docs updated for **v0.1.3** (install/pair + Pending fulfill). **Live Windows run still pending** — clear this blocker only after she completes the checklist and records the whisper model above.
 - **2026-10-07:** Install docs clarify **Linux AppImage** for developers/testers (Omarchy); Windows remains required for Gate A exit on her PC. Live Linux walkthrough still pending Nathanael’s run.
 
 ---
@@ -141,6 +141,6 @@ If a step fails for environment (keys, Ollama, whisper binary), write it here. D
 - Date run: ________  
 - Runner: ________  
 - Platform: ________ (Linux AppImage and/or Windows)  
-- Desktop version confirmed: ________ (expect **0.1.2**)  
+- Desktop version confirmed: ________ (expect **0.1.3**)  
 - Whisper model recorded: ________  
 - Gate A ready for go/no-go? ________  

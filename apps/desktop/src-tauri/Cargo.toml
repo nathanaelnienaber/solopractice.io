@@ -1,6 +1,6 @@
 [package]
 name = "solopractice-desktop"
-version = "0.1.2"
+version = "0.1.3"
 description = "SoloPractice - Local-first therapy practice management"
 authors = ["SoloPractice"]
 edition = "2021"

@@ -136,7 +136,7 @@ Consent forms are **DRAFT** templates. Fake clients only until attorney review (
 2. Clients → Add Client → send consent link  
 3. Sign consents in another browser/incognito  
 4. Desktop: set API key (Settings / setup wizard), sync — client ready after consents  
-5. Record a session (audio local). Transcription needs whisper.cpp paths; otherwise enter transcript by hand  
+5. Record a session (audio local). **v0.1.7+** desktop builds bundle whisper.cpp + `ggml-base.en`; older builds need Setup download or hand transcript  
 6. Review Ollama SOAP draft (local), edit, save  
 7. Desktop sidebar → Superbill: pick client, Dx/CPT, letterhead → Generate PDF → open locally  
 8. Create invoice → Stripe Checkout (card). Pay page thanks the client; it does not claim a receipt email was sent  
@@ -147,7 +147,7 @@ Full Gate A checklist for her Windows PC: [docs/GATE_A_WALKTHROUGH.md](docs/GATE
 
 | Job | Tool | Status |
 |-----|------|--------|
-| Transcription | whisper.cpp CLI | Runs when binary + model path are set; else job fails |
+| Transcription | whisper.cpp CLI | Bundled in v0.1.7+ installers; else Setup download / paths; failed jobs can be continued from SOAP status |
 | SOAP draft | Ollama on `127.0.0.1` | Uses configured model (`phi4-mini` if unset) |
 | Superbill PDF | Local (`printpdf`) | Sidebar Superbill screen; `generate_superbill` writes under `superbills/` |
 | Backup | — | Not implemented |

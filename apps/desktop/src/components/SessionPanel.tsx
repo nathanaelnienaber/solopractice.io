@@ -8,6 +8,7 @@ import { classifyMicFailure, micFailureUserMessage } from "../lib/audioCapture";
 import {
   SessionPipelineStatusPanel,
   soapFieldsAreEmpty,
+  type ContinueTranscriptionResult,
   type SessionPipelineStatusData,
 } from "./SessionPipelineStatus";
 import {
@@ -94,13 +95,13 @@ export function SessionPanel({
         sessionId: sid,
       });
       const ml = mlReadyRef.current;
-      const merged: SessionPipelineStatusData = ml
-        ? {
-            ...result,
-            whisperReady: ml.whisperReady,
-            ollamaReady: ml.ollamaReady,
-          }
-        : result;
+      // Backend whisperReady is authoritative (bundled + downloaded paths).
+      // ML probe only supplements Ollama live status.
+      const merged: SessionPipelineStatusData = {
+        ...result,
+        whisperReady: result.whisperReady || !!ml?.whisperReady,
+        ollamaReady: result.ollamaReady || !!ml?.ollamaReady,
+      };
       setPipeline(merged);
       setPipelineError(null);
       return merged;
@@ -112,6 +113,24 @@ export function SessionPanel({
       setPipelineLoading(false);
     }
   }, []);
+
+  const continueTranscription = useCallback(async () => {
+    if (!sessionId) {
+      throw new Error("No active session to continue.");
+    }
+    await refreshMlReadiness();
+    const result = await invoke<ContinueTranscriptionResult>("continue_session_transcription", {
+      sessionId,
+    });
+    setStatusMessage(result.message);
+    await refreshPipeline(sessionId);
+    if (stateRef.current === "editing" || stateRef.current === "waiting_pipeline") {
+      // Stay on waiting when we just re-queued so progress is visible.
+      if (result.outcome === "transcription_queued" || result.outcome === "soap_draft_queued") {
+        setState("waiting_pipeline");
+      }
+    }
+  }, [sessionId, refreshMlReadiness, refreshPipeline]);
 
   // Poll pipeline while waiting or editing after a recording.
   useEffect(() => {
@@ -487,10 +506,11 @@ export function SessionPanel({
               loadError={pipelineError}
               mode="waiting"
               onOpenSetup={onOpenSetup}
-              onSpeechToTextReady={() => {
-                if (sessionId) void refreshPipeline(sessionId);
-                void refreshMlReadiness();
+              onSpeechToTextReady={async () => {
+                await refreshMlReadiness();
+                if (sessionId) await refreshPipeline(sessionId);
               }}
+              onContinueTranscription={continueTranscription}
             />
             <div className="flex flex-col gap-2 items-stretch">
               <Button variant="outline" onClick={() => setState("editing")}>
@@ -511,10 +531,11 @@ export function SessionPanel({
               loadError={pipelineError}
               mode="editor"
               onOpenSetup={onOpenSetup}
-              onSpeechToTextReady={() => {
-                if (sessionId) void refreshPipeline(sessionId);
-                void refreshMlReadiness();
+              onSpeechToTextReady={async () => {
+                await refreshMlReadiness();
+                if (sessionId) await refreshPipeline(sessionId);
               }}
+              onContinueTranscription={continueTranscription}
             />
             <SoapEditor
               soapNote={soapNote}

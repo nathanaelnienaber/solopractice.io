@@ -1,0 +1,1 @@
+Placeholder so Tauri resource globs resolve before CI fetches STT.

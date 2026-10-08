@@ -60,6 +60,9 @@ pnpm dev:desktop
 
 ### Whisper.cpp (Speech-to-Text)
 
+**v0.1.7+ Windows installer** already includes whisper.cpp + `ggml-base.en`. Skip this section
+unless you need a different model size or are on an older build.
+
 1. Download whisper.cpp from [GitHub releases](https://github.com/ggerganov/whisper.cpp/releases)
 
 2. Download a model (base recommended for balance of speed/quality):

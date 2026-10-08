@@ -1334,6 +1334,138 @@ pub async fn get_session_pipeline_status(
     Ok(status)
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ContinueTranscriptionResult {
+    pub outcome: String,
+    pub message: String,
+    pub job_id: Option<String>,
+}
+
+/// After speech-to-text becomes ready (bundled or downloaded), resume the
+/// pending Transcribe → SOAP path for a session that already has audio.
+/// Failed jobs stay failed (processor only picks `pending`); we enqueue a
+/// fresh transcription job from the latest recording.
+fn continue_transcription_for_session(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+) -> Result<ContinueTranscriptionResult, String> {
+    let has_transcript: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM transcripts WHERE session_id = ?1)",
+            [session_id],
+            |r| r.get::<_, i64>(0),
+        )
+        .map(|n| n != 0)
+        .map_err(|e| e.to_string())?;
+
+    if has_transcript {
+        // Transcript exists — ensure a SOAP draft job is queued if missing /
+        // failed, so the user is never left with a silent blank editor.
+        let soap = latest_session_job(conn, session_id, "soap_draft")?;
+        let soap_needs_retry = match soap.as_ref() {
+            None => true,
+            Some(j) => j.status == "failed",
+        };
+        if !soap_needs_retry {
+            return Ok(ContinueTranscriptionResult {
+                outcome: "already_has_transcript".to_string(),
+                message: "Transcript is already saved. Open SOAP notes to review or wait for the draft."
+                    .to_string(),
+                job_id: soap.map(|j| j.id),
+            });
+        }
+        let content: String = conn
+            .query_row(
+                "SELECT content FROM transcripts WHERE session_id = ?1 ORDER BY created_at DESC LIMIT 1",
+                [session_id],
+                |r| r.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        let payload = serde_json::json!({
+            "sessionId": session_id,
+            "transcript": content,
+        })
+        .to_string();
+        let job_id = enqueue_job(conn, "soap_draft", &payload)?;
+        return Ok(ContinueTranscriptionResult {
+            outcome: "soap_draft_queued".to_string(),
+            message: "Transcript is ready — drafting SOAP notes locally now.".to_string(),
+            job_id: Some(job_id),
+        });
+    }
+
+    let recording: Option<(String, String)> = conn
+        .query_row(
+            r#"
+            SELECT id, file_path FROM recordings
+            WHERE session_id = ?1
+            ORDER BY created_at DESC
+            LIMIT 1
+            "#,
+            [session_id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    let Some((recording_id, audio_path)) = recording else {
+        return Err(
+            "No saved audio for this session yet. Record a session first, then choose Transcribe."
+                .to_string(),
+        );
+    };
+
+    if !std::path::Path::new(&audio_path).exists() {
+        return Err(format!(
+            "Saved audio file is missing on this computer ({audio_path}). Record again, or write SOAP notes by hand."
+        ));
+    }
+
+    // Avoid duplicate pending/in_progress transcription jobs for the same session.
+    if let Some(existing) = latest_session_job(conn, session_id, "transcription")? {
+        if existing.status == "pending" || existing.status == "in_progress" {
+            return Ok(ContinueTranscriptionResult {
+                outcome: "already_running".to_string(),
+                message: "Transcription is already in progress on this computer.".to_string(),
+                job_id: Some(existing.id),
+            });
+        }
+    }
+
+    let payload = serde_json::json!({
+        "sessionId": session_id,
+        "recordingId": recording_id,
+        "audioPath": audio_path,
+    })
+    .to_string();
+    let job_id = enqueue_job(conn, "transcription", &payload)?;
+    Ok(ContinueTranscriptionResult {
+        outcome: "transcription_queued".to_string(),
+        message: "Continuing transcription — local speech-to-text will draft SOAP when ready."
+            .to_string(),
+        job_id: Some(job_id),
+    })
+}
+
+/// UI entry point: Continue transcription after STT download / bundle ready.
+#[tauri::command]
+pub async fn continue_session_transcription(
+    app: AppHandle,
+    session_id: String,
+) -> Result<ContinueTranscriptionResult, String> {
+    let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
+    let get_setting = |key: &str| -> Option<String> { read_setting(&conn, key) };
+    if crate::ml_setup::resolve_whisper_paths(&app, &get_setting).is_err() {
+        return Err(
+            "Speech-to-text is not ready yet. Download it first, then continue transcription — \
+             or write SOAP notes by hand."
+                .to_string(),
+        );
+    }
+    continue_transcription_for_session(&conn, &session_id)
+}
+
 /// Render a session's finalized SOAP note to a PDF on local disk and return
 /// its path. Refuses to export a draft -- a draft SOAP note is not yet
 /// something the therapist has reviewed/signed off on for the record.
@@ -2225,6 +2357,102 @@ mod job_queue_tests {
             status.soap_note.as_ref().map(|n| n.subjective.as_str()),
             Some("Client reports stress")
         );
+    }
+
+    #[test]
+    fn continue_transcription_requeues_after_failed_stt_setup() {
+        let dir = tempfile_recording_dir();
+        let audio = dir.join("sess-C.wav");
+        std::fs::write(&audio, b"RIFF").unwrap();
+        let audio_path = audio.to_string_lossy().to_string();
+
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            r#"
+            CREATE TABLE recordings (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                duration_seconds INTEGER,
+                format TEXT NOT NULL DEFAULT 'wav',
+                size_bytes INTEGER,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE TABLE transcripts (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                recording_id TEXT NOT NULL,
+                content TEXT NOT NULL,
+                model_used TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE TABLE jobs (
+                id TEXT PRIMARY KEY,
+                job_type TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                progress INTEGER,
+                payload TEXT NOT NULL,
+                result TEXT,
+                error TEXT,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                max_attempts INTEGER NOT NULL DEFAULT 3,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                started_at TEXT,
+                completed_at TEXT
+            );
+            "#,
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO recordings (id, session_id, file_path) VALUES ('r-c', 'sess-C', ?1)",
+            [&audio_path],
+        )
+        .unwrap();
+        let failed_payload = serde_json::json!({
+            "sessionId": "sess-C",
+            "recordingId": "r-c",
+            "audioPath": audio_path,
+        })
+        .to_string();
+        conn.execute(
+            r#"
+            INSERT INTO jobs (id, job_type, status, payload, error, created_at)
+            VALUES (
+              'j-fail', 'transcription', 'failed', ?1,
+              'Speech-to-text is not set up',
+              '2026-01-01T10:00:00Z'
+            )
+            "#,
+            [&failed_payload],
+        )
+        .unwrap();
+
+        let result = continue_transcription_for_session(&conn, "sess-C").unwrap();
+        assert_eq!(result.outcome, "transcription_queued");
+        assert!(result.job_id.is_some());
+
+        let status: String = conn
+            .query_row(
+                "SELECT status FROM jobs WHERE id = ?1",
+                [result.job_id.as_deref().unwrap()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(status, "pending");
+        let pending_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM jobs WHERE job_type = 'transcription' AND status = 'pending'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(pending_count, 1);
+    }
+
+    fn tempfile_recording_dir() -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("sp-stt-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
     }
 }
 

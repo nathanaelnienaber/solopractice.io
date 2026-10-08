@@ -22,6 +22,7 @@ interface MlSetupStatus {
   whisperBinaryAvailable: boolean;
   whisperBinaryPath: string | null;
   whisperBinaryDownloadSupported: boolean;
+  whisperBundled?: boolean;
   ollamaInstalled: boolean;
   ollamaRunning: boolean;
   ollamaModels: string[];
@@ -347,18 +348,21 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
         {step === "speechToText" && (
           <Section
             title="Turn recordings into text"
-            body="This is optional. SoloPractice can automatically turn your session recordings into a written transcript, entirely on this computer, using nothing sent over the internet. The AppImage does not include these files — download them once into this computer's data folder."
+            body="This is optional. SoloPractice can turn session recordings into a transcript on this computer (nothing uploaded). v0.1.7+ AppImage and Windows installers already bundle whisper.cpp + the base English model (~150MB). If this build is missing them, download once below."
           >
             {status?.whisperModelDownloaded && status?.whisperBinaryAvailable ? (
               <Banner tone="success">
-                Speech-to-text is ready on this computer (program + model).
+                Speech-to-text is ready on this computer (program + model
+                {status.whisperBundled ? ", included with this install" : ""}). Next: finish Setup,
+                then Record → Stop → Transcribe and auto-produce SOAP notes.
               </Banner>
             ) : (
               <>
                 <p className="text-sm text-muted-foreground mb-3">
                   Click below and SoloPractice will download the speech-to-text program and model,
                   just once. On Linux (including Omarchy) this uses the official ubuntu build from
-                  whisper.cpp — no terminal install needed.
+                  whisper.cpp — no terminal install needed. When it finishes, continue Setup, then
+                  use Stop → Transcribe on a session.
                 </p>
                 {status?.whisperModelDownloaded && !status?.whisperBinaryAvailable && (
                   <Banner tone="warning">

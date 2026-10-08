@@ -4,7 +4,7 @@
  * blank SOAP screen with no idea whether whisper/Ollama are working.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { ActionRow, Banner, Button, type BannerTone } from "./ui";
@@ -37,6 +37,12 @@ export interface SessionPipelineStatusData {
   } | null;
   whisperReady: boolean;
   ollamaReady: boolean;
+}
+
+export interface ContinueTranscriptionResult {
+  outcome: string;
+  message: string;
+  jobId?: string | null;
 }
 
 type Tone = BannerTone;
@@ -80,7 +86,8 @@ function isWhisperNotConfiguredError(error: string | null | undefined): boolean 
   return (
     lower.includes("whisper.cpp not configured") ||
     lower.includes("speech-to-text is not set up") ||
-    lower.includes("run setup")
+    lower.includes("run setup") ||
+    lower.includes("download speech-to-text")
   );
 }
 
@@ -91,6 +98,7 @@ export function SessionPipelineStatusPanel({
   mode,
   onOpenSetup,
   onSpeechToTextReady,
+  onContinueTranscription,
 }: {
   status: SessionPipelineStatusData | null;
   loading?: boolean;
@@ -100,12 +108,22 @@ export function SessionPipelineStatusPanel({
   /** Opens the first-run Setup wizard (speech-to-text step). */
   onOpenSetup?: () => void;
   /** Called after an in-panel download finishes so the parent can re-poll. */
-  onSpeechToTextReady?: () => void;
+  onSpeechToTextReady?: () => void | Promise<void>;
+  /**
+   * Resume Transcribe → SOAP after STT becomes ready. Prefer auto-continue
+   * from the parent; this is also the primary button when auto fails.
+   */
+  onContinueTranscription?: () => void | Promise<void>;
 }) {
   const [downloadPct, setDownloadPct] = useState<number | null>(null);
   const [downloadLabel, setDownloadLabel] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [sttJustReady, setSttJustReady] = useState(false);
+  const [continueBusy, setContinueBusy] = useState(false);
+  const [continueMessage, setContinueMessage] = useState<string | null>(null);
+  const [continueError, setContinueError] = useState<string | null>(null);
+  const autoContinueFired = useRef(false);
 
   useEffect(() => {
     const unlisten = listen<{
@@ -129,16 +147,46 @@ export function SessionPipelineStatusPanel({
     };
   }, []);
 
+  async function runContinue(fromAuto: boolean) {
+    if (!onContinueTranscription) return;
+    setContinueBusy(true);
+    setContinueError(null);
+    try {
+      await onContinueTranscription();
+      setContinueMessage(
+        fromAuto
+          ? "Speech-to-text is ready — continuing transcription now."
+          : "Continuing transcription…"
+      );
+    } catch (err) {
+      setContinueError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setContinueBusy(false);
+    }
+  }
+
   async function downloadSpeechToText() {
     setDownloading(true);
     setDownloadError(null);
+    setContinueError(null);
+    setContinueMessage(null);
     setDownloadPct(0);
     setDownloadLabel("Downloading speech-to-text…");
+    autoContinueFired.current = false;
     try {
       await invoke("setup_speech_to_text", { model: null });
       setDownloadLabel("Speech-to-text ready on this computer");
       setDownloadPct(100);
-      onSpeechToTextReady?.();
+      setSttJustReady(true);
+      await onSpeechToTextReady?.();
+      if (onContinueTranscription && !autoContinueFired.current) {
+        autoContinueFired.current = true;
+        await runContinue(true);
+      } else if (!onContinueTranscription) {
+        setContinueMessage(
+          "Speech-to-text is ready. Next: open Session, Stop → Transcribe and auto-produce SOAP notes."
+        );
+      }
     } catch (err) {
       setDownloadError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -188,6 +236,13 @@ export function SessionPipelineStatusPanel({
   const whisperConfigError =
     isWhisperNotConfiguredError(status.transcriptionJob?.error) || whisperMissing;
 
+  const canContinue =
+    status.whisperReady &&
+    status.hasRecording &&
+    !status.hasTranscript &&
+    !txActive &&
+    (txFailed || !status.transcriptionJob || sttJustReady);
+
   return (
     <div className="space-y-3">
       <Banner
@@ -217,9 +272,9 @@ export function SessionPipelineStatusPanel({
       {whisperConfigError && (
         <Banner tone="warning" title="Speech-to-text needs a one-time download" className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            The AppImage does not ship the speech-to-text files. Download them once into this
-            computer&apos;s SoloPractice data folder (nothing is uploaded). You can also skip and
-            write the SOAP note by hand below.
+            This install is missing the speech-to-text files (newer AppImage / Windows builds
+            include them). Download once into this computer&apos;s SoloPractice data folder —
+            nothing is uploaded. When it finishes, transcription continues automatically.
           </p>
           {(downloading || downloadPct != null) && (
             <div>
@@ -254,9 +309,55 @@ export function SessionPipelineStatusPanel({
             )}
           </ActionRow>
           <p className="text-xs text-muted-foreground">
-            Manual SOAP notes always work — scroll down and type. After download, record again (or
-            re-run transcription from a new Stop → auto-SOAP) to fill a draft.
+            Manual SOAP notes always work — scroll down and type. After download we continue
+            Transcribe → SOAP for this session automatically.
           </p>
+        </Banner>
+      )}
+
+      {sttJustReady && status.whisperReady && (
+        <Banner tone="success" title="Speech-to-text is ready" className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            {continueMessage ||
+              "Next step: continue transcription for this session so a SOAP draft can fill in."}
+          </p>
+          {continueError && (
+            <p className="text-xs text-destructive whitespace-pre-wrap">{continueError}</p>
+          )}
+          {onContinueTranscription && (canContinue || continueError) && (
+            <ActionRow>
+              <Button
+                size="sm"
+                disabled={continueBusy}
+                loading={continueBusy}
+                onClick={() => void runContinue(false)}
+              >
+                {continueBusy ? "Starting…" : "Continue transcription"}
+              </Button>
+            </ActionRow>
+          )}
+        </Banner>
+      )}
+
+      {!whisperConfigError && canContinue && !sttJustReady && onContinueTranscription && (
+        <Banner tone="warning" title="Ready to continue" className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Speech-to-text is available and this session has audio, but transcription has not
+            finished. Continue to produce a transcript and SOAP draft — or write notes by hand.
+          </p>
+          {continueError && (
+            <p className="text-xs text-destructive whitespace-pre-wrap">{continueError}</p>
+          )}
+          <ActionRow>
+            <Button
+              size="sm"
+              disabled={continueBusy}
+              loading={continueBusy}
+              onClick={() => void runContinue(false)}
+            >
+              {continueBusy ? "Starting…" : "Continue transcription"}
+            </Button>
+          </ActionRow>
         </Banner>
       )}
 
@@ -291,13 +392,18 @@ export function SessionPipelineStatusPanel({
         </Banner>
       )}
 
-      {mode === "editor" && !hasDraftContent && !txActive && !soapActive && !whisperConfigError && (
+      {mode === "editor" &&
+        !hasDraftContent &&
+        !txActive &&
+        !soapActive &&
+        !whisperConfigError &&
+        !canContinue && (
         <Banner tone="muted">
           No AI draft yet. Write the SOAP note below — your audio is already saved on this computer.
         </Banner>
       )}
 
-      {mode === "waiting" && (txFailed || soapFailed) && !whisperConfigError && (
+      {mode === "waiting" && (txFailed || soapFailed) && !whisperConfigError && !canContinue && (
         <Banner tone="destructive">
           Local AI could not finish. Open SOAP notes to write by hand, or check Setup.
         </Banner>

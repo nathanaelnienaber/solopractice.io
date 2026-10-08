@@ -36,6 +36,9 @@ pub struct MlSetupStatus {
     pub whisper_binary_available: bool,
     pub whisper_binary_path: Option<String>,
     pub whisper_binary_download_supported: bool,
+    /// True when the CLI and/or model were found in the installer bundle
+    /// (AppImage / Windows setup), not only after an in-app download.
+    pub whisper_bundled: bool,
     pub ollama_installed: bool,
     pub ollama_running: bool,
     pub ollama_models: Vec<String>,
@@ -76,6 +79,17 @@ fn bin_dir(app: &AppHandle) -> PathBuf {
     dir
 }
 
+/// Installer-bundled STT root (`resources/whisper` from tauri.conf.json).
+/// Present in AppImage / Windows installers when CI ran fetch-whisper-bundle.sh.
+fn bundled_whisper_root(app: &AppHandle) -> Option<PathBuf> {
+    let resource_dir = app.path().resource_dir().ok()?;
+    let candidates = [
+        resource_dir.join("resources").join("whisper"),
+        resource_dir.join("whisper"),
+    ];
+    candidates.into_iter().find(|p| p.is_dir())
+}
+
 fn whisper_binary_name() -> &'static str {
     if cfg!(target_os = "windows") {
         "whisper-cli.exe"
@@ -84,18 +98,13 @@ fn whisper_binary_name() -> &'static str {
     }
 }
 
-/// Locate a previously downloaded whisper-cli under the app tools dir.
-/// Windows zips flatten into `tools/`; Linux ubuntu tarballs unpack into
-/// `tools/whisper-bin-ubuntu-*/whisper-cli` (with shared libs beside it —
-/// RUNPATH is `$ORIGIN`, so the binary must stay in that folder).
-fn find_local_whisper_binary(app: &AppHandle) -> Option<PathBuf> {
-    let tools = bin_dir(app);
+/// Walk a tools directory for whisper-cli (flat or nested archive layout).
+fn find_whisper_binary_in_dir(tools: &PathBuf) -> Option<PathBuf> {
     let flat = tools.join(whisper_binary_name());
     if flat.exists() {
         return Some(flat);
     }
-    // Nested extract dirs from official ubuntu / windows archives.
-    let Ok(entries) = std::fs::read_dir(&tools) else {
+    let Ok(entries) = std::fs::read_dir(tools) else {
         return None;
     };
     for entry in entries.flatten() {
@@ -113,6 +122,38 @@ fn find_local_whisper_binary(app: &AppHandle) -> Option<PathBuf> {
             if candidate.exists() {
                 return Some(candidate);
             }
+        }
+    }
+    None
+}
+
+/// Locate whisper-cli under app data tools/ (downloaded) or the installer bundle.
+/// Windows zips flatten into `tools/`; Linux ubuntu tarballs unpack into
+/// `tools/whisper-bin-ubuntu-*/whisper-cli` (with shared libs beside it —
+/// RUNPATH is `$ORIGIN`, so the binary must stay in that folder).
+fn find_local_whisper_binary(app: &AppHandle) -> Option<PathBuf> {
+    if let Some(found) = find_whisper_binary_in_dir(&bin_dir(app)) {
+        return Some(found);
+    }
+    if let Some(root) = bundled_whisper_root(app) {
+        if let Some(found) = find_whisper_binary_in_dir(&root.join("tools")) {
+            return Some(found);
+        }
+    }
+    None
+}
+
+fn find_local_whisper_model(app: &AppHandle) -> Option<PathBuf> {
+    let downloaded = models_dir(app).join(format!("{DEFAULT_WHISPER_MODEL}.bin"));
+    if downloaded.exists() {
+        return Some(downloaded);
+    }
+    if let Some(root) = bundled_whisper_root(app) {
+        let bundled = root
+            .join("models")
+            .join(format!("{DEFAULT_WHISPER_MODEL}.bin"));
+        if bundled.exists() {
+            return Some(bundled);
         }
     }
     None
@@ -136,41 +177,47 @@ fn http_client() -> reqwest::Client {
 /// not as an error.
 #[tauri::command]
 pub async fn detect_ml_setup(app: AppHandle) -> Result<MlSetupStatus, String> {
-    let model_path = models_dir(&app).join(format!("{DEFAULT_WHISPER_MODEL}.bin"));
-    let whisper_model_downloaded = model_path.exists();
+    let model_path = find_local_whisper_model(&app);
+    let whisper_model_downloaded = model_path.is_some();
 
     let binary_path = find_local_whisper_binary(&app);
     let whisper_binary_available = binary_path.is_some();
 
+    let whisper_bundled = bundled_whisper_root(&app)
+        .map(|root| {
+            let model_ok = root
+                .join("models")
+                .join(format!("{DEFAULT_WHISPER_MODEL}.bin"))
+                .exists();
+            let bin_ok = find_whisper_binary_in_dir(&root.join("tools")).is_some();
+            model_ok || bin_ok
+        })
+        .unwrap_or(false);
+
     let (ollama_running, ollama_models) = probe_ollama().await;
 
-    // If files already exist on disk but settings were never written (common
-    // after Skip / older Linux builds), heal settings so transcription jobs
-    // stop failing with "whisper.cpp not configured".
+    // If files already exist on disk (downloaded or installer-bundled) but
+    // settings were never written, heal settings so transcription jobs stop
+    // failing with "whisper.cpp not configured".
     if whisper_model_downloaded || whisper_binary_available {
         let _ = persist_discovered_ml_paths(
             &app,
             binary_path
                 .as_ref()
                 .map(|p| p.to_string_lossy().to_string()),
-            if whisper_model_downloaded {
-                Some(model_path.to_string_lossy().to_string())
-            } else {
-                None
-            },
+            model_path
+                .as_ref()
+                .map(|p| p.to_string_lossy().to_string()),
         );
     }
 
     Ok(MlSetupStatus {
         whisper_model_downloaded,
-        whisper_model_path: if whisper_model_downloaded {
-            Some(model_path.to_string_lossy().to_string())
-        } else {
-            None
-        },
+        whisper_model_path: model_path.map(|p| p.to_string_lossy().to_string()),
         whisper_binary_available,
         whisper_binary_path: binary_path.map(|p| p.to_string_lossy().to_string()),
         whisper_binary_download_supported: whisper_binary_download_supported(),
+        whisper_bundled,
         ollama_installed: ollama_running || ollama_common_path_exists(),
         ollama_running,
         ollama_models,
@@ -213,14 +260,7 @@ pub fn resolve_whisper_paths(
     let setting_model = get_setting("whisper_model_path").filter(|p| PathBuf::from(p).exists());
 
     let disk_bin = find_local_whisper_binary(app).map(|p| p.to_string_lossy().to_string());
-    let disk_model = {
-        let p = models_dir(app).join(format!("{DEFAULT_WHISPER_MODEL}.bin"));
-        if p.exists() {
-            Some(p.to_string_lossy().to_string())
-        } else {
-            None
-        }
-    };
+    let disk_model = find_local_whisper_model(app).map(|p| p.to_string_lossy().to_string());
 
     let bin = setting_bin.or(disk_bin);
     let model = setting_model.or(disk_model);
@@ -231,8 +271,9 @@ pub fn resolve_whisper_paths(
             Ok((b, m))
         }
         _ => Err(
-            "Speech-to-text is not set up on this computer yet. Open Setup to download the local \
-             speech-to-text files, or write SOAP notes by hand."
+            "Speech-to-text is not set up on this computer yet. Download speech-to-text \
+             (or reinstall a build that bundles it), then continue transcription — \
+             or write SOAP notes by hand."
                 .to_string(),
         ),
     }

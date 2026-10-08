@@ -3,15 +3,15 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   ActionRow,
   Button,
+  Checkbox,
   Field,
   Input,
-  Label,
   PageBody,
   PageHeader,
   PageSection,
   PageShell,
+  Panel,
   Select,
-  Surface,
 } from "./ui";
 
 interface SettingsState {
@@ -115,13 +115,11 @@ export function Settings({ onReopenWizard }: SettingsProps) {
     <PageShell>
       <PageHeader title="Settings" sticky />
 
-      {!loaded && (
-        <p className="px-4 pt-2 text-xs text-muted-foreground">
-          Loading saved settings…
-        </p>
-      )}
+      <PageBody narrow="md" className="space-y-6">
+        {!loaded && (
+          <p className="text-xs text-muted-foreground">Loading saved settings…</p>
+        )}
 
-      <PageBody className="max-w-2xl mx-auto w-full space-y-6">
         <PageSection
           title="Getting started"
           description="Want to go through the welcome setup again — for example, to connect your account, or to check your microphone?"
@@ -144,20 +142,14 @@ export function Settings({ onReopenWizard }: SettingsProps) {
               {opening ? "Opening…" : "Open my data folder"}
             </Button>
           </ActionRow>
-          <div className="flex items-center gap-3 pt-1">
-            <input
-              type="checkbox"
-              id="autoBackup"
-              checked={settings.autoBackup}
-              onChange={(e) =>
-                setSettings({ ...settings, autoBackup: e.target.checked })
-              }
-              className="rounded border-border"
-            />
-            <Label htmlFor="autoBackup" className="mb-0 font-normal">
-              Remind me to back up automatically
-            </Label>
-          </div>
+          <Checkbox
+            id="autoBackup"
+            checked={settings.autoBackup}
+            onChange={(e) =>
+              setSettings({ ...settings, autoBackup: e.target.checked })
+            }
+            label="Remind me to back up automatically"
+          />
         </PageSection>
 
         <PageSection
@@ -165,7 +157,7 @@ export function Settings({ onReopenWizard }: SettingsProps) {
           description="Use Superbill in the left sidebar to create a PDF with diagnosis and procedure codes, or fulfill client requests under Pending. Superbills stay on this computer and are never synced to the web."
         />
 
-        <details className="group border border-border rounded-lg">
+        <details className="group rounded-lg border border-border bg-card text-card-foreground">
           <summary className="cursor-pointer px-4 py-3 text-sm font-medium select-none">
             Advanced settings
             <span className="text-muted-foreground font-normal ml-2">
@@ -275,7 +267,7 @@ export function Settings({ onReopenWizard }: SettingsProps) {
           </Button>
         </div>
 
-        <Surface className="bg-muted/50 p-4 space-y-2">
+        <Panel className="bg-muted/50">
           <h3 className="font-medium text-sm">Data security</h3>
           <ul className="text-xs text-muted-foreground space-y-1">
             <li>
@@ -290,7 +282,7 @@ export function Settings({ onReopenWizard }: SettingsProps) {
               (not session notes)
             </li>
           </ul>
-        </Surface>
+        </Panel>
       </PageBody>
     </PageShell>
   );

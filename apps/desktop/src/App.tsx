@@ -7,6 +7,7 @@ import { Settings } from "./components/Settings";
 import { Help } from "./components/Help";
 import { SetupWizard } from "./components/SetupWizard";
 import { Superbill } from "./components/Superbill";
+import { ThemeToggle } from "./components/ThemeToggle";
 import type { SessionWithDetails } from "@solopractice/shared/desktop";
 
 type View = "clients" | "session" | "history" | "jobs" | "superbill" | "settings" | "help";
@@ -102,6 +103,9 @@ export default function App() {
           <ReceiptIcon />
         </NavButton>
         <div className="flex-1" />
+        <div className="mb-1">
+          <ThemeToggle />
+        </div>
         <NavButton
           active={view === "help"}
           onClick={() => setView("help")}

@@ -3,12 +3,25 @@ import { cn } from "./cn";
 
 /**
  * Shared desktop layout primitives (clinical ops, mouse-first).
- * Prefer these over one-off header / padding / empty-state patterns.
+ * Gutter rhythm: 1rem (p-4) everywhere. Form pages use PageBody narrow.
+ * Do not invent per-screen max-w / px stacks.
  */
 
+const GUTTER = "px-4";
+const BODY_PAD = "p-4";
+
+type Narrow = boolean | "md" | "lg" | "xl";
+
+function narrowClass(narrow?: Narrow): string | null {
+  if (!narrow) return null;
+  if (narrow === true || narrow === "md") return "max-w-2xl";
+  if (narrow === "lg") return "max-w-3xl";
+  return "max-w-4xl";
+}
+
 interface PageShellProps extends HTMLAttributes<HTMLDivElement> {
-  /** Constrain content width (forms). Default: full scroll area. */
-  narrow?: boolean | "md" | "lg";
+  /** Constrain the whole page (header + body). Prefer PageBody narrow for forms. */
+  narrow?: Narrow;
 }
 
 export function PageShell({
@@ -17,18 +30,16 @@ export function PageShell({
   children,
   ...props
 }: PageShellProps) {
-  const width =
-    narrow === true || narrow === "md"
-      ? "max-w-2xl"
-      : narrow === "lg"
-        ? "max-w-3xl"
-        : null;
+  const width = narrowClass(narrow);
 
   return (
-    <div className={cn("h-full flex flex-col", className)} {...props}>
+    <div
+      className={cn("h-full flex flex-col bg-background", className)}
+      {...props}
+    >
       {width ? (
-        <div className={cn("flex-1 overflow-y-auto")}>
-          <div className={cn("mx-auto w-full p-4 space-y-6", width)}>
+        <div className="flex-1 overflow-y-auto">
+          <div className={cn("mx-auto w-full space-y-6", BODY_PAD, width)}>
             {children}
           </div>
         </div>
@@ -62,7 +73,8 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "px-4 py-4 border-b border-border bg-background space-y-3",
+        GUTTER,
+        "py-4 border-b border-border bg-background space-y-3 shrink-0",
         sticky && "sticky top-0 z-10",
         className
       )}
@@ -145,18 +157,30 @@ export function ActionRow({
   );
 }
 
-/** Full-bleed scroll body under a PageHeader. */
+interface PageBodyProps extends HTMLAttributes<HTMLDivElement> {
+  /** Centered content column for forms / help / settings. */
+  narrow?: Narrow;
+}
+
+/** Full-bleed scroll body under a PageHeader. Always p-4 gutters. */
 export function PageBody({
   className,
+  narrow,
   children,
   ...props
-}: HTMLAttributes<HTMLDivElement>) {
+}: PageBodyProps) {
+  const width = narrowClass(narrow);
+
   return (
     <div
-      className={cn("flex-1 overflow-y-auto p-4", className)}
+      className={cn("flex-1 overflow-y-auto", BODY_PAD, className)}
       {...props}
     >
-      {children}
+      {width ? (
+        <div className={cn("mx-auto w-full space-y-6", width)}>{children}</div>
+      ) : (
+        children
+      )}
     </div>
   );
 }
@@ -170,7 +194,8 @@ export function PageFooter({
   return (
     <div
       className={cn(
-        "px-4 py-3 border-t border-border bg-muted/50 text-xs text-muted-foreground",
+        GUTTER,
+        "py-3 border-t border-border bg-muted/50 text-xs text-muted-foreground shrink-0",
         className
       )}
       {...props}

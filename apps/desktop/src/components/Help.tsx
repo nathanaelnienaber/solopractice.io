@@ -5,7 +5,7 @@ import {
   PageBody,
   PageHeader,
   PageShell,
-  Surface,
+  Panel,
 } from "./ui";
 
 export function Help() {
@@ -30,7 +30,7 @@ export function Help() {
         sticky
       />
 
-      <PageBody className="max-w-2xl space-y-4">
+      <PageBody narrow="md" className="space-y-4">
         <FaqItem question="I saw a security warning when I installed this. Is that normal?">
           <p>
             Yes. Windows shows a blue &ldquo;SmartScreen&rdquo; warning, and Mac
@@ -131,9 +131,9 @@ function FaqItem({
   children: React.ReactNode;
 }) {
   return (
-    <Surface className="p-4 space-y-2">
+    <Panel>
       <h2 className="text-base font-medium tracking-tight">{question}</h2>
       <div className="text-sm text-muted-foreground space-y-2">{children}</div>
-    </Surface>
+    </Panel>
   );
 }

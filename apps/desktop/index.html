@@ -5,6 +5,21 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SoloPractice</title>
+    <script>
+      (function () {
+        try {
+          var k = "solopractice-theme";
+          var t = localStorage.getItem(k);
+          var dark =
+            t === "dark" ||
+            ((t === "system" || !t) &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          var r = document.documentElement;
+          r.classList.toggle("dark", dark);
+          r.style.colorScheme = dark ? "dark" : "light";
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

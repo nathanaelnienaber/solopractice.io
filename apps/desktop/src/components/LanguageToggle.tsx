@@ -22,26 +22,30 @@ export function LanguageToggle() {
   return (
     <div className="relative" ref={dropdownRef}>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-[var(--muted)] hover:bg-[var(--accent)] transition-colors"
+        className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-muted text-foreground hover:bg-accent transition-colors"
         aria-label="Select language"
       >
         <GlobeIcon />
-        <span>{currentLang.flag} {currentLang.name}</span>
+        <span>
+          {currentLang.flag} {currentLang.name}
+        </span>
         <ChevronDownIcon isOpen={isOpen} />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 py-1 bg-[var(--background)] border border-[var(--border)] rounded-lg shadow-lg z-50">
+        <div className="absolute right-0 mt-2 w-48 py-1 bg-card text-card-foreground border border-border rounded-lg shadow-dialog z-50">
           {LANGUAGES.map((lang) => (
             <button
               key={lang.code}
+              type="button"
               onClick={() => {
                 setLanguage(lang.code as Language);
                 setIsOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-[var(--muted)] transition-colors ${
-                language === lang.code ? "text-[var(--primary)]" : "text-[var(--foreground)]"
+              className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-muted transition-colors ${
+                language === lang.code ? "text-primary" : "text-foreground"
               }`}
             >
               <span className="text-lg">{lang.flag}</span>
@@ -65,7 +69,13 @@ function GlobeIcon() {
 
 function ChevronDownIcon({ isOpen }: { isOpen: boolean }) {
   return (
-    <svg className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg
+      className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
       <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
     </svg>
   );
@@ -73,7 +83,7 @@ function ChevronDownIcon({ isOpen }: { isOpen: boolean }) {
 
 function CheckIcon() {
   return (
-    <svg className="w-4 h-4 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
     </svg>
   );

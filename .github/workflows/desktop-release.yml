@@ -82,6 +82,29 @@ jobs:
       - name: Build @solopractice/shared
         run: pnpm --filter @solopractice/shared build
 
+      # Bundle whisper.cpp CLI + ggml-base.en (~150MB) so Record → Transcribe → SOAP
+      # works out of the box. Fetched at build time (not committed). See
+      # apps/desktop/scripts/fetch-whisper-bundle.sh for size notes.
+      - name: Fetch bundled speech-to-text (whisper.cpp + base.en)
+        shell: bash
+        run: |
+          chmod +x apps/desktop/scripts/fetch-whisper-bundle.sh
+          if [[ "${{ matrix.platform }}" == "windows-latest" ]]; then
+            apps/desktop/scripts/fetch-whisper-bundle.sh windows
+          elif [[ "${{ matrix.platform }}" == "ubuntu-latest" ]]; then
+            apps/desktop/scripts/fetch-whisper-bundle.sh linux
+          else
+            # macOS is not a Gate A target; still fetch the model so the
+            # resources glob is non-empty (binary download unsupported on mac).
+            mkdir -p apps/desktop/src-tauri/resources/whisper/models \
+              apps/desktop/src-tauri/resources/whisper/tools
+            curl -fL --retry 3 -o apps/desktop/src-tauri/resources/whisper/models/ggml-base.en.bin \
+              https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
+            echo "macOS: model only (whisper CLI not bundled)" \
+              > apps/desktop/src-tauri/resources/whisper/tools/.keep
+          fi
+          du -sh apps/desktop/src-tauri/resources/whisper || true
+
       - name: Build and release Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
@@ -92,6 +115,10 @@ jobs:
           releaseName: "SoloPractice Desktop ${{ github.ref_type == 'tag' && github.ref_name || format('trial build {0}', github.run_number) }}"
           releaseBody: |
             Trial build of the SoloPractice desktop app for macOS, Windows, and Linux.
+
+            **Speech-to-text bundled (v0.1.7+):** whisper.cpp CLI + `ggml-base.en` (~150MB)
+            ship inside the AppImage and Windows installer so the first
+            Record → Transcribe → SOAP path works without a separate download.
 
             **Unsigned installers** — this is expected for the trial:
             - macOS: Gatekeeper will say the app is from an unidentified developer.

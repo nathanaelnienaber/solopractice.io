@@ -28,7 +28,7 @@ Record results in the tables below. When every required row passes (or a blocker
 2. Install / launch **0.1.4** (AppImage on Linux, or Windows setup.exe / MSI).
 3. Web: therapist magic link → **Settings** → copy Desktop API key.
 4. Desktop: paste key in setup wizard / Settings → **Sync** (or equivalent). Confirm clients pull.
-5. Optional for transcript/SOAP: complete ML setup (whisper.cpp + model, Ollama) **or** plan to enter transcript / SOAP by hand.
+5. Transcript/SOAP: **v0.1.7+** ships whisper.cpp + `ggml-base.en` in the AppImage/Windows installer — Record → Stop → Transcribe should work without a separate STT download. Ollama still optional for auto-SOAP draft (or write SOAP by hand). Older builds: complete ML setup or hand-enter transcript.
 
 ### Prerequisites
 
@@ -100,7 +100,7 @@ Clinical PDF stays on the desktop. Cloud holds **request status only** (`none` �
 
 ## Whisper model pick
 
-Setup wizard defaults to **`ggml-base.en`**. Settings also expose a size picker (tiny → large). Try **base** first; step down if too slow, step up only if quality fails.
+**v0.1.7+** installers bundle **`ggml-base.en`** (~142MB) plus the whisper.cpp CLI (~10MB). Setup wizard still defaults to that model; Settings expose a size picker (tiny → large) if you re-download. Try **base** first; step down if too slow, step up only if quality fails.
 
 Dev/tester runs on Linux are useful for the loop; **record the Gate A exit model after a try on her Windows PC**.
 
@@ -118,7 +118,7 @@ Dev/tester runs on Linux are useful for the loop; **record the Gate A exit model
 |-------|--------|
 | Platform | Linux AppImage / Windows (her PC): ________ |
 | Model chosen | ________ |
-| How obtained | Setup wizard / Settings / manual path: ________ |
+| How obtained | Bundled with v0.1.7+ / Setup download / Settings / manual path: ________ |
 | Approx. session length tried | ________ |
 | Acceptable quality? | Y / N |
 | Notes (CPU, RAM, time to finish) | ________ |
@@ -135,6 +135,7 @@ If a step fails for environment (keys, Ollama, whisper binary), write it here. D
 - **2026-10-07:** Docs updated for **v0.1.3** (install/pair + Pending fulfill). **Live Windows run still pending** — clear this blocker only after she completes the checklist and records the whisper model above.
 - **2026-10-07:** Install docs clarify **Linux AppImage** for developers/testers (Omarchy); Windows remains required for Gate A exit on her PC. Live Linux walkthrough still pending Nathanael’s run.
 - **2026-10-07:** **v0.1.4** — recording pause, stop choices, SOAP pipeline status. Retest AppImage on Omarchy after mic fix (0.1.3).
+- **2026-10-08:** **v0.1.7** — whisper.cpp + `ggml-base.en` bundled in AppImage/Windows (~150MB); post-download **Continue transcription** / auto-resume. Retest Omarchy AppImage without separate STT download.
 
 ---
 

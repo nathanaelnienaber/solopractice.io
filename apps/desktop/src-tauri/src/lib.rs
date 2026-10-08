@@ -214,6 +214,7 @@ pub fn run() {
             commands::export_audio_bytes,
             commands::get_job_queue,
             commands::get_session_pipeline_status,
+            commands::continue_session_transcription,
             commands::get_settings,
             commands::save_settings,
             commands::test_web_connection,

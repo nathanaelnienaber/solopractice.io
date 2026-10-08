@@ -1,3 +1,13 @@
 
 # Tauri generated schemas
 gen/
+
+# Large STT artifacts fetched by apps/desktop/scripts/fetch-whisper-bundle.sh (~150MB).
+# KEEP.txt placeholders stay tracked so tauri.conf.json resource globs always resolve.
+resources/whisper/models/*
+!resources/whisper/models/KEEP.txt
+resources/whisper/tools/**
+!resources/whisper/tools/KEEP.txt
+!resources/whisper/tools/_placeholder/
+!resources/whisper/tools/_placeholder/KEEP.txt
+resources/whisper/BUNDLE_INFO.txt

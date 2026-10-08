@@ -2,7 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  Theme tokens follow the web app (apps/web/src/app/globals.css).
+  Dark mode is driven by .dark on <html> (ThemeProvider), NOT prefers-color-scheme
+  alone — so forced light/dark matches CSS vars and native form chrome.
+*/
+
 :root {
+  color-scheme: light;
   --background: #fafafa;
   --foreground: #0f172a;
   --primary: #2563eb;
@@ -14,22 +21,29 @@
   --destructive: #ef4444;
   --success: #22c55e;
   --warning: #f59e0b;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --ring: #2563eb;
+  --overlay: rgba(15, 23, 42, 0.5);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f172a;
-    --foreground: #f8fafc;
-    --primary: #3b82f6;
-    --primary-foreground: #ffffff;
-    --muted: #1e293b;
-    --muted-foreground: #94a3b8;
-    --border: #334155;
-    --accent: #1e293b;
-    --destructive: #f87171;
-    --success: #4ade80;
-    --warning: #fbbf24;
-  }
+.dark {
+  color-scheme: dark;
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --border: #334155;
+  --accent: #1e293b;
+  --destructive: #f87171;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --card: #1e293b;
+  --card-foreground: #f8fafc;
+  --ring: #3b82f6;
+  --overlay: rgba(0, 0, 0, 0.65);
 }
 
 body {
@@ -43,6 +57,50 @@ body {
 
 * {
   border-color: var(--border);
+}
+
+/*
+  Native form controls (WebKitGTK / Omarchy): without color-scheme + explicit
+  option colors, <select> dropdowns paint white chrome with inherited light text.
+*/
+@layer base {
+  input,
+  select,
+  textarea,
+  button {
+    color: inherit;
+  }
+
+  select,
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea {
+    background-color: var(--background);
+    color: var(--foreground);
+    border-color: var(--border);
+  }
+
+  select option,
+  select optgroup {
+    background-color: var(--card);
+    color: var(--card-foreground);
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--primary);
+    color-scheme: inherit;
+    width: 1rem;
+    height: 1rem;
+    border: 1px solid var(--border);
+    background-color: var(--background);
+  }
+
+  /* Date / time native pickers follow color-scheme from <html>. */
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"] {
+    color-scheme: inherit;
+  }
 }
 
 ::-webkit-scrollbar {

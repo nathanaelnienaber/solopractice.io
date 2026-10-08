@@ -14,6 +14,9 @@ import {
   ActionRow,
   Banner,
   Button,
+  Dialog,
+  DialogBody,
+  DialogIntro,
   EmptyState,
   LoadingState,
   PageBody,
@@ -557,20 +560,13 @@ function StopChoiceDialog({
   onDismiss: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div
-        role="dialog"
-        aria-labelledby="stop-choice-title"
-        className="w-full max-w-md rounded-xl border border-border bg-background shadow-lg p-5 space-y-4"
-      >
-        <div>
-          <h2 id="stop-choice-title" className="text-lg font-semibold">
-            Recording paused — what next?
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Choose how to finish this session. Clinical audio stays on this computer.
-          </p>
-        </div>
+    <Dialog size="md" onDismiss={onDismiss} aria-labelledby="stop-choice-title">
+      <DialogBody>
+        <DialogIntro
+          titleId="stop-choice-title"
+          title="Recording paused — what next?"
+          description="Choose how to finish this session. Clinical audio stays on this computer."
+        />
         <div className="flex flex-col gap-2">
           <ChoiceButton
             title="Go to SOAP notes"
@@ -597,8 +593,8 @@ function StopChoiceDialog({
         <Button variant="ghost" className="w-full" onClick={onDismiss}>
           Keep recording (resume)
         </Button>
-      </div>
-    </div>
+      </DialogBody>
+    </Dialog>
   );
 }
 
@@ -615,8 +611,9 @@ function ChoiceButton({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`text-left rounded-lg border px-4 py-3 transition-colors ${
+      className={`text-left rounded-lg border px-4 py-3 transition-colors bg-card ${
         primary
           ? "border-primary bg-primary/10 hover:bg-primary/15"
           : "border-border hover:bg-accent"

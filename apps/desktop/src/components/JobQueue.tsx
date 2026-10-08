@@ -51,14 +51,14 @@ export function JobQueue() {
         description="Transcription and SOAP drafts process here"
       />
 
-      <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard label="Pending" value={stats.pending} tone="neutral" />
-        <StatCard label="In Progress" value={stats.inProgress} tone="warning" />
-        <StatCard label="Completed" value={stats.completed} tone="success" />
-        <StatCard label="Failed" value={stats.failed} tone="destructive" />
-      </div>
+      <PageBody className="space-y-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <StatCard label="Pending" value={stats.pending} tone="neutral" />
+          <StatCard label="In Progress" value={stats.inProgress} tone="warning" />
+          <StatCard label="Completed" value={stats.completed} tone="success" />
+          <StatCard label="Failed" value={stats.failed} tone="destructive" />
+        </div>
 
-      <PageBody className="pt-0">
         {loadError ? (
           <EmptyState
             title="Could not load jobs"

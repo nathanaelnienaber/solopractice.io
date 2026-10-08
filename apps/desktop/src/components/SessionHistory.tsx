@@ -6,6 +6,8 @@ import {
   ActionRow,
   Badge,
   Button,
+  Dialog,
+  DialogBody,
   EmptyState,
   LoadingState,
   PageHeader,
@@ -230,31 +232,41 @@ export function SessionHistory({
         </div>
       </div>
 
-      {/* SOAP Editor Modal */}
       {showSoapEditor && selectedSession && (
-        <SoapEditor
-          soapNote={editingSoap}
-          clientName={clientName}
-          onChange={setEditingSoap}
-          onSave={async () => {
-            try {
-              await invoke("save_soap_note", {
-                sessionId: selectedSession.session.id,
-                clientId,
-                soapNote: { ...editingSoap, isDraft: false },
-              });
-              setShowSoapEditor(false);
-              loadSessions();
-              loadSessionDetails(selectedSession.session.id);
-            } catch (err) {
-              setError(err instanceof Error ? err.message : String(err));
-            }
-          }}
-          onCancel={() => {
+        <Dialog
+          size="xl"
+          onDismiss={() => {
             setShowSoapEditor(false);
             loadSessionDetails(selectedSession.session.id);
           }}
-        />
+          className="max-h-[90vh] overflow-y-auto"
+        >
+          <DialogBody>
+            <SoapEditor
+              soapNote={editingSoap}
+              clientName={clientName}
+              onChange={setEditingSoap}
+              onSave={async () => {
+                try {
+                  await invoke("save_soap_note", {
+                    sessionId: selectedSession.session.id,
+                    clientId,
+                    soapNote: { ...editingSoap, isDraft: false },
+                  });
+                  setShowSoapEditor(false);
+                  loadSessions();
+                  loadSessionDetails(selectedSession.session.id);
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : String(err));
+                }
+              }}
+              onCancel={() => {
+                setShowSoapEditor(false);
+                loadSessionDetails(selectedSession.session.id);
+              }}
+            />
+          </DialogBody>
+        </Dialog>
       )}
     </PageShell>
   );

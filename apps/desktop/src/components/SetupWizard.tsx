@@ -11,6 +11,8 @@ import {
   ActionRow,
   Banner,
   Button,
+  Dialog,
+  DialogBody,
   Input,
 } from "./ui";
 
@@ -209,8 +211,8 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
   const progressPct = progress?.percent != null ? Math.round(progress.percent) : null;
 
   return (
-    <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-card border rounded-xl shadow-xl max-w-lg w-full p-6">
+    <Dialog size="lg" className="max-h-[90vh] overflow-y-auto">
+      <DialogBody className="p-6">
         <WizardProgress step={step} />
 
         {step === "connectAccount" && (
@@ -438,7 +440,7 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
 
         {step === "done" && (
           <div className="text-center py-6">
-            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-success/15 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircleIcon />
             </div>
             <h2 className="text-xl font-semibold mb-2">You're all set</h2>
@@ -475,8 +477,8 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
             </Button>
           )}
         </div>
-      </div>
-    </div>
+      </DialogBody>
+    </Dialog>
   );
 }
 
@@ -538,7 +540,7 @@ function ProgressBar({
 
 function CheckCircleIcon() {
   return (
-    <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-8 h-8 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
     </svg>
   );

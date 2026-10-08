@@ -5,10 +5,16 @@ import {
   Banner,
   Button,
   EmptyState,
+  Field,
+  FormGrid,
+  Input,
   LoadingState,
   PageBody,
   PageHeader,
+  PageSection,
   PageShell,
+  Panel,
+  Select,
 } from "./ui";
 
 interface Client {
@@ -374,9 +380,9 @@ export function Superbill() {
         }
       />
 
-      <PageBody>
+      <PageBody narrow="lg">
         {view === "form" ? (
-          <div className="max-w-3xl mx-auto space-y-6">
+          <div className="space-y-6">
             {generatedPath && (
               <Banner tone="success" title="Superbill generated — saved on this computer only.">
                 <ActionRow>
@@ -411,96 +417,81 @@ export function Superbill() {
               </Banner>
             )}
 
-            {/* Client Selection */}
-            <section className="space-y-3">
-              <h2 className="text-lg font-medium tracking-tight">Client information</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    Client
-                  </label>
-                  <select
+            <PageSection title="Client information">
+              <FormGrid cols={2}>
+                <Field label="Client" htmlFor="superbill-client">
+                  <Select
+                    id="superbill-client"
                     value={selectedClient}
                     onChange={(e) => setSelectedClient(e.target.value)}
-                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   >
-                    <option value="">Select client...</option>
+                    <option value="">Select client…</option>
                     {clients.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.firstName} {c.lastName}
                       </option>
                     ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    Date of Birth (required)
-                  </label>
-                  <input
+                  </Select>
+                </Field>
+                <Field label="Date of Birth (required)" htmlFor="superbill-dob">
+                  <Input
+                    id="superbill-dob"
                     type="date"
                     value={clientDob}
                     onChange={(e) => setClientDob(e.target.value)}
                     required
-                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    Address (optional)
-                  </label>
-                  <input
+                </Field>
+                <Field label="Address (optional)" htmlFor="superbill-address">
+                  <Input
+                    id="superbill-address"
                     type="text"
                     value={clientAddress}
                     onChange={(e) => setClientAddress(e.target.value)}
                     placeholder="123 Main St, City, ST 12345"
-                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    Phone (optional)
-                  </label>
-                  <input
+                </Field>
+                <Field label="Phone (optional)" htmlFor="superbill-phone">
+                  <Input
+                    id="superbill-phone"
                     type="tel"
                     value={clientPhone}
                     onChange={(e) => setClientPhone(e.target.value)}
                     placeholder="(555) 123-4567"
-                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
-                </div>
-              </div>
-            </section>
+                </Field>
+              </FormGrid>
+            </PageSection>
 
-            {/* Service Date */}
-            <section className="space-y-3">
-              <h2 className="text-lg font-medium tracking-tight">Service date</h2>
-              <input
-                type="date"
-                value={serviceDate}
-                onChange={(e) => setServiceDate(e.target.value)}
-                className="block rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </section>
+            <PageSection title="Service date">
+              <Field htmlFor="superbill-service-date">
+                <Input
+                  id="superbill-service-date"
+                  type="date"
+                  value={serviceDate}
+                  onChange={(e) => setServiceDate(e.target.value)}
+                  className="max-w-xs"
+                />
+              </Field>
+            </PageSection>
 
-            {/* Diagnosis Codes */}
-            <section className="space-y-3">
-              <h2 className="text-lg font-medium tracking-tight">Diagnosis codes (ICD-10)</h2>
+            <PageSection title="Diagnosis codes (ICD-10)">
               {selectedDiagnoses.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {selectedDiagnoses.map((dx, i) => (
                     <span
                       key={dx.code}
-                      className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm"
+                      className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 text-primary rounded-lg text-sm border border-primary/20"
                     >
                       <span className="font-medium">
                         {String.fromCharCode(65 + i)}.
                       </span>
                       {dx.code} - {dx.description}
                       <button
+                        type="button"
                         onClick={() => removeDiagnosis(dx.code)}
                         className="hover:text-destructive"
+                        aria-label={`Remove ${dx.code}`}
                       >
                         ×
                       </button>
@@ -512,61 +503,68 @@ export function Superbill() {
                 {COMMON_DIAGNOSIS_CODES.filter(
                   (dx) => !selectedDiagnoses.find((d) => d.code === dx.code)
                 ).map((dx) => (
-                  <button
+                  <Button
                     key={dx.code}
+                    type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => addDiagnosis(dx)}
-                    className="px-2 py-1 text-xs border border-border rounded hover:bg-muted"
+                    className="text-xs"
                   >
                     {dx.code}
-                  </button>
+                  </Button>
                 ))}
               </div>
-            </section>
+            </PageSection>
 
-            {/* Service Codes */}
-            <section className="space-y-3">
-              <h2 className="text-lg font-medium tracking-tight">Service codes (CPT)</h2>
+            <PageSection title="Service codes (CPT)">
               {selectedServices.length > 0 && (
                 <div className="space-y-2">
                   {selectedServices.map((svc, i) => (
-                    <div
+                    <Panel
                       key={i}
-                      className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg"
+                      className="flex flex-wrap items-center gap-3 bg-muted/40"
                     >
                       <span className="font-mono font-medium">{svc.cptCode}</span>
-                      <span className="flex-1 text-sm">{svc.description}</span>
-                      <div className="flex items-center gap-2">
-                        <label className="text-xs text-muted-foreground">
-                          Dx:
-                        </label>
-                        <input
+                      <span className="flex-1 text-sm min-w-[8rem]">{svc.description}</span>
+                      <Field
+                        label="Dx"
+                        orientation="horizontal"
+                        className="items-center"
+                      >
+                        <Input
+                          compact
                           type="text"
                           value={svc.diagnosisPointer}
                           onChange={(e) =>
                             updateService(i, { diagnosisPointer: e.target.value })
                           }
-                          className="w-12 px-2 py-1 text-xs rounded border border-border bg-background"
+                          className="w-12"
                         />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <label className="text-xs text-muted-foreground">
-                          Units:
-                        </label>
-                        <input
+                      </Field>
+                      <Field
+                        label="Units"
+                        orientation="horizontal"
+                        className="items-center"
+                      >
+                        <Input
+                          compact
                           type="number"
                           min="1"
                           value={svc.units}
                           onChange={(e) =>
                             updateService(i, { units: parseInt(e.target.value) || 1 })
                           }
-                          className="w-16 px-2 py-1 text-xs rounded border border-border bg-background"
+                          className="w-16"
                         />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <label className="text-xs text-muted-foreground">
-                          $
-                        </label>
-                        <input
+                      </Field>
+                      <Field
+                        label="$"
+                        orientation="horizontal"
+                        className="items-center"
+                      >
+                        <Input
+                          compact
                           type="number"
                           min="0"
                           step="0.01"
@@ -578,170 +576,150 @@ export function Superbill() {
                               ),
                             })
                           }
-                          className="w-20 px-2 py-1 text-xs rounded border border-border bg-background"
+                          className="w-20"
                         />
-                      </div>
-                      <button
+                      </Field>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
                         onClick={() => removeService(i)}
-                        className="text-destructive hover:opacity-70"
+                        className="text-destructive"
+                        aria-label="Remove service"
                       >
                         ×
-                      </button>
-                    </div>
+                      </Button>
+                    </Panel>
                   ))}
                 </div>
               )}
               <div className="flex flex-wrap gap-2">
                 {COMMON_CPT_CODES.map((cpt) => (
-                  <button
+                  <Button
                     key={cpt.code}
+                    type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => addService(cpt)}
-                    className="px-2 py-1 text-xs border border-border rounded hover:bg-muted"
+                    className="text-xs"
                   >
                     {cpt.code} - {cpt.description}
-                  </button>
+                  </Button>
                 ))}
               </div>
-            </section>
+            </PageSection>
 
-            {/* Therapist Info */}
-            <section className="space-y-3">
-              <h2 className="text-lg font-medium tracking-tight">Therapist / practice information</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    Practice Name
-                  </label>
-                  <input
+            <PageSection title="Therapist / practice information">
+              <FormGrid cols={2}>
+                <Field label="Practice Name" htmlFor="practice-name">
+                  <Input
+                    id="practice-name"
                     type="text"
                     value={therapistInfo.practiceName}
                     onChange={(e) =>
                       setTherapistInfo({ ...therapistInfo, practiceName: e.target.value })
                     }
-                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    Therapist Name
-                  </label>
-                  <input
+                </Field>
+                <Field label="Therapist Name" htmlFor="therapist-name">
+                  <Input
+                    id="therapist-name"
                     type="text"
                     value={therapistInfo.therapistName}
                     onChange={(e) =>
                       setTherapistInfo({ ...therapistInfo, therapistName: e.target.value })
                     }
-                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    Credentials
-                  </label>
-                  <input
+                </Field>
+              </FormGrid>
+              <FormGrid cols={3}>
+                <Field label="Credentials" htmlFor="credentials">
+                  <Input
+                    id="credentials"
                     type="text"
                     value={therapistInfo.credentials}
                     onChange={(e) =>
                       setTherapistInfo({ ...therapistInfo, credentials: e.target.value })
                     }
-                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    NPI Number
-                  </label>
-                  <input
+                </Field>
+                <Field label="NPI Number" htmlFor="npi">
+                  <Input
+                    id="npi"
                     type="text"
                     value={therapistInfo.npiNumber || ""}
                     onChange={(e) =>
                       setTherapistInfo({ ...therapistInfo, npiNumber: e.target.value })
                     }
-                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    Tax ID
-                  </label>
-                  <input
+                </Field>
+                <Field label="Tax ID" htmlFor="tax-id">
+                  <Input
+                    id="tax-id"
                     type="text"
                     value={therapistInfo.taxId || ""}
                     onChange={(e) =>
                       setTherapistInfo({ ...therapistInfo, taxId: e.target.value })
                     }
-                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
-                  Address (street, city, state, ZIP required)
-                </label>
-                <input
+                </Field>
+              </FormGrid>
+              <Field
+                label="Address (street, city, state, ZIP required)"
+                htmlFor="addr-street"
+              >
+                <Input
+                  id="addr-street"
                   type="text"
                   value={therapistInfo.addressStreet}
                   onChange={(e) =>
                     setTherapistInfo({ ...therapistInfo, addressStreet: e.target.value })
                   }
                   placeholder="Street address"
-                  className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <input
-                    type="text"
-                    value={therapistInfo.addressCity}
-                    onChange={(e) =>
-                      setTherapistInfo({ ...therapistInfo, addressCity: e.target.value })
-                    }
-                    placeholder="City"
-                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    value={therapistInfo.addressState}
-                    onChange={(e) =>
-                      setTherapistInfo({ ...therapistInfo, addressState: e.target.value })
-                    }
-                    placeholder="State"
-                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    value={therapistInfo.addressZip}
-                    onChange={(e) =>
-                      setTherapistInfo({ ...therapistInfo, addressZip: e.target.value })
-                    }
-                    placeholder="ZIP"
-                    className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
-                  Phone
-                </label>
-                <input
+              </Field>
+              <FormGrid cols={3}>
+                <Input
+                  type="text"
+                  value={therapistInfo.addressCity}
+                  onChange={(e) =>
+                    setTherapistInfo({ ...therapistInfo, addressCity: e.target.value })
+                  }
+                  placeholder="City"
+                  aria-label="City"
+                />
+                <Input
+                  type="text"
+                  value={therapistInfo.addressState}
+                  onChange={(e) =>
+                    setTherapistInfo({ ...therapistInfo, addressState: e.target.value })
+                  }
+                  placeholder="State"
+                  aria-label="State"
+                />
+                <Input
+                  type="text"
+                  value={therapistInfo.addressZip}
+                  onChange={(e) =>
+                    setTherapistInfo({ ...therapistInfo, addressZip: e.target.value })
+                  }
+                  placeholder="ZIP"
+                  aria-label="ZIP"
+                />
+              </FormGrid>
+              <Field label="Phone" htmlFor="therapist-phone">
+                <Input
+                  id="therapist-phone"
                   type="tel"
                   value={therapistInfo.phone || ""}
                   onChange={(e) =>
                     setTherapistInfo({ ...therapistInfo, phone: e.target.value })
                   }
-                  className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
-              </div>
-            </section>
+              </Field>
+            </PageSection>
 
-            {/* Total and Generate */}
-            <section className="p-4 bg-muted/50 rounded-lg flex items-center justify-between">
+            <Panel className="flex flex-wrap items-center justify-between gap-4 bg-muted/50">
               <div>
                 <span className="text-muted-foreground">Total: </span>
                 <span className="text-2xl font-bold">
@@ -755,10 +733,10 @@ export function Superbill() {
               >
                 {generating ? "Generating…" : "Generate superbill PDF"}
               </Button>
-            </section>
+            </Panel>
           </div>
         ) : view === "pending" ? (
-          <div className="max-w-3xl mx-auto space-y-4">
+          <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               Clients who paid and requested a superbill. Generate the PDF on
               this computer, share it yourself (mail client / file), then mark
@@ -776,9 +754,9 @@ export function Superbill() {
             ) : (
               <div className="space-y-3">
                 {pending.map((req) => (
-                  <div
+                  <Panel
                     key={req.invoiceId}
-                    className="flex items-center justify-between gap-4 p-4 border border-border rounded-lg"
+                    className="flex items-center justify-between gap-4"
                   >
                     <div className="min-w-0">
                       <p className="font-medium">
@@ -801,7 +779,7 @@ export function Superbill() {
                     >
                       Prepare
                     </Button>
-                  </div>
+                  </Panel>
                 ))}
               </div>
             )}
@@ -810,36 +788,33 @@ export function Superbill() {
             </Button>
           </div>
         ) : (
-          /* History View */
-          <div className="max-w-3xl mx-auto">
+          <div className="space-y-3">
             {superbills.length === 0 ? (
               <EmptyState
                 title="No superbills generated yet"
                 description="Create a new superbill PDF from the Create new tab."
               />
             ) : (
-              <div className="space-y-3">
-                {superbills.map((sb) => (
-                  <div
-                    key={sb.id}
-                    className="flex items-center justify-between p-4 border border-border rounded-lg"
-                  >
-                    <div>
-                      <p className="font-medium">{sb.clientName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {sb.serviceDate} • ${(sb.totalAmountCents / 100).toFixed(2)}
-                      </p>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => openPdf(sb.pdfPath)}
-                    >
-                      Open PDF
-                    </Button>
+              superbills.map((sb) => (
+                <Panel
+                  key={sb.id}
+                  className="flex items-center justify-between gap-4"
+                >
+                  <div>
+                    <p className="font-medium">{sb.clientName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {sb.serviceDate} • ${(sb.totalAmountCents / 100).toFixed(2)}
+                    </p>
                   </div>
-                ))}
-              </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => openPdf(sb.pdfPath)}
+                  >
+                    Open PDF
+                  </Button>
+                </Panel>
+              ))
             )}
           </div>
         )}

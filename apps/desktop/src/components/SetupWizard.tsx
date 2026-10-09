@@ -348,7 +348,7 @@ export function SetupWizard({ onComplete, onSkip }: SetupWizardProps) {
         {step === "speechToText" && (
           <Section
             title="Turn recordings into text"
-            body="This is optional. SoloPractice can turn session recordings into a transcript on this computer (nothing uploaded). v0.1.7+ AppImage and Windows installers already bundle whisper.cpp + the base English model (~150MB). If this build is missing them, download once below."
+            body="This is optional. SoloPractice can turn session recordings into a transcript on this computer (nothing uploaded). v0.1.8+ AppImage, Windows, and Mac (Apple Silicon) installers already bundle whisper.cpp + the base English model (~150MB). If this build is missing them, download once below (Linux/Windows; Mac needs a bundled install)."
           >
             {status?.whisperModelDownloaded && status?.whisperBinaryAvailable ? (
               <Banner tone="success">

@@ -15,11 +15,11 @@
  */
 export const DOWNLOAD_URLS = {
   // Filenames include the desktop version from tauri.conf.json. Update when cutting a release.
-  mac: "https://github.com/nathanaelnienaber/solopractice.io/releases/latest/download/SoloPractice_0.1.7_aarch64.dmg",
+  mac: "https://github.com/nathanaelnienaber/solopractice.io/releases/latest/download/SoloPractice_0.1.8_aarch64.dmg",
   windows:
-    "https://github.com/nathanaelnienaber/solopractice.io/releases/latest/download/SoloPractice_0.1.7_x64-setup.exe",
+    "https://github.com/nathanaelnienaber/solopractice.io/releases/latest/download/SoloPractice_0.1.8_x64-setup.exe",
   linux:
-    "https://github.com/nathanaelnienaber/solopractice.io/releases/latest/download/SoloPractice_0.1.7_amd64.AppImage",
+    "https://github.com/nathanaelnienaber/solopractice.io/releases/latest/download/SoloPractice_0.1.8_amd64.AppImage",
 } as const;
 
 // Real published assets are live — placeholder notice no longer shown.

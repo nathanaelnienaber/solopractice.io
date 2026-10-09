@@ -80,7 +80,7 @@ fn bin_dir(app: &AppHandle) -> PathBuf {
 }
 
 /// Installer-bundled STT root (`resources/whisper` from tauri.conf.json).
-/// Present in AppImage / Windows installers when CI ran fetch-whisper-bundle.sh.
+/// Present in AppImage / Windows / macOS installers when CI ran fetch-whisper-bundle.sh.
 fn bundled_whisper_root(app: &AppHandle) -> Option<PathBuf> {
     let resource_dir = app.path().resource_dir().ok()?;
     let candidates = [

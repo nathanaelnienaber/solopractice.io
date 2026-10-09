@@ -11,7 +11,12 @@ import {
   touchActionClassName,
   touchStackActionClassName,
 } from "@/components/ui/page";
-import { DOWNLOAD_URLS, DOWNLOAD_URLS_ARE_PLACEHOLDERS, type DesktopOs } from "./download-urls";
+import {
+  DESKTOP_VERSION,
+  DOWNLOAD_URLS,
+  DOWNLOAD_URLS_ARE_PLACEHOLDERS,
+  type DesktopOs,
+} from "./download-urls";
 import { useDetectedOs } from "./use-detected-os";
 
 const OS_LABEL: Record<DesktopOs, string> = {
@@ -59,6 +64,13 @@ export function DownloadPageContent() {
           description="Clinical work lives here — session recording, notes, and superbills on your computer. Scheduling and invoices stay on the web. Notes never leave this machine."
           eyebrow={<Badge variant="default">Free during trial</Badge>}
         />
+
+        <p className="text-center text-sm text-muted-foreground">
+          Current version{" "}
+          <span className="font-medium text-foreground">{DESKTOP_VERSION}</span>
+          {" · "}
+          speech-to-text bundled on Linux, Windows, and Mac Apple Silicon
+        </p>
 
         <Card className="border-primary/30">
           <CardContent className="space-y-4 pt-6">

@@ -147,7 +147,7 @@ Full Gate A checklist for her Windows PC: [docs/GATE_A_WALKTHROUGH.md](docs/GATE
 
 | Job | Tool | Status |
 |-----|------|--------|
-| Transcription | whisper.cpp CLI | Bundled in v0.1.8+ installers (Mac Apple Silicon from v0.1.8; Linux/Windows from v0.1.7); else Setup download / paths; failed jobs can be continued from SOAP status |
+| Transcription | whisper.cpp CLI | Bundled in **v0.1.8** installers (Linux AppImage, Windows, Mac Apple Silicon); else Setup download / paths; failed jobs can be continued from SOAP status |
 | SOAP draft | Ollama on `127.0.0.1` | Uses configured model (`phi4-mini` if unset) |
 | Superbill PDF | Local (`printpdf`) | Sidebar Superbill screen; `generate_superbill` writes under `superbills/` |
 | Backup | — | Not implemented |

@@ -8,6 +8,7 @@ import {
   ActionStack,
   touchStackActionClassName,
 } from "@/components/ui/page";
+import { DESKTOP_VERSION } from "@/app/download/download-urls";
 
 interface KeyStatus {
   hasApiKey: boolean;
@@ -170,7 +171,8 @@ export function DesktopApiKeyPanel() {
 
       <div className="space-y-2 border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
-          Need the app first? Download it, then paste the connection code.
+          Need the app first? Download desktop v{DESKTOP_VERSION}, then paste the
+          connection code.
         </p>
         <Link href="/download" className="block">
           <Button
@@ -178,7 +180,7 @@ export function DesktopApiKeyPanel() {
             variant="outline"
             className={touchStackActionClassName}
           >
-            Download desktop app
+            Download desktop app (v{DESKTOP_VERSION})
           </Button>
         </Link>
       </div>

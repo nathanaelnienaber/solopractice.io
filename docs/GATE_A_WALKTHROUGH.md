@@ -1,7 +1,7 @@
 # Gate A — Fake-client walkthrough
 
 **Purpose:** Prove the full practice loop with **test data only**. Developers/testers on Linux can run the checklist with the **AppImage**; Gate A exit still needs one successful pass on **her Windows PC** (PRODUCT_PLAN “Windows first”).  
-**Desktop build:** **v0.1.4** (recording pause + stop choices + SOAP pipeline status; v0.1.3 mic/GStreamer retained).  
+**Desktop build:** **v0.1.8** (STT bundled on Linux AppImage, Windows, and Mac Apple Silicon; recording pause + stop choices + SOAP pipeline status retained).  
 **Do not use real clients.** Consent forms are still DRAFT until Gate B attorney review.
 
 Record results in the tables below. When every required row passes (or a blocker is written with a reason), Gate A can go to Nathanael for go/no-go before Gate B.
@@ -10,30 +10,34 @@ Record results in the tables below. When every required row passes (or a blocker
 
 ---
 
-## Install & pair (v0.1.4)
+## Install & pair (v0.1.8)
 
 | Item | Link / note |
 |------|-------------|
-| Release | https://github.com/nathanaelnienaber/solopractice.io/releases/tag/v0.1.4 |
-| **Linux AppImage** (dev / Omarchy) | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.4/SoloPractice_0.1.4_amd64.AppImage |
-| Windows setup.exe | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.4/SoloPractice_0.1.4_x64-setup.exe |
-| Windows MSI | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.4/SoloPractice_0.1.4_x64_en-US.msi |
-| In-app / site download | Web → `/download` or Settings → Download desktop app |
+| Release | https://github.com/nathanaelnienaber/solopractice.io/releases/tag/v0.1.8 |
+| **Linux AppImage** (dev / Omarchy) | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.8/SoloPractice_0.1.8_amd64.AppImage |
+| Linux deb (optional) | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.8/SoloPractice_0.1.8_amd64.deb |
+| **Windows setup.exe** | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.8/SoloPractice_0.1.8_x64-setup.exe |
+| Windows MSI | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.8/SoloPractice_0.1.8_x64_en-US.msi |
+| **Mac Apple Silicon `.dmg`** | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.8/SoloPractice_0.1.8_aarch64.dmg |
+| In-app / site download | Web → `/download` or Settings → Download desktop app (v0.1.8) |
 
-**Linux:** download the AppImage → `chmod +x SoloPractice_0.1.4_amd64.AppImage` → run it. No auto-update — use a fresh AppImage for each release.
+**Linux:** download the AppImage → `chmod +x SoloPractice_0.1.8_amd64.AppImage` → run it. No auto-update — use a fresh AppImage for each release.
 
 **Windows (unsigned installer):** SmartScreen → **More info** → **Run anyway**. No auto-update — use a fresh installer for each release.
 
-1. Remove older SoloPractice builds (v0.1.3 and earlier) — uninstall on Windows; replace the AppImage on Linux.
-2. Install / launch **0.1.4** (AppImage on Linux, or Windows setup.exe / MSI).
+**Mac Apple Silicon (unsigned):** Gatekeeper → right-click (Control-click) → **Open** → confirm. No Intel Mac `.dmg` yet.
+
+1. Remove older SoloPractice builds (v0.1.7 and earlier) — uninstall on Windows/Mac; replace the AppImage on Linux.
+2. Install / launch **0.1.8** (AppImage on Linux, Windows setup.exe / MSI, or Mac Apple Silicon `.dmg`).
 3. Web: therapist magic link → **Settings** → copy Desktop API key.
 4. Desktop: paste key in setup wizard / Settings → **Sync** (or equivalent). Confirm clients pull.
-5. Transcript/SOAP: **v0.1.8+** ships whisper.cpp + `ggml-base.en` in the AppImage / Windows installer / Mac Apple Silicon `.dmg` — Record → Stop → Transcribe should work without a separate STT download. Ollama still optional for auto-SOAP draft (or write SOAP by hand). Older builds: complete ML setup or hand-enter transcript.
+5. Transcript/SOAP: **v0.1.8** ships whisper.cpp + `ggml-base.en` in the AppImage / Windows installer / Mac Apple Silicon `.dmg` — Record → Stop → Transcribe should work without a separate STT download. Ollama still optional for auto-SOAP draft (or write SOAP by hand). Older builds: complete ML setup or hand-enter transcript.
 
 ### Prerequisites
 
 - Web app reachable with test Stripe / Resend / Twilio / Neon configured  
-- Desktop **0.1.4** installed and paired as above  
+- Desktop **0.1.8** installed and paired as above  
 - Fake-client data only  
 
 ### Local data paths
@@ -42,6 +46,7 @@ Record results in the tables below. When every required row passes (or a blocker
 |----------|--------------------|
 | Linux | `~/.local/share/com.solopractice.desktop/` |
 | Windows | `%APPDATA%\com.solopractice.desktop\` |
+| Mac | `~/Library/Application Support/com.solopractice.desktop/` |
 
 Recordings land under `recordings/`; superbills under `superbills/`.
 
@@ -145,6 +150,6 @@ If a step fails for environment (keys, Ollama, whisper binary), write it here. D
 - Date run: ________  
 - Runner: ________  
 - Platform: ________ (Linux AppImage and/or Windows)  
-- Desktop version confirmed: ________ (expect **0.1.4**)  
+- Desktop version confirmed: ________ (expect **0.1.8**)  
 - Whisper model recorded: ________  
 - Gate A ready for go/no-go? ________  

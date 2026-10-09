@@ -21,7 +21,7 @@ const OS_LABEL: Record<DesktopOs, string> = {
 };
 
 const OS_COPY: Record<DesktopOs, string> = {
-  mac: "For MacBooks and iMacs",
+  mac: "For Apple Silicon MacBooks and iMacs (M1+)",
   windows: "For Windows PCs and laptops",
   linux: "For Linux desktops",
 };

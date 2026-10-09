@@ -48,8 +48,9 @@ SoloPractice stores clinical data in:
 └── tools/               # whisper binary (downloaded via setup if not using the bundle)
 ```
 
-**v0.1.7+ installers** also ship whisper.cpp + `ggml-base.en` inside the AppImage / Windows
-setup (~150MB larger). The app prefers those bundled paths when app-data downloads are absent.
+**v0.1.8+ installers** also ship whisper.cpp + `ggml-base.en` inside the AppImage / Windows
+setup / Mac Apple Silicon `.dmg` (~150MB larger). The app prefers those bundled paths when
+app-data downloads are absent.
 
 
 The app does **not** encrypt the database. Use BitLocker on the PC. **Do NOT** put this folder under OneDrive/Documents — those sync to the cloud.
@@ -87,7 +88,7 @@ Jobs are persisted to SQLite. If the app crashes or closes:
 
 whisper.cpp provides free, local speech-to-text without cloud APIs.
 
-**Preferred (v0.1.7+):** use a release AppImage or Windows installer — STT is already bundled.
+**Preferred (v0.1.8+):** use a release AppImage, Windows installer, or Mac Apple Silicon `.dmg` — STT is already bundled.
 Release CI runs `scripts/fetch-whisper-bundle.sh` before `tauri build`.
 
 If you are on an older build, or building locally without the bundle, use the options below

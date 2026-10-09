@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
-# Download whisper.cpp CLI + ggml-base.en into src-tauri/resources/whisper/
-# for bundling into AppImage / Windows installers (Gate A default model).
+# Download/build whisper.cpp CLI + ggml-base.en into src-tauri/resources/whisper/
+# for bundling into AppImage / Windows installers / macOS .app/.dmg (Gate A default model).
 #
 # Usage:
-#   ./apps/desktop/scripts/fetch-whisper-bundle.sh [linux|windows|all]
+#   ./apps/desktop/scripts/fetch-whisper-bundle.sh [linux|windows|macos|all]
 #
 # Size tradeoff (approx):
 #   ggml-base.en.bin  ~142 MB
 #   Linux ubuntu x64  ~10 MB (tar.gz unpacked larger with .so libs)
 #   Windows x64 zip   ~9 MB
+#   macOS arm64 CLI   ~built from source in CI (no official prebuilt CLI archive;
+#                     Metal library embedded so the binary is relocatable)
 # Total installer delta ≈ 150–160 MB — accepted so first Record → Transcribe → SOAP
 # works offline without a separate STT download.
 #
 # Artifacts are gitignored; CI runs this before `tauri build`.
+#
+# macOS note: whisper.cpp GitHub releases ship Linux/Windows CLI archives and an
+# xcframework, but not a standalone macOS whisper-cli tarball. This script builds
+# whisper-cli from the same WHISPER_BUNDLE_TAG source on Darwin (CI macos-latest
+# → Apple Silicon / aarch64.dmg). Intel Mac is not a separate matrix target.
 
 set -euo pipefail
 
@@ -23,13 +30,15 @@ WHISPER_TAG="${WHISPER_BUNDLE_TAG:-b5454}"
 MODEL_URL="${WHISPER_MODEL_URL:-https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin}"
 MODEL_NAME="ggml-base.en.bin"
 GH_BASE="https://github.com/ggml-org/whisper.cpp/releases/download/${WHISPER_TAG}"
+WHISPER_REPO="${WHISPER_REPO_URL:-https://github.com/ggml-org/whisper.cpp.git}"
 
 if [[ -z "$PLATFORM" ]]; then
   case "$(uname -s)" in
     Linux*) PLATFORM=linux ;;
+    Darwin*) PLATFORM=macos ;;
     MINGW*|MSYS*|CYGWIN*|Windows_NT) PLATFORM=windows ;;
     *)
-      echo "Pass linux, windows, or all (got uname=$(uname -s))" >&2
+      echo "Pass linux, windows, macos, or all (got uname=$(uname -s))" >&2
       exit 1
       ;;
   esac
@@ -105,15 +114,102 @@ PY
   echo "Windows STT binary: $cli"
 }
 
+# Official releases do not ship a macOS whisper-cli archive (only xcframework).
+# Build a relocatable CLI from the release tag with Metal embedded in the binary.
+build_macos() {
+  if [[ "$(uname -s)" != "Darwin" ]]; then
+    echo "macos platform requires Darwin (got $(uname -s))" >&2
+    exit 1
+  fi
+  if ! command -v cmake >/dev/null 2>&1; then
+    echo "cmake is required to build whisper-cli on macOS" >&2
+    exit 1
+  fi
+  if ! command -v git >/dev/null 2>&1; then
+    echo "git is required to build whisper-cli on macOS" >&2
+    exit 1
+  fi
+
+  local arch
+  arch="$(uname -m)"
+  # Normalize for folder name (Apple Silicon runners report arm64).
+  local arch_dir="macos-${arch}"
+  local out="$RES/tools/${arch_dir}"
+  local src="$RES/tools/_whisper_src"
+  local jobs
+  jobs="$(sysctl -n hw.logicalcpu 2>/dev/null || echo 4)"
+
+  echo "Building whisper-cli from ${WHISPER_REPO}@${WHISPER_TAG} for ${arch}…"
+  rm -rf "$src" "$out"
+  mkdir -p "$out"
+  git clone --depth 1 --branch "$WHISPER_TAG" "$WHISPER_REPO" "$src"
+
+  # Static libs + embedded Metal so whisper-cli relocates inside the .app bundle
+  # without shipping separate .metallib / dylib neighbors.
+  cmake -S "$src" -B "$src/build" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DGGML_NATIVE=OFF \
+    -DGGML_METAL=ON \
+    -DGGML_METAL_EMBED_LIBRARY=ON \
+    -DWHISPER_BUILD_TESTS=OFF \
+    -DWHISPER_BUILD_SERVER=OFF \
+    -DWHISPER_CURL=OFF
+  cmake --build "$src/build" -j "$jobs" --config Release --target whisper-cli
+
+  local cli=""
+  for candidate in \
+    "$src/build/bin/whisper-cli" \
+    "$src/build/bin/Release/whisper-cli" \
+    "$src/build/examples/cli/whisper-cli"
+  do
+    if [[ -f "$candidate" ]]; then
+      cli="$candidate"
+      break
+    fi
+  done
+  if [[ -z "$cli" ]]; then
+    cli="$(find "$src/build" -type f -name whisper-cli | head -n1 || true)"
+  fi
+  if [[ -z "$cli" || ! -f "$cli" ]]; then
+    echo "whisper-cli missing after macOS build" >&2
+    exit 1
+  fi
+
+  cp "$cli" "$out/whisper-cli"
+  chmod +x "$out/whisper-cli"
+  # Drop any companion shared libs if the build produced them beside the CLI.
+  local bin_dir
+  bin_dir="$(dirname "$cli")"
+  find "$bin_dir" -maxdepth 1 \( -name '*.dylib' -o -name '*.so' \) -print0 2>/dev/null \
+    | while IFS= read -r -d '' lib; do
+        cp "$lib" "$out/"
+      done
+
+  rm -rf "$src"
+  echo "macOS STT binary: $out/whisper-cli"
+  # Smoke: binary exists and is executable; full --help may need codesign on some hosts.
+  if [[ ! -x "$out/whisper-cli" ]]; then
+    echo "macOS whisper-cli is not executable" >&2
+    exit 1
+  fi
+}
+
 case "$PLATFORM" in
   linux) unpack_linux ;;
   windows) unpack_windows ;;
+  macos) build_macos ;;
   all)
     unpack_linux
     unpack_windows
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+      build_macos
+    else
+      echo "Skipping macos build on $(uname -s) (all = linux+windows here)"
+    fi
     ;;
   *)
-    echo "Unknown platform: $PLATFORM (use linux|windows|all)" >&2
+    echo "Unknown platform: $PLATFORM (use linux|windows|macos|all)" >&2
     exit 1
     ;;
 esac

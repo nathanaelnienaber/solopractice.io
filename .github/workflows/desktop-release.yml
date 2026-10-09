@@ -94,14 +94,9 @@ jobs:
           elif [[ "${{ matrix.platform }}" == "ubuntu-latest" ]]; then
             apps/desktop/scripts/fetch-whisper-bundle.sh linux
           else
-            # macOS is not a Gate A target; still fetch the model so the
-            # resources glob is non-empty (binary download unsupported on mac).
-            mkdir -p apps/desktop/src-tauri/resources/whisper/models \
-              apps/desktop/src-tauri/resources/whisper/tools
-            curl -fL --retry 3 -o apps/desktop/src-tauri/resources/whisper/models/ggml-base.en.bin \
-              https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
-            echo "macOS: model only (whisper CLI not bundled)" \
-              > apps/desktop/src-tauri/resources/whisper/tools/.keep
+            # macOS: no official prebuilt whisper-cli archive — script builds from
+            # source (Metal embedded) for the runner arch (macos-latest = Apple Silicon).
+            apps/desktop/scripts/fetch-whisper-bundle.sh macos
           fi
           du -sh apps/desktop/src-tauri/resources/whisper || true
 
@@ -116,13 +111,16 @@ jobs:
           releaseBody: |
             Trial build of the SoloPractice desktop app for macOS, Windows, and Linux.
 
-            **Speech-to-text bundled (v0.1.7+):** whisper.cpp CLI + `ggml-base.en` (~150MB)
-            ship inside the AppImage and Windows installer so the first
-            Record → Transcribe → SOAP path works without a separate download.
+            **Speech-to-text bundled (v0.1.8+):** whisper.cpp CLI + `ggml-base.en` (~150MB)
+            ship inside the AppImage, Windows installer, and macOS `.dmg` / `.app`
+            (Apple Silicon) so the first Record → Transcribe → SOAP path works
+            without a separate download. Continue transcription UX from v0.1.7
+            is unchanged.
 
             **Unsigned installers** — this is expected for the trial:
             - macOS: Gatekeeper will say the app is from an unidentified developer.
               Right-click (or Control-click) the app → Open, then confirm.
+              Mac build is Apple Silicon (aarch64) only; no Intel .dmg yet.
             - Windows: SmartScreen will show "Windows protected your PC".
               Click "More info" → "Run anyway".
             - Linux: AppImage just needs `chmod +x` then run; .deb installs via

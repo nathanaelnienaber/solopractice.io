@@ -1,7 +1,7 @@
 # Gate A — Fake-client walkthrough
 
 **Purpose:** Prove the full practice loop with **test data only**. Developers/testers on Linux can run the checklist with the **AppImage**; Gate A exit still needs one successful pass on **her Windows PC** (PRODUCT_PLAN “Windows first”).  
-**Desktop build:** **v0.1.8** (STT bundled on Linux AppImage, Windows, and Mac Apple Silicon; recording pause + stop choices + SOAP pipeline status retained).  
+**Desktop build:** **v0.1.9** (STT bundled on Linux AppImage, Windows, and Mac Apple Silicon; recording pause + stop choices + SOAP pipeline status retained).  
 **Do not use real clients.** Consent forms are still DRAFT until Gate B attorney review.
 
 Record results in the tables below. When every required row passes (or a blocker is written with a reason), Gate A can go to Nathanael for go/no-go before Gate B.
@@ -10,34 +10,34 @@ Record results in the tables below. When every required row passes (or a blocker
 
 ---
 
-## Install & pair (v0.1.8)
+## Install & pair (v0.1.9)
 
 | Item | Link / note |
 |------|-------------|
-| Release | https://github.com/nathanaelnienaber/solopractice.io/releases/tag/v0.1.8 |
-| **Linux AppImage** (dev / Omarchy) | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.8/SoloPractice_0.1.8_amd64.AppImage |
-| Linux deb (optional) | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.8/SoloPractice_0.1.8_amd64.deb |
-| **Windows setup.exe** | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.8/SoloPractice_0.1.8_x64-setup.exe |
-| Windows MSI | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.8/SoloPractice_0.1.8_x64_en-US.msi |
-| **Mac Apple Silicon `.dmg`** | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.8/SoloPractice_0.1.8_aarch64.dmg |
-| In-app / site download | Web → `/download` or Settings → Download desktop app (v0.1.8) |
+| Release | https://github.com/nathanaelnienaber/solopractice.io/releases/tag/v0.1.9 |
+| **Linux AppImage** (dev / Omarchy) | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.9/SoloPractice_0.1.9_amd64.AppImage |
+| Linux deb (optional) | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.9/SoloPractice_0.1.9_amd64.deb |
+| **Windows setup.exe** | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.9/SoloPractice_0.1.9_x64-setup.exe |
+| Windows MSI | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.9/SoloPractice_0.1.9_x64_en-US.msi |
+| **Mac Apple Silicon `.dmg`** | https://github.com/nathanaelnienaber/solopractice.io/releases/download/v0.1.9/SoloPractice_0.1.9_aarch64.dmg |
+| In-app / site download | Web → `/download` or Settings → Download desktop app (v0.1.9) |
 
-**Linux:** download the AppImage → `chmod +x SoloPractice_0.1.8_amd64.AppImage` → run it. No auto-update — use a fresh AppImage for each release.
+**Linux:** download the AppImage → `chmod +x SoloPractice_0.1.9_amd64.AppImage` → run it. No auto-update — use a fresh AppImage for each release.
 
 **Windows (unsigned installer):** SmartScreen → **More info** → **Run anyway**. No auto-update — use a fresh installer for each release.
 
 **Mac Apple Silicon (unsigned):** Gatekeeper → right-click (Control-click) → **Open** → confirm. No Intel Mac `.dmg` yet.
 
 1. Remove older SoloPractice builds (v0.1.7 and earlier) — uninstall on Windows/Mac; replace the AppImage on Linux.
-2. Install / launch **0.1.8** (AppImage on Linux, Windows setup.exe / MSI, or Mac Apple Silicon `.dmg`).
-3. Web: therapist magic link → **Settings** → copy Desktop API key.
-4. Desktop: paste key in setup wizard / Settings → **Sync** (or equivalent). Confirm clients pull.
-5. Transcript/SOAP: **v0.1.8** ships whisper.cpp + `ggml-base.en` in the AppImage / Windows installer / Mac Apple Silicon `.dmg` — Record → Stop → Transcribe should work without a separate STT download. Ollama still optional for auto-SOAP draft (or write SOAP by hand). Older builds: complete ML setup or hand-enter transcript.
+2. Install / launch **0.1.9** (AppImage on Linux, Windows setup.exe / MSI, or Mac Apple Silicon `.dmg`).
+3. Web: therapist magic link → **Settings → Desktop app** → generate/copy connection code (`sp_desktop_…`).
+4. Desktop: paste in setup wizard **Connect**, or Settings → Advanced → Connection code → **Sync now** (v0.1.9+ saves the pasted code before syncing). Confirm clients pull.
+5. Transcript/SOAP: **v0.1.9** ships whisper.cpp + `ggml-base.en` in the AppImage / Windows installer / Mac Apple Silicon `.dmg` — Record → Stop → Transcribe should work without a separate STT download. Ollama still optional for auto-SOAP draft (or write SOAP by hand). Older builds: complete ML setup or hand-enter transcript.
 
 ### Prerequisites
 
 - Web app reachable with test Stripe / Resend / Twilio / Neon configured  
-- Desktop **0.1.8** installed and paired as above  
+- Desktop **0.1.9** installed and paired as above  
 - Fake-client data only  
 
 ### Local data paths
@@ -105,7 +105,7 @@ Clinical PDF stays on the desktop. Cloud holds **request status only** (`none` �
 
 ## Whisper model pick
 
-**v0.1.8+** installers bundle **`ggml-base.en`** (~142MB) plus the whisper.cpp CLI (~10MB; Mac CLI built in release CI). Setup wizard still defaults to that model; Settings expose a size picker (tiny → large) if you re-download. Try **base** first; step down if too slow, step up only if quality fails.
+**v0.1.9+** installers bundle **`ggml-base.en`** (~142MB) plus the whisper.cpp CLI (~10MB; Mac CLI built in release CI). Setup wizard still defaults to that model; Settings expose a size picker (tiny → large) if you re-download. Try **base** first; step down if too slow, step up only if quality fails.
 
 Dev/tester runs on Linux are useful for the loop; **record the Gate A exit model after a try on her Windows PC**.
 
@@ -123,7 +123,7 @@ Dev/tester runs on Linux are useful for the loop; **record the Gate A exit model
 |-------|--------|
 | Platform | Linux AppImage / Windows (her PC): ________ |
 | Model chosen | ________ |
-| How obtained | Bundled with v0.1.8+ / Setup download / Settings / manual path: ________ |
+| How obtained | Bundled with v0.1.9+ / Setup download / Settings / manual path: ________ |
 | Approx. session length tried | ________ |
 | Acceptable quality? | Y / N |
 | Notes (CPU, RAM, time to finish) | ________ |
@@ -142,6 +142,7 @@ If a step fails for environment (keys, Ollama, whisper binary), write it here. D
 - **2026-10-07:** **v0.1.4** — recording pause, stop choices, SOAP pipeline status. Retest AppImage on Omarchy after mic fix (0.1.3).
 - **2026-10-08:** **v0.1.7** — whisper.cpp + `ggml-base.en` bundled in AppImage/Windows (~150MB); post-download **Continue transcription** / auto-resume. Retest Omarchy AppImage without separate STT download.
 - **2026-10-09:** **v0.1.8** — Mac Apple Silicon `.dmg` also bundles whisper-cli + `ggml-base.en` (built from source in CI; unsigned Gatekeeper unchanged). Linux/Windows parity rebuild.
+- **2026-10-16:** **v0.1.9** — Desktop pairing: Sync now / Test persist the connection code from the form before calling the portal (fixes false “rejected” when paste → Sync skipped Save).
 
 ---
 
@@ -150,6 +151,6 @@ If a step fails for environment (keys, Ollama, whisper binary), write it here. D
 - Date run: ________  
 - Runner: ________  
 - Platform: ________ (Linux AppImage and/or Windows)  
-- Desktop version confirmed: ________ (expect **0.1.8**)  
+- Desktop version confirmed: ________ (expect **0.1.9**)  
 - Whisper model recorded: ________  
 - Gate A ready for go/no-go? ________  

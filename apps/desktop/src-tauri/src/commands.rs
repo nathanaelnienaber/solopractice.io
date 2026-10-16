@@ -413,9 +413,18 @@ pub async fn get_job_queue(app: AppHandle) -> Result<JobQueueResponse, String> {
 /// directly so the storage logic can be unit tested against a real
 /// in-memory SQLite table without needing an AppHandle.
 fn persist_settings(conn: &rusqlite::Connection, settings: &Settings) -> Result<(), String> {
+    // Trim URL + connection code on write so a clipboard paste with trailing
+    // whitespace cannot be stored and then fail an exact-match lookup on the
+    // web portal.
+    let web_api_url = settings.web_api_url.trim().to_string();
+    let api_key = settings
+        .api_key
+        .as_ref()
+        .map(|k| k.trim().to_string())
+        .filter(|k| !k.is_empty());
     let pairs: [(&str, Option<String>); 6] = [
-        ("web_api_url", Some(settings.web_api_url.clone())),
-        ("desktop_api_key", settings.api_key.clone()),
+        ("web_api_url", Some(web_api_url)),
+        ("desktop_api_key", api_key),
         ("whisper_model_size", Some(settings.whisper_model_size.clone())),
         ("ollama_model", Some(settings.ollama_model.clone())),
         ("auto_backup", Some(settings.auto_backup.to_string())),
@@ -547,6 +556,11 @@ fn upsert_synced_client(conn: &rusqlite::Connection, client: &SyncClient) -> Res
     Ok(())
 }
 
+fn is_loopback_portal_url(web_api_url: &str) -> bool {
+    let lower = web_api_url.to_ascii_lowercase();
+    lower.contains("localhost") || lower.contains("127.0.0.1") || lower.contains("[::1]")
+}
+
 /// Fetch the client list from the web portal's real sync endpoint
 /// (GET {web_api_url}/api/desktop/sync, X-Desktop-API-Key header) and
 /// return the parsed client list. Pure HTTP + parsing, no SQLite -- kept
@@ -555,23 +569,50 @@ fn upsert_synced_client(conn: &rusqlite::Connection, client: &SyncClient) -> Res
 /// a real in-memory SQLite table).
 async fn fetch_sync_clients(web_api_url: &str, api_key: &str) -> Result<Vec<SyncClient>, String> {
     let client = sync_http_client()?;
-    let url = format!("{}/api/desktop/sync", web_api_url.trim_end_matches('/'));
+    let base = web_api_url.trim().trim_end_matches('/');
+    let api_key = api_key.trim();
+    let url = format!("{}/api/desktop/sync", base);
 
     let resp = client
         .get(&url)
         .header(DESKTOP_API_KEY_HEADER, api_key)
         .send()
         .await
-        .map_err(|e| format!("Couldn't reach the web portal at {}: {}", web_api_url, e))?;
+        .map_err(|e| {
+            if is_loopback_portal_url(base) {
+                format!(
+                    "Couldn't reach the web portal at {}. That looks like a local/dev address — set Advanced settings → Web portal connection to https://www.solopractice.io. ({})",
+                    base, e
+                )
+            } else {
+                format!(
+                    "Couldn't reach the web portal at {} (network/DNS/timeout). Check your internet connection and that the address is https://www.solopractice.io. ({})",
+                    base, e
+                )
+            }
+        })?;
 
     if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
         return Err(
-            "The web portal rejected this API key. Generate a new one in Settings > Desktop App on the web portal."
+            "The web portal rejected this connection code (invalid or outdated). On the web portal open Settings → Desktop app, generate a new code, paste the full sp_desktop_… value here, then Sync now again."
                 .to_string(),
         );
     }
     if !resp.status().is_success() {
-        return Err(format!("Web portal returned HTTP {}", resp.status()));
+        let status = resp.status();
+        let body_preview = resp.text().await.unwrap_or_default();
+        let looks_like_html = body_preview
+            .trim_start()
+            .to_ascii_lowercase()
+            .starts_with("<!doctype")
+            || body_preview.trim_start().to_ascii_lowercase().starts_with("<html");
+        if looks_like_html {
+            return Err(format!(
+                "Web portal at {} returned HTTP {} with an HTML page instead of the sync API — wrong address or the environment is gated. Use https://www.solopractice.io.",
+                base, status
+            ));
+        }
+        return Err(format!("Web portal returned HTTP {}", status));
     }
 
     let parsed: SyncResponse = resp
@@ -591,13 +632,17 @@ async fn fetch_sync_clients(web_api_url: &str, api_key: &str) -> Result<Vec<Sync
 pub async fn sync_clients(app: AppHandle) -> Result<u32, String> {
     let conn = db::get_connection(&app).map_err(|e| e.to_string())?;
 
+    // Same production default as get_settings — Sync must not fail just because
+    // the therapist never opened Advanced settings to persist the URL.
     let web_api_url = read_setting(&conn, "web_api_url")
-        .filter(|v| !v.trim().is_empty())
-        .ok_or_else(|| "Set the web portal address in Settings first.".to_string())?;
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "https://www.solopractice.io".to_string());
     let api_key = read_setting(&conn, "desktop_api_key")
-        .filter(|v| !v.trim().is_empty())
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
         .ok_or_else(|| {
-            "No desktop API key saved. Generate one on the web portal (Settings > Desktop App) and paste it in here first.".to_string()
+            "No connection code saved. Generate one on the web portal (Settings → Desktop app), paste it here, then Sync now.".to_string()
         })?;
 
     let clients = fetch_sync_clients(&web_api_url, &api_key).await?;
@@ -1910,6 +1955,31 @@ mod sync_tests {
     }
 
     #[test]
+    fn real_sql_persist_settings_trims_connection_code_whitespace() {
+        // Clipboard paste often includes a trailing newline/space. The web
+        // portal stores the exact minted token, so an untrimmed local value
+        // would 401 on sync even though the therapist pasted the right code.
+        let conn = test_conn_with_settings_table();
+        let settings = Settings {
+            web_api_url: "  https://www.solopractice.io/  ".to_string(),
+            api_key: Some("  sp_desktop_trimme\n".to_string()),
+            whisper_model_size: "base".to_string(),
+            ollama_model: "llama3.2".to_string(),
+            auto_backup: true,
+            backup_path: "".to_string(),
+        };
+        persist_settings(&conn, &settings).unwrap();
+        assert_eq!(
+            read_setting(&conn, "desktop_api_key").unwrap(),
+            "sp_desktop_trimme"
+        );
+        assert_eq!(
+            read_setting(&conn, "web_api_url").unwrap(),
+            "https://www.solopractice.io/"
+        );
+    }
+
+    #[test]
     fn real_sql_persist_settings_updates_not_duplicates() {
         let conn = test_conn_with_settings_table();
         let mut settings = Settings {
@@ -2083,7 +2153,10 @@ mod sync_tests {
         let _ = handle.join();
 
         let err = result.expect_err("expected Err from a real 401 response");
-        assert!(err.contains("rejected"), "error should explain the key was rejected: {err}");
+        assert!(
+            err.contains("rejected") && err.contains("connection code"),
+            "error should explain the connection code was rejected: {err}"
+        );
     }
 
     #[test]

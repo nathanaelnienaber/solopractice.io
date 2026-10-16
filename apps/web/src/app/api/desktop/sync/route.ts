@@ -22,7 +22,10 @@ export async function GET(request: NextRequest) {
   
   if (!therapist) {
     return NextResponse.json(
-      { error: "Invalid or missing API key. Generate one in Settings > Desktop Sync." },
+      {
+        error:
+          "Invalid or missing connection code. Generate one in Settings → Desktop app.",
+      },
       { status: 401 }
     );
   }
@@ -84,7 +87,7 @@ export async function POST(request: NextRequest) {
   
   if (!therapist) {
     return NextResponse.json(
-      { error: "Invalid or missing API key" },
+      { error: "Invalid or missing connection code" },
       { status: 401 }
     );
   }

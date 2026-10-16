@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
   const therapist = await authenticateDesktopRequest(request);
   if (!therapist) {
     return NextResponse.json(
-      { error: "Invalid or missing API key" },
+      { error: "Invalid or missing connection code" },
       { status: 401 }
     );
   }
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
   const therapist = await authenticateDesktopRequest(request);
   if (!therapist) {
     return NextResponse.json(
-      { error: "Invalid or missing API key" },
+      { error: "Invalid or missing connection code" },
       { status: 401 }
     );
   }

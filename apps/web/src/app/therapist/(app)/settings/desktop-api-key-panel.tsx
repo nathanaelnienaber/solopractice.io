@@ -101,8 +101,8 @@ export function DesktopApiKeyPanel() {
           <p className="text-sm font-medium text-warning">
             Copy this code now — you will not be able to see it again.
           </p>
-          <ActionStack className="sm:flex-row sm:items-stretch">
-            <code className="min-w-0 flex-1 overflow-x-auto rounded bg-muted px-3 py-2.5 font-mono text-sm select-all">
+          <ActionStack>
+            <code className="block w-full break-all rounded bg-muted px-3 py-2.5 font-mono text-sm select-all">
               {revealedKey}
             </code>
             <Button

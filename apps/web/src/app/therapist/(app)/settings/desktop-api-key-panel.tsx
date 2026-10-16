@@ -115,9 +115,10 @@ export function DesktopApiKeyPanel() {
             </Button>
           </ActionStack>
           <p className="text-xs text-muted-foreground">
-            Paste this into the SoloPractice desktop app — either during setup, or later under
-            Settings &rarr; Advanced settings &rarr; Web Portal Connection &rarr; Connection
-            code — then click &ldquo;Sync Now&rdquo;.
+            Paste this into the SoloPractice desktop app — either during setup (Connect), or later
+            under Settings &rarr; Advanced settings &rarr; Web portal connection &rarr; Connection
+            code — then click &ldquo;Sync now&rdquo; (desktop v0.1.9+ saves the code automatically
+            before syncing). Use the full <code className="font-mono">sp_desktop_…</code> value.
           </p>
           <Button
             type="button"

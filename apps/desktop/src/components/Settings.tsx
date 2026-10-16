@@ -62,10 +62,22 @@ export function Settings({ onReopenWizard }: SettingsProps) {
     };
   }, []);
 
+  /** Normalize before persist — paste often adds trailing whitespace/newlines. */
+  function settingsForPersist(next: SettingsState = settings): SettingsState {
+    const trimmedKey = next.apiKey?.trim() || null;
+    return {
+      ...next,
+      webApiUrl: next.webApiUrl.trim() || "https://www.solopractice.io",
+      apiKey: trimmedKey,
+    };
+  }
+
   async function saveSettings() {
     setSaving(true);
     try {
-      await invoke("save_settings", { settings });
+      const toSave = settingsForPersist();
+      setSettings(toSave);
+      await invoke("save_settings", { settings: toSave });
     } catch (error) {
       console.error("Failed to save settings:", error);
     } finally {
@@ -75,8 +87,13 @@ export function Settings({ onReopenWizard }: SettingsProps) {
 
   async function testConnection() {
     try {
+      // Persist first so Test uses the connection code currently in the form,
+      // not a stale value from the last Save (same trap as Sync now).
+      const toSave = settingsForPersist();
+      setSettings(toSave);
+      await invoke("save_settings", { settings: toSave });
       const result = await invoke<boolean>("test_web_connection", {
-        url: settings.webApiUrl,
+        url: toSave.webApiUrl,
       });
       alert(result ? "Connection successful!" : "Connection failed");
     } catch (error) {
@@ -88,6 +105,14 @@ export function Settings({ onReopenWizard }: SettingsProps) {
     setSyncing(true);
     setSyncMessage(null);
     try {
+      // CRITICAL: sync_clients reads from the local settings table, not React
+      // state. Web instructions say "paste → Sync now", so we must persist the
+      // form (including a freshly pasted connection code) before calling sync.
+      // Without this, Sync used the previously saved key and looked like the
+      // portal "rejected" a brand-new code.
+      const toSave = settingsForPersist();
+      setSettings(toSave);
+      await invoke("save_settings", { settings: toSave });
       const count = await invoke<number>("sync_clients");
       setSyncMessage({
         text: `Synced ${count} client${count === 1 ? "" : "s"} from the web portal.`,

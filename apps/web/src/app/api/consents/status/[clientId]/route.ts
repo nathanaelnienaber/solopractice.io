@@ -37,7 +37,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(
       {
         error:
-          "Invalid or missing API key. Generate one in Settings > Desktop Sync.",
+          "Invalid or missing connection code. Generate one in Settings → Desktop app.",
       },
       { status: 401 },
     );

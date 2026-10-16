@@ -13,7 +13,7 @@
  * Mac build is Apple Silicon (aarch64) only — no Intel x86_64 .dmg exists
  * yet. Confirmed fine for the current trial user (Apple Silicon Mac).
  */
-export const DESKTOP_VERSION = "0.1.8";
+export const DESKTOP_VERSION = "0.1.9";
 
 const RELEASE_ASSET = (name: string) =>
   `https://github.com/nathanaelnienaber/solopractice.io/releases/latest/download/${name}`;

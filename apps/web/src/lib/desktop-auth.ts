@@ -37,16 +37,20 @@ async function findTherapistByDesktopKey(apiKey: string) {
  * as 401 and must never fall back to an environment-wide key.
  */
 export async function authenticateDesktopRequest(request: NextRequest) {
-  const apiKey = request.headers.get(DESKTOP_API_KEY_HEADER);
+  const raw = request.headers.get(DESKTOP_API_KEY_HEADER);
 
-  if (!apiKey) {
+  if (!raw) {
     return null;
   }
+
+  // Trim: clipboard paste and some HTTP stacks can leave trailing whitespace.
+  // Lookup must use the trimmed value (empty after trim is not a valid key).
+  const apiKey = raw.trim();
 
   // A therapist row with a NULL desktop_api_key must never be matched by an
   // empty header value; `eq(col, "")` cannot match NULL in Postgres, but guard
   // explicitly rather than relying on that.
-  if (apiKey.trim() === "") {
+  if (apiKey === "") {
     return null;
   }
 
